@@ -1,0 +1,5 @@
+{
+  "im-select.nvim": { "branch": "master", "commit": "630b4bfe1c71ca9947b2b437a52c0f60cc55208c" },
+  "lazy.nvim": { "branch": "main", "commit": "f15a93907ddad3d9139aea465ae18336d87f5ce6" },
+  "mini.nvim": { "branch": "main", "commit": "d479cf109eeff8a7e0bf978079ea1dd2171648a0" }
+}
