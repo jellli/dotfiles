@@ -31,6 +31,8 @@ zinit light zsh-users/zsh-completions
 zinit light zsh-users/zsh-autosuggestions
 zinit light Aloxaf/fzf-tab
 
+zinit light lukechilds/zsh-nvm
+
 # Add in snippets
 zinit snippet OMZL::git.zsh
 zinit snippet OMZP::git
@@ -79,6 +81,12 @@ alias ls='ls --color'
 alias vim='nvim'
 alias c='clear'
 alias lg='lazygit'
+
+# Brew
+export HOMEBREW_API_DOMAIN="https://mirrors.aliyun.com/homebrew-bottles/api"
+export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.aliyun.com/homebrew/brew.git"
+export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.aliyun.com/homebrew/homebrew-core.git"
+export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.aliyun.com/homebrew/homebrew-bottles"
 
 # Vars
 export LANG=zh_CN.UTF-8
