@@ -15,5 +15,5 @@ require("lazy").setup({
 			require("im_select").setup({})
 		end,
 	},
-	require("jili.plugins.mini"),
+	require("jili.plugins.nvim-surround"),
 })
