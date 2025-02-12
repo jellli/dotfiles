@@ -9,11 +9,7 @@ end
 vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
 	checker = { enabled = true },
-	{
-		"keaising/im-select.nvim",
-		config = function()
-			require("im_select").setup({})
-		end,
-	},
+	require("jili.plugins.im-select"),
 	require("jili.plugins.nvim-surround"),
+	require("jili.plugins.nvim-ufo"),
 })
