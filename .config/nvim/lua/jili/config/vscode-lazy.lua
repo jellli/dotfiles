@@ -10,6 +10,6 @@ vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
 	checker = { enabled = true },
 	require("jili.plugins.im-select"),
-	require("jili.plugins.nvim-surround"),
+	require("jili.plugins.mini"),
 	require("jili.plugins.nvim-ufo"),
 })
