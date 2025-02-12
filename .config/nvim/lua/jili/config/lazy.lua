@@ -11,7 +11,7 @@ require("lazy").setup({
 	require("jili.plugins.blankline"),
 	require("jili.plugins.color-scheme"),
 	require("jili.plugins.comment"),
-	require("jili.plugins.codeium"),
+	require("jili.plugins.neocodeium"),
 	require("jili.plugins.formatter"),
 	require("jili.plugins.gitsigns"),
 	require("jili.plugins.lazygit"),
