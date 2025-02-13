@@ -185,7 +185,7 @@ return {
 			--    https://github.com/pmizio/typescript-tools.nvim
 			--
 			-- But for many setups, the LSP (`ts_ls`) will work just fine
-			-- ts_ls = {},
+			ts_ls = {},
 			["cssmodules-language-server"] = {},
 			--
 			-- pylsp = {
@@ -207,9 +207,21 @@ return {
 			html = { filetypes = { "html", "twig", "hbs" } },
 			cssls = {},
 			tailwindcss = {},
-			dockerls = {},
+			["emmet-language-server"] = {
+				-- ["emmet.syntaxProfiles"] = {
+				-- 	jsx = {
+				-- 		-- options = {
+				-- 		["markup.attributes"] = {
+				-- 			["class*"] = "className",
+				-- 		},
+				-- 		["output.selfClosingStyle"] = "xhtml",
+				-- 		-- },
+				-- 	},
+				-- },
+			},
+			-- dockerls = {},
 			-- sqlls = {},
-			terraformls = {},
+			-- terraformls = {},
 			jsonls = {},
 			-- yamlls = {},
 
