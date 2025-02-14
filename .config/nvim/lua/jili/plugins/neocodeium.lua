@@ -1,3 +1,21 @@
+function Insert_indent()
+	local expandtab = vim.o.expandtab
+	local tabstop = vim.o.tabstop
+
+	local indent_char
+	local indent_size
+
+	if expandtab then
+		indent_char = " "
+		indent_size = tabstop
+	else
+		indent_char = "\t"
+		indent_size = 1
+	end
+
+	vim.api.nvim_input(indent_char:rep(indent_size))
+end
+
 return {
 	"monkoose/neocodeium",
 	event = "VeryLazy",
@@ -5,19 +23,17 @@ return {
 		local neocodeium = require("neocodeium")
 		neocodeium.setup()
 		vim.keymap.set("i", "<Tab>", function()
-			neocodeium.accept()
+			if neocodeium.visible() then
+				neocodeium.accept()
+			else
+				Insert_indent()
+			end
 		end)
 		vim.keymap.set("i", "<A-w>", function()
 			neocodeium.accept_word()
 		end)
-		vim.keymap.set("i", "<A-a>", function()
+		vim.keymap.set("i", "<A-l>", function()
 			neocodeium.accept_line()
-		end)
-		vim.keymap.set("i", "<A-e>", function()
-			neocodeium.cycle_or_complete()
-		end)
-		vim.keymap.set("i", "<A-r>", function()
-			neocodeium.cycle_or_complete(-1)
 		end)
 		vim.keymap.set("i", "<A-c>", function()
 			neocodeium.clear()
