@@ -25,6 +25,7 @@ require("lazy").setup({
 	require("jili.plugins.nvim-ufo"),
 	require("jili.plugins.telescope"),
 	require("jili.plugins.treesitter"),
+	require("jili.plugins.trouble"),
 	require("jili.plugins.typescript-tools"),
 	require("jili.plugins.vim-tmux-navigator"),
 	require("jili.plugins.which-key"),
