@@ -224,7 +224,7 @@ return {
 			-- terraformls = {},
 			jsonls = {},
 			-- yamlls = {},
-
+			biome = {},
 			lua_ls = {
 				-- cmd = { ... },
 				-- filetypes = { ... },

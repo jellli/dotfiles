@@ -82,6 +82,7 @@ alias ls='ls --color'
 alias vim='nvim'
 alias c='clear'
 alias lg='lazygit'
+alias cd='z'
 
 # Brew
 export HOMEBREW_API_DOMAIN="https://mirrors.aliyun.com/homebrew-bottles/api"
@@ -92,3 +93,5 @@ export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.aliyun.com/homebrew/homebrew-bott
 # Vars
 export LANG=zh_CN.UTF-8
 export LC_ALL=zh_CN.UTF-8
+
+eval "$(zoxide init zsh)"
