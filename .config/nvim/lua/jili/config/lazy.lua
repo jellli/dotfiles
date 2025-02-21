@@ -10,11 +10,13 @@ vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
 	require("jili.plugins.autocmp"),
 	require("jili.plugins.blankline"),
+	require("jili.plugins.bufferline"),
 	require("jili.plugins.color-scheme"),
 	require("jili.plugins.comment"),
 	require("jili.plugins.flash"),
 	require("jili.plugins.formatter"),
 	require("jili.plugins.gitsigns"),
+	require("jili.plugins.harpoon"),
 	require("jili.plugins.im-select"),
 	require("jili.plugins.lazygit"),
 	require("jili.plugins.lsp"),

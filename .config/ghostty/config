@@ -1,11 +1,11 @@
-theme = dark:tokyonight,light:tokyonight-day
+theme = github dark
 font-family = FiraMono Nerd Font Mono
 
 font-size = 14
 adjust-cell-height = 10%
 
 # No warning dialogue before closing
-confirm-close-surface = false
+# confirm-close-surface = false
 
 # Treat the option key as alt:
 macos-option-as-alt = true
