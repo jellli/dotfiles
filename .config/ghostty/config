@@ -1,5 +1,6 @@
-theme = github dark
-font-family = FiraMono Nerd Font Mono
+theme = tokyonight_night
+# font-family = FiraMono Nerd Font Mono
+font-family = font-sf-mono-nerd-font-ligaturized 
 
 font-size = 14
 adjust-cell-height = 10%

@@ -2,19 +2,24 @@
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
--- Set jk or kj to escape
-vim.keymap.set("i", "jk", "<ESC>", { silent = true })
-vim.keymap.set("i", "kj", "<ESC>", { silent = true })
-vim.keymap.set({ "i", "n", "v" }, "<C-^>", "<ESC>", { silent = true })
-
-vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv")
-vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv")
-
--- Disable the spacebar key's default behavior in Normal and Visual modes
-vim.keymap.set({ "n", "v" }, "<Space>", "<Nop>", { silent = true })
-
 -- For conciseness
 local opts = { noremap = true, silent = true }
+
+-- Set jk or kj to escape
+vim.keymap.set("i", "jk", "<ESC>", opts)
+vim.keymap.set("i", "kj", "<ESC>", opts)
+vim.keymap.set({ "i", "n", "v" }, "<C-^>", "<ESC>", opts)
+-- Ctrl + enter to new line
+
+vim.keymap.set("i", "<C-o>", "<ESC>o", opts)
+
+vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv", opts)
+vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv", opts)
+
+-- Disable the spacebar key's default behavior in Normal and Visual modes
+vim.keymap.set({ "n", "v" }, "<Space>", "<Nop>", opts)
+-- Disable the CapsLock key's default behavior
+vim.keymap.set({ "n", "v", "i" }, "<C-^>", "<Nop>", opts)
 
 -- save file
 vim.keymap.set({ "n", "i" }, "<C-s>", "<cmd> w <CR>", opts)
