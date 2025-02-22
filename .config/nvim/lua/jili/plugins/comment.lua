@@ -2,8 +2,12 @@
 return {
 	"numToStr/Comment.nvim",
 	opts = {},
+	dependencies = { "JoosepAlviste/nvim-ts-context-commentstring" },
 	config = function()
 		local opts = { noremap = true, silent = true }
+		require("Comment").setup({
+			pre_hook = require("ts_context_commentstring.integrations.comment_nvim").create_pre_hook(),
+		})
 		vim.keymap.set(
 			"v",
 			"<C-_>",
