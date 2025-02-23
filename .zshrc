@@ -3,6 +3,11 @@ if [[ -f "/opt/homebrew/bin/brew" ]] then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
+TPM_HOME="${XDG_DATA_HOME:-${HOME}}/.tmux/plugins/tpm"
+if [ ! -d "$TPM_HOME" ]; then
+   mkdir -p "$(dirname $TPM_HOME)"
+   git clone https://github.com/tmux-plugins/tpm "$TPM_HOME"
+fi
 # Set the directory to store zinit and plugins
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
 
@@ -94,3 +99,4 @@ export LANG=zh_CN.UTF-8
 export LC_ALL=zh_CN.UTF-8
 
 eval "$(zoxide init zsh)"
+export PATH=$HOME/bin:~/local/nvim/bin/:$PATH
