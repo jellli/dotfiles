@@ -4,15 +4,21 @@ return {
 	{
 		"OXY2DEV/markview.nvim",
 		lazy = false,
+		opts = {
+			preview = {
+				-- icon_provider = "mini",
+				enable = true,
+			},
+		},
 	},
 	{
 		"OXY2DEV/helpview.nvim",
 		lazy = false,
 	},
-	-- {
-	-- 	"sphamba/smear-cursor.nvim",
-	-- 	opts = {},
-	-- },
+	{
+		"sphamba/smear-cursor.nvim",
+		opts = {},
+	},
 	{
 		"m4xshen/hardtime.nvim",
 		dependencies = { "MunifTanjim/nui.nvim" },
