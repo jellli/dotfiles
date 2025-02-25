@@ -38,5 +38,6 @@ require("lazy").setup({
 	require("jili.plugins.undo-glow"),
 	require("jili.plugins.vim-tmux-navigator"),
 	require("jili.plugins.which-key"),
+	require("jili.plugins.yazi"),
 	checker = { enabled = true },
 })
