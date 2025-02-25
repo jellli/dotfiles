@@ -1,12 +1,13 @@
 theme = tokyonight_night
-# font-family = FiraMono Nerd Font Mono
-font-family = font-sf-mono-nerd-font-ligaturized 
+background = #0f0f11
+
+font-family = Fira Code
+font-family = Liga SFMono Nerd Font 
+font-family = 思源黑体
 
 font-size = 14
-adjust-cell-height = 10%
+adjust-cell-height = 15%
 
-# No warning dialogue before closing
-# confirm-close-surface = false
-
-# Treat the option key as alt:
+cursor-style = block
+mouse-hide-while-typing = true
 macos-option-as-alt = true

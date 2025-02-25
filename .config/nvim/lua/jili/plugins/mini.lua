@@ -19,5 +19,6 @@ return {
 		--  Check out: https://github.com/echasnovski/mini.nvim
 
 		require("mini.starter").setup()
+		-- require("mini.notify").setup()
 	end,
 }

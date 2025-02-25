@@ -87,6 +87,8 @@ alias vim='nvim'
 alias c='clear'
 alias lg='lazygit'
 alias cd='z'
+alias cat='bat'
+alias t='tmux'
 
 # Brew
 export HOMEBREW_API_DOMAIN="https://mirrors.aliyun.com/homebrew-bottles/api"

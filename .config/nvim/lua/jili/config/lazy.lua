@@ -31,6 +31,7 @@ require("lazy").setup({
 	require("jili.plugins.treesitter"),
 	require("jili.plugins.trouble"),
 	require("jili.plugins.typescript-tools"),
+	require("jili.plugins.undo-glow"),
 	require("jili.plugins.vim-tmux-navigator"),
 	require("jili.plugins.which-key"),
 	checker = { enabled = true },
