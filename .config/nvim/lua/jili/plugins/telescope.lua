@@ -59,12 +59,11 @@ return {
 			},
 			pickers = {
 				find_files = {
-					file_ignore_patterns = { "node_modules", ".git", ".venv", ".next" },
+					-- https://github.com/nvim-telescope/telescope.nvim/issues/522#issuecomment-777384452
 					hidden = true,
 				},
 			},
 			live_grep = {
-				file_ignore_patterns = { "node_modules", ".git", ".venv", ".next" },
 				additional_args = function(_)
 					return { "--hidden" }
 				end,
