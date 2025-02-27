@@ -48,6 +48,7 @@ return {
 			-- You can put your default mappings / updates / etc. in here
 			--  All the info you're looking for is in `:help telescope.setup()`
 			defaults = {
+				file_ignore_patterns = { "node_modules", "%.git" },
 				mappings = {
 					i = {
 						["<C-k>"] = require("telescope.actions").move_selection_previous, -- move to prev result
