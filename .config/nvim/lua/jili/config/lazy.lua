@@ -9,6 +9,7 @@ end
 vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
 	-- require("jili.plugins.autocmp"),
+	require("jili.plugins.alpha"),
 	require("jili.plugins.blankline"),
 	require("jili.plugins.blink"),
 	require("jili.plugins.bufferline"),
