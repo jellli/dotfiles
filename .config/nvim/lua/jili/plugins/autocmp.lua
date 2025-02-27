@@ -34,8 +34,10 @@ return { -- Autocompletion
 		"hrsh7th/cmp-path",
 		"hrsh7th/cmp-buffer",
 		"hrsh7th/cmp-cmdline",
+		-- make the auto completion look better
+		"onsails/lspkind.nvim", -- add symbols to autocompletion
 		{
-			"xzbdmw/colorful-menu.nvim",
+			"xzbdmw/colorful-menu.nvim", -- color the menu
 			config = function()
 				require("colorful-menu").setup({})
 			end,
@@ -55,7 +57,12 @@ return { -- Autocompletion
 			},
 			completion = { completeopt = "menu,menuone,noinsert" },
 			formatting = {
+				fields = { "kind", "abbr", "menu" },
+
 				format = function(entry, vim_item)
+					local kind = require("lspkind").cmp_format({
+						mode = "symbol_text",
+					})(entry, vim.deepcopy(vim_item))
 					local highlights_info = require("colorful-menu").cmp_highlights(entry)
 
 					-- highlight_info is nil means we are missing the ts parser, it's
@@ -65,11 +72,13 @@ return { -- Autocompletion
 						vim_item.abbr_hl_group = highlights_info.highlights
 						vim_item.abbr = highlights_info.text
 					end
+					local strings = vim.split(kind.kind, "%s", { trimempty = true })
+					vim_item.kind = " " .. (strings[1] or "") .. " "
+					vim_item.menu = ""
 
 					return vim_item
 				end,
 			},
-
 			-- For an understanding of why these mappings were
 			-- chosen, you will need to read `:help ins-completion`
 			--
