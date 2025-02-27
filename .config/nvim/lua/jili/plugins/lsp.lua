@@ -186,21 +186,11 @@ return {
 			html = { filetypes = { "html", "twig", "hbs" } },
 			cssls = {},
 			tailwindcss = {},
-			["emmet-language-server"] = {
-				-- ["emmet.syntaxProfiles"] = {
-				-- 	jsx = {
-				-- 		-- options = {
-				-- 		["markup.attributes"] = {
-				-- 			["class*"] = "className",
-				-- 		},
-				-- 		["output.selfClosingStyle"] = "xhtml",
-				-- 		-- },
-				-- 	},
-				-- },
-			},
+			["emmet-ls"] = {},
 			ts_ls = {}, -- managed by typescript-tools
 			yamlls = {},
 			biome = {},
+			marksman = {},
 			lua_ls = {
 				settings = {
 					Lua = {
@@ -233,6 +223,7 @@ return {
 		})
 		require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
 
+		---@diagnostic disable-next-line: missing-fields
 		require("mason-lspconfig").setup({
 			handlers = {
 				function(server_name)
@@ -242,6 +233,25 @@ return {
 					-- certain features of an LSP (for example, turning off formatting for ts_ls)
 					server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
 					require("lspconfig")[server_name].setup(server)
+				end,
+				["emmet_ls"] = function()
+					require("lspconfig").emmet_ls.setup({
+						init_options = {
+							jsx = {
+								options = {
+									["jsx.enabled"] = true,
+									["markup.attributes"] = {
+										["class"] = "className",
+										["class*"] = "className",
+										["for"] = "htmlFor",
+									},
+									["markup.valuePrefix"] = {
+										["class*"] = "styles",
+									},
+								},
+							},
+						},
+					})
 				end,
 				["ts_ls"] = function()
 					-- do nothing, managed by typescript-tools
