@@ -62,7 +62,7 @@ return {
 			dashboard.button("q", "󰅚  > Quit", "<cmd>qa<CR>"),
 		}
 		thera.config.layout = {
-			{ type = "padding", val = 3 },
+			{ type = "padding", val = 5 },
 			thera.header,
 			section_mru,
 			{ type = "padding", val = 1 },

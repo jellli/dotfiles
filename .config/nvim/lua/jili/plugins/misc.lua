@@ -1,22 +1,5 @@
 return {
 	{
-		"OXY2DEV/markview.nvim",
-		lazy = false,
-		opts = {
-			preview = {
-				-- icon_provider = "mini",
-				enable = true,
-				-- filetypes = { "md" },
-				-- ignore_previews = {},
-			},
-			markdown = {
-				headings = {
-					enable = false,
-				},
-			},
-		},
-	},
-	{
 		"OXY2DEV/helpview.nvim",
 		lazy = false,
 	},
@@ -27,11 +10,6 @@ return {
 			trailing_stiffness = 0.5, -- 0.3      [0, 1]
 			distance_stop_animating = 0.5, -- 0.1      > 0
 		},
-	},
-	{
-		"m4xshen/hardtime.nvim",
-		dependencies = { "MunifTanjim/nui.nvim" },
-		opts = {},
 	},
 	{
 		event = "InsertEnter",
