@@ -27,18 +27,22 @@ return {
 					path = "~/vaults/jili",
 				},
 			},
+			---@diagnostic disable-next-line: missing-fields
 			completion = {
 				nvim_cmp = false,
 				blink = true,
 			},
 			notes_subdir = "notes",
-			daily_notes = {
-				folder = "notes/dailies",
-				date_format = "%Y-%m-%d",
-				alias_format = "%B %-d, %Y",
-				default_tags = { "daily-notes" },
-				template = nil,
-			},
+			new_notes_location = "notes_subdir",
+			note_frontmatter_func = function(note)
+				local out = note.frontmatter(note)
+				if out.created == nil then
+					out.created = os.date("%Y-%m-%d %H:%M:%S")
+				end
+				out.modified = os.date("%Y-%m-%d %H:%M:%S")
+
+				return out
+			end,
 		})
 	end,
 }
