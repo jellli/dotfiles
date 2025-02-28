@@ -6,9 +6,9 @@ vim.g.maplocalleader = " "
 local opts = { noremap = true, silent = true }
 
 -- Set jk or kj to escape
-vim.keymap.set("i", "jk", "<ESC>", opts)
-vim.keymap.set("i", "kj", "<ESC>", opts)
-vim.keymap.set({ "i", "n", "v" }, "<C-^>", "<ESC>", opts)
+-- vim.keymap.set("i", "jk", "<ESC>", opts)
+-- vim.keymap.set("i", "kj", "<ESC>", opts)
+-- vim.keymap.set({ "i", "n", "v" }, "<C-^>", "<ESC>", opts)
 -- Ctrl + enter to new line
 
 vim.keymap.set("i", "<C-o>", "<ESC>o", opts)
@@ -82,6 +82,7 @@ vim.keymap.set("v", ">", ">gv", opts)
 -- Keep last yanked when pasting
 vim.keymap.set("v", "p", '"_dP', opts)
 vim.keymap.set("n", "c", '"_c', opts)
+vim.keymap.set("n", "C", '"_C', opts)
 
 -- Diagnostic keymaps
 vim.keymap.set("n", "[d", vim.diagnostic.goto_prev, { desc = "Go to previous diagnostic message" })
