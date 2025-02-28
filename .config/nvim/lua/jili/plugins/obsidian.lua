@@ -1,6 +1,8 @@
 return {
-	"epwalsh/obsidian.nvim",
-	version = "*", -- recommended, use latest release instead of latest commit
+	-- "epwalsh/obsidian.nvim",
+	"adamtajti/obsidian.nvim",
+	-- version = "*", -- recommended, use latest release instead of latest commit
+	branch = "blink-support",
 	lazy = true,
 	ft = "markdown",
 	-- Replace the above line with this if you only want to load obsidian.nvim for markdown files in your vault:
@@ -24,6 +26,18 @@ return {
 					name = "Jili",
 					path = "~/vaults/jili",
 				},
+			},
+			completion = {
+				nvim_cmp = false,
+				blink = true,
+			},
+			notes_subdir = "notes",
+			daily_notes = {
+				folder = "notes/dailies",
+				date_format = "%Y-%m-%d",
+				alias_format = "%B %-d, %Y",
+				default_tags = { "daily-notes" },
+				template = nil,
 			},
 		})
 	end,
