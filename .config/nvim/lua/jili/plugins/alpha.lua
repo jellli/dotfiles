@@ -57,9 +57,7 @@ return {
 			{ type = "text", val = "Quick links", opts = { hl = "SpecialComment", position = "center" } },
 			{ type = "padding", val = 1 },
 			dashboard.button("b", "  > Browse files", ":Oil --float<CR>"),
-			-- dashboard.button("z", "  > Browse Directories", ":Telescope zoxide list<CR>"),
 			dashboard.button("f", "󰈞  > Find file", ":Telescope find_files<CR>"),
-			-- dashboard.button("r", "  > Recent", ":Telescope oldfiles<CR>"),
 			dashboard.button("u", "  > Update plugins", "<cmd>Lazy sync<CR>"),
 			dashboard.button("q", "󰅚  > Quit", "<cmd>qa<CR>"),
 		}

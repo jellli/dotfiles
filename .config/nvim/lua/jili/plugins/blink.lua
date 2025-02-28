@@ -16,6 +16,9 @@ return {
 			default = { "lsp", "path", "snippets", "buffer" },
 		},
 		fuzzy = { implementation = "prefer_rust_with_warning" },
+		keymap = {
+			["<C-f>"] = {},
+		},
 		cmdline = {
 			enabled = true,
 			completion = { menu = { auto_show = true } },
