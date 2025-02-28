@@ -6,7 +6,7 @@ font-family = Liga SFMono Nerd Font
 font-family = 思源黑体
 
 font-size = 14
-adjust-cell-height = 15%
+# adjust-cell-height = 05%
 
 cursor-style = block
 mouse-hide-while-typing = true
