@@ -1,6 +1,4 @@
-local opts = { noremap = true, silent = true }
 return {
-	{ "Weyaaron/nvim-training", pin = true, opts = {} },
 	{
 		"OXY2DEV/markview.nvim",
 		lazy = false,
