@@ -8,13 +8,12 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
-	-- require("jili.plugins.autocmp"),
-	require("jili.plugins.alpha"),
 	require("jili.plugins.blankline"),
 	require("jili.plugins.blink"),
 	require("jili.plugins.bufferline"),
 	require("jili.plugins.color-scheme"),
 	require("jili.plugins.comment"),
+	require("jili.plugins.dashboard"),
 	require("jili.plugins.flash"),
 	require("jili.plugins.formatter"),
 	require("jili.plugins.gitsigns"),
@@ -37,7 +36,7 @@ require("lazy").setup({
 	require("jili.plugins.treesitter"),
 	require("jili.plugins.treesj"),
 	require("jili.plugins.trouble"),
-	require("jili.plugins.typescript-tools"),
+	require("jili.plugins.typescript-dev"),
 	require("jili.plugins.undo-glow"),
 	require("jili.plugins.vim-tmux-navigator"),
 	require("jili.plugins.which-key"),

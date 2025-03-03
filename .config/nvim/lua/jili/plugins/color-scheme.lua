@@ -1,10 +1,4 @@
 return {
-	{ "RRethy/base16-nvim" },
-	{ "rebelot/kanagawa.nvim" },
-	{ "catppuccin/nvim", name = "catppuccin", priority = 1000 },
-	{
-		"nyoom-engineering/oxocarbon.nvim",
-	},
 	{
 		"folke/tokyonight.nvim",
 		lazy = false,

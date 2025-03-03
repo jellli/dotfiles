@@ -3,7 +3,6 @@ return {
 	dependencies = {
 		"echasnovski/mini.icons",
 	},
-
 	config = function()
 		local alpha = require("alpha")
 		local thera = require("alpha.themes.theta")
