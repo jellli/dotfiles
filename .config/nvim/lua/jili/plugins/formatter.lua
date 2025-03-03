@@ -18,15 +18,15 @@ return {
 			formatters_by_ft = {
 				lua = { "stylua" },
 				rust = { "rustfmt" },
-				css = { "biome" },
-				html = { "biome" },
-				scss = { "biome" },
-				markdown = { "biome" },
+				css = { "prettier" },
+				html = { "prettier" },
+				scss = { "prettier" },
+				markdown = { "prettier" },
 
-				["javascript"] = { "biome" },
-				["javascriptreact"] = { "biome" },
-				["typescript"] = { "biome" },
-				["typescriptreact"] = { "biome" },
+				["javascript"] = { "prettier" },
+				["javascriptreact"] = { "prettier" },
+				["typescript"] = { "prettier" },
+				["typescriptreact"] = { "prettier" },
 			},
 			format_on_save = {
 				enabled = true,

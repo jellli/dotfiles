@@ -4,6 +4,7 @@ return {
 		lazy = false,
 		priority = 1000,
 		config = function()
+			---@diagnostic disable-next-line: missing-fields
 			require("tokyonight").setup({
 				transparent = true,
 				style = "night",
@@ -20,7 +21,7 @@ return {
 					},
 				},
 			})
-			vim.cmd([[colorscheme tokyonight]])
+			vim.cmd.colorscheme("tokyonight-night")
 		end,
 	},
 }
