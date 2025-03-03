@@ -51,4 +51,11 @@ return {
 			require("better_escape").setup()
 		end,
 	},
+	{
+		"karb94/neoscroll.nvim",
+		opts = {
+			duration_multiplier = 0.1,
+		},
+	},
+	{ "dmmulroy/ts-error-translator.nvim" },
 }
