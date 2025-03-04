@@ -1,6 +1,10 @@
 return {
 	"saghen/blink.cmp",
-	dependencies = { "rafamadriz/friendly-snippets", "onsails/lspkind.nvim", "L3MON4D3/LuaSnip" },
+	dependencies = {
+		"rafamadriz/friendly-snippets",
+		-- "onsails/lspkind.nvim",
+		"L3MON4D3/LuaSnip",
+	},
 	version = "*",
 	config = function()
 		require("blink.cmp").setup({

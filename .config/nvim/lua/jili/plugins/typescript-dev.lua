@@ -8,6 +8,7 @@ return {
 				publish_diagnostic_on = "insert_leave",
 				tsserver_locale = "zh-cn",
 				expose_as_code_action = "all",
+				code_lens = "all",
 			},
 		},
 	},

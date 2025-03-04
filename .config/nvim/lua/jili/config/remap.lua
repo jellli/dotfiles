@@ -43,10 +43,10 @@ vim.keymap.set("n", "n", "nzzzv", opts)
 vim.keymap.set("n", "N", "Nzzzv", opts)
 
 -- Resize with arrows
-vim.keymap.set("n", "<Up>", ":resize -2<CR>", opts)
-vim.keymap.set("n", "<Down>", ":resize +2<CR>", opts)
-vim.keymap.set("n", "<Left>", ":vertical resize -2<CR>", opts)
-vim.keymap.set("n", "<Right>", ":vertical resize +2<CR>", opts)
+vim.keymap.set("n", "<Up>", ":resize -10<CR>", opts)
+vim.keymap.set("n", "<Down>", ":resize +10<CR>", opts)
+vim.keymap.set("n", "<Left>", ":vertical resize -10<CR>", opts)
+vim.keymap.set("n", "<Right>", ":vertical resize +10<CR>", opts)
 
 -- Buffers
 vim.keymap.set("n", "<Tab>", ":bnext<CR>", opts)
@@ -95,3 +95,5 @@ vim.keymap.set("n", "<leader>d", vim.diagnostic.open_float, { desc = "Open float
 vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, { desc = "Open diagnostics list" })
 
 vim.keymap.set("n", "<leader>bo", "<cmd>%bd|e#<cr>", { desc = "Close all buffers but the current one" })
+
+vim.keymap.set("n", "<leader>lz", "<cmd>Lazy<cr>", { desc = "Lazy" })

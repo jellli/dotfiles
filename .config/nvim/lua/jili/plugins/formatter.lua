@@ -14,19 +14,24 @@ return {
 	},
 	config = function()
 		local conform = require("conform")
+		local webdev_opts = {
+			stop_after_first = true,
+			"biome",
+			"prettier",
+		}
 		conform.setup({
 			formatters_by_ft = {
 				lua = { "stylua" },
 				rust = { "rustfmt" },
-				css = { "prettier" },
-				html = { "prettier" },
-				scss = { "prettier" },
-				markdown = { "prettier" },
+				css = webdev_opts,
+				html = webdev_opts,
+				scss = webdev_opts,
+				markdown = webdev_opts,
 
-				["javascript"] = { "prettier" },
-				["javascriptreact"] = { "prettier" },
-				["typescript"] = { "prettier" },
-				["typescriptreact"] = { "prettier" },
+				["javascript"] = webdev_opts,
+				["javascriptreact"] = webdev_opts,
+				["typescript"] = webdev_opts,
+				["typescriptreact"] = webdev_opts,
 			},
 			format_on_save = {
 				enabled = true,
