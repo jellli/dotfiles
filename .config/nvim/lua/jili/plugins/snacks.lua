@@ -35,10 +35,7 @@ return {
 		},
 		input = { enabled = true },
 		notifier = {
-			enabled = true,
-			timeout = 3000,
-			top_down = true,
-			style = "minimal",
+			enabled = false,
 		},
 		picker = { enabled = true },
 		scope = { enabled = true },
@@ -60,11 +57,7 @@ return {
 			},
 		},
 		words = { enabled = true },
-		styles = {
-			notification = {
-				border = "",
-			},
-		},
+		styles = {},
 	},
   -- stylua: ignore start
   keys = {

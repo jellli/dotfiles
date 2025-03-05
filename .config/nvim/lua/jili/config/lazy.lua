@@ -22,6 +22,7 @@ require("lazy").setup({
 	require("jili.plugins.mini"),
 	require("jili.plugins.misc"),
 	require("jili.plugins.neocodeium"),
+	require("jili.plugins.noice"),
 	require("jili.plugins.nvim-ufo"),
 	require("jili.plugins.obsidian"),
 	require("jili.plugins.outline"),
