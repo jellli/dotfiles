@@ -29,6 +29,7 @@ return {
 			},
 			completion = {
 				menu = {
+					border = "single",
 					draw = {
 						columns = {
 							{ "kind_icon" },
@@ -40,7 +41,7 @@ return {
 				},
 				documentation = {
 					window = {
-						border = "rounded",
+						border = "single",
 					},
 					auto_show = true,
 					auto_show_delay_ms = 500,
