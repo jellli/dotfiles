@@ -63,6 +63,7 @@ return {
 		thera.config.layout = {
 			{ type = "padding", val = 5 },
 			thera.header,
+			{ type = "padding", val = 2 },
 			section_mru,
 			{ type = "padding", val = 1 },
 			thera.buttons,
