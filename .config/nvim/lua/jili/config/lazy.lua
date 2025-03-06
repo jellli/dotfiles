@@ -39,5 +39,7 @@ require("lazy").setup({
 	require("jili.plugins.vim-tmux-navigator"),
 	require("jili.plugins.which-key"),
 	require("jili.plugins.yazi"),
+
+	require("jili.plugins.tmux-picker"),
 	checker = { enabled = true },
 })
