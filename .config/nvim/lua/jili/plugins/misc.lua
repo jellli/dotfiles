@@ -18,4 +18,10 @@ return {
 		dependencies = { "nvim-lua/plenary.nvim" },
 		opts = { signs = false },
 	},
+	{
+		"aidancz/buvvers.nvim",
+		config = function()
+			require("buvvers").setup()
+		end,
+	},
 }

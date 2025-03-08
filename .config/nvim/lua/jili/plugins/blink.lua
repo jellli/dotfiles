@@ -18,7 +18,9 @@ return {
 			},
 			fuzzy = { implementation = "prefer_rust_with_warning" },
 			keymap = {
+				preset = "enter",
 				["<C-f>"] = {},
+				["<C-y>"] = { "select_and_accept", "fallback" },
 			},
 			cmdline = {
 				enabled = true,
