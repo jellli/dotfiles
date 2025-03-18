@@ -4,12 +4,16 @@ vim.g.maplocalleader = " "
 
 -- For conciseness
 local opts = { noremap = true, silent = true }
-
 -- Set jk or kj to escape
 -- vim.keymap.set("i", "jk", "<ESC>", opts)
 -- vim.keymap.set("i", "kj", "<ESC>", opts)
 -- vim.keymap.set({ "i", "n", "v" }, "<C-^>", "<ESC>", opts)
--- Ctrl + enter to new line
+
+-- insert movement
+vim.keymap.set("i", "<C-h>", "<Left>", opts)
+vim.keymap.set("i", "<C-j>", "<Down>", opts)
+vim.keymap.set("i", "<C-k>", "<Up>", opts)
+vim.keymap.set("i", "<C-l>", "<Right>", opts)
 
 vim.keymap.set("i", "<C-o>", "<ESC>o", opts)
 
@@ -52,11 +56,11 @@ vim.keymap.set("n", "<Right>", ":vertical resize +10<CR>", opts)
 vim.keymap.set("n", "<Tab>", ":bnext<CR>", opts)
 vim.keymap.set("n", "<S-Tab>", ":bprevious<CR>", opts)
 vim.keymap.set("n", "<leader>x", ":bdelete!<CR>", opts) -- close buffer
-vim.keymap.set("n", "<leader>b", "<cmd> enew <CR>", opts) -- new buffer
+-- vim.keymap.set("n", "<leader>b", "<cmd> enew <CR>", opts) -- new buffer
 
 -- Window management
 vim.keymap.set("n", "<leader>v", "<C-w>v", opts) -- split window vertically
--- vim.keymap.set("n", "<leader>h", "<C-w>s", opts) -- split window horizontally
+vim.keymap.set("n", "<leader>h", "<C-w>s", opts) -- split window horizontally
 vim.keymap.set("n", "<leader>se", "<C-w>=", opts) -- make split windows equal width & height
 vim.keymap.set("n", "<leader>xs", ":close<CR>", opts) -- close current split window
 
@@ -91,8 +95,8 @@ end, { desc = "Go to previous diagnostic message" })
 vim.keymap.set("n", "]d", function()
 	vim.diagnostic.jump({ count = 1, float = true })
 end, { desc = "Go to next diagnostic message" })
-vim.keymap.set("n", "<leader>d", vim.diagnostic.open_float, { desc = "Open floating diagnostic message" })
-vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, { desc = "Open diagnostics list" })
+-- vim.keymap.set("n", "<leader>d", vim.diagnostic.open_float, { desc = "Open floating diagnostic message" })
+-- vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, { desc = "Open diagnostics list" })
 
 vim.keymap.set("n", "<leader>bo", "<cmd>%bd|e#<cr>", { desc = "Close all buffers but the current one" })
 

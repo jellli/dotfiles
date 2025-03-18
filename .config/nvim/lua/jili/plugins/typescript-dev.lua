@@ -7,8 +7,11 @@ return {
 				separate_diagnostic_server = true,
 				publish_diagnostic_on = "insert_leave",
 				tsserver_locale = "zh-cn",
-				expose_as_code_action = "all",
-				code_lens = "all",
+				expose_as_code_action = {
+					"add_missing_imports",
+					"remove_unused",
+					"remove_unused_imports",
+				},
 			},
 		},
 	},
