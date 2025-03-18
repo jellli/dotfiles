@@ -95,6 +95,7 @@ return {
 			local capabilities = vim.lsp.protocol.make_client_capabilities()
 			capabilities = vim.tbl_deep_extend("force", capabilities, require("blink.cmp").get_lsp_capabilities())
 			local servers = {
+				zls = {},
 				rust_analyzer = {},
 				["cssmodules-language-server"] = {},
 				html = {
@@ -106,6 +107,7 @@ return {
 				yamlls = {},
 				biome = {},
 				marksman = {},
+				ts_ls = {},
 				lua_ls = {
 					settings = {
 						Lua = {
@@ -138,6 +140,7 @@ return {
 						server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
 						require("lspconfig")[server_name].setup(server)
 					end,
+					["ts_ls"] = function() end,
 					["emmet_ls"] = function()
 						require("lspconfig").emmet_ls.setup({
 							init_options = {

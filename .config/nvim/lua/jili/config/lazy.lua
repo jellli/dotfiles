@@ -9,7 +9,6 @@ end
 vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
 	require("jili.plugins.blink"),
-	require("jili.plugins.bufferline"),
 	require("jili.plugins.color-scheme"),
 	require("jili.plugins.comment"),
 	require("jili.plugins.dashboard"),
