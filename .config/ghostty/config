@@ -1,9 +1,14 @@
 theme = tokyonight_night
 background = #0f0f11
 
+# font-family = WebPlus ToshibaSat 9x14
+# font-family-bold =  WebPlus ToshibaSat 9x14 
+# font-family-italic = WebPlus ToshibaSat 9x14
+# font-family-bold-italic = WebPlus ToshibaSat 9x14
+
 font-family = Fira Code
 font-family = Liga SFMono Nerd Font 
-font-family = 思源黑体
+# font-family = 思源黑体
 
 font-size = 14
 # adjust-cell-height = 05%

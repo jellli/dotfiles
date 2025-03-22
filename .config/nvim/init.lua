@@ -16,4 +16,19 @@ else
 	require("jili.config.options")
 	require("jili.config.remap")
 	require("jili.config.lazy")
+	require("jili.config.kickstart")
+
+	vim.lsp.enable({
+		"lua-ls",
+		-- "zls",
+		"cssmodules",
+		"cssls",
+		"emmet-ls",
+		"biome",
+		"marksman",
+		"ts-ls",
+		"tailwindcss",
+		"html",
+		"json",
+	})
 end

@@ -1,5 +1,5 @@
 return {
-	{
+	--[[ {
 		"pmizio/typescript-tools.nvim",
 		dependencies = { "nvim-lua/plenary.nvim", "neovim/nvim-lspconfig" },
 		opts = {
@@ -14,7 +14,7 @@ return {
 				},
 			},
 		},
-	},
+	}, ]]
 	{
 		event = "InsertEnter",
 		"windwp/nvim-ts-autotag",
