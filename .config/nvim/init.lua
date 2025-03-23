@@ -20,7 +20,7 @@ else
 
 	vim.lsp.enable({
 		"lua-ls",
-		-- "zls",
+		"zls",
 		"cssmodules",
 		"cssls",
 		"emmet-ls",

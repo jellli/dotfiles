@@ -1,22 +1,37 @@
 return {
-	--[[ {
-		"ilof2/posterpole.nvim",
+	{
+		"sainnhe/everforest",
+		lazy = false,
 		priority = 1000,
 		config = function()
-			local posterpole = require("posterpole")
-			posterpole.setup({
-				-- config here
-				transparent = true,
-				dim_inactive = true,
-				-- brightness = 9,
-			})
-			vim.cmd("colorscheme posterpole")
-
-			-- This function create sheduled task, which will reload theme every hour
-			-- Without "setup_adaptive" adaptive brightness will be set only after every restart
-			posterpole.setup_adaptive()
+			vim.g.everforest_background = "hard"
+			vim.g.everforest_transparent_background = 2
+			vim.g.everforest_enable_italic = true
+			vim.g.everforest_cursor = "orange"
+			-- vim.cmd.colorscheme("everforest")
 		end,
-	}, ]]
+	},
+	{
+		"sainnhe/gruvbox-material",
+		lazy = false,
+		priority = 1000,
+		config = function()
+			vim.g.gruvbox_material_inlay_hints_background = "none"
+			vim.g.gruvbox_material_transparent_background = 2
+			vim.g.gruvbox_material_cursor = "orange"
+			vim.g.gruvbox_material_background = "hard"
+
+			vim.g.gruvbox_material_better_performance = 1
+			vim.g.gruvbox_material_foreground = "material"
+			vim.g.gruvbox_material_background = "soft"
+			vim.g.gruvbox_material_ui_contrast = "low"
+			vim.g.gruvbox_material_float_style = "dim"
+			vim.g.gruvbox_material_enable_italic = 0
+			vim.g.gruvbox_material_disable_italic_comment = 1
+			vim.g.gruvbox_material_disable_terminal_colors = 1
+			vim.cmd.colorscheme("gruvbox-material")
+		end,
+	},
 	{
 		"folke/tokyonight.nvim",
 		lazy = false,
@@ -39,7 +54,7 @@ return {
 					},
 				},
 			})
-			vim.cmd.colorscheme("tokyonight-night")
+			-- vim.cmd.colorscheme("tokyonight-night")
 		end,
 	},
 }

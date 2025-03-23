@@ -2,7 +2,7 @@ local ensure_installed = {
 	"zls",
 	"rust-analyzer",
 	"cssmodules-language-server",
-	"json-lsp",
+	-- "json-lsp",
 	"html-lsp",
 	"css-lsp",
 	"tailwindcss-language-server",

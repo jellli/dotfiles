@@ -87,7 +87,7 @@ return {
 				},
 				completion = {
 					menu = {
-						border = "single",
+						border = "none",
 						scrolloff = 1,
 						scrollbar = false,
 						draw = {
@@ -101,7 +101,8 @@ return {
 					},
 					documentation = {
 						window = {
-							border = "single",
+							border = "none",
+							scrollbar = false,
 						},
 						auto_show = true,
 						auto_show_delay_ms = 500,
