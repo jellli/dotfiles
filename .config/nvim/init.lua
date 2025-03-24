@@ -26,7 +26,7 @@ else
 		"emmet-ls",
 		"biome",
 		"marksman",
-		"ts-ls",
+		"vtsls",
 		"tailwindcss",
 		"html",
 		"json",

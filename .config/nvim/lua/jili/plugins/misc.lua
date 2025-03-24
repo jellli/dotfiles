@@ -1,4 +1,5 @@
 return {
+	{ "stevearc/dressing.nvim", opts = {} },
 	{
 		"rcarriga/nvim-notify",
 		config = function()
