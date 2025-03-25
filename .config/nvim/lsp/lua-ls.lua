@@ -17,6 +17,9 @@ return {
 			runtime = {
 				version = "LuaJIT",
 			},
+			diagnostics = {
+				disable = { "lowercase-global" },
+			},
 			workspace = {
 				checkThirdParty = false,
 				library = {

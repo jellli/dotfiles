@@ -39,5 +39,12 @@ require("lazy").setup({
 	require("jili.plugins.yazi"),
 
 	require("jili.plugins.tmux-picker"),
+	{
+		dir = "~/personal/love2d-nvim",
+		dev = true,
+		config = function()
+			require("love2d-nvim").setup()
+		end,
+	},
 	checker = { enabled = true },
 })

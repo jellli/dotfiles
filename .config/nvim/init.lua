@@ -29,6 +29,6 @@ else
 		"vtsls",
 		"tailwindcss",
 		"html",
-		"json",
+		-- "json",
 	})
 end
