@@ -12,5 +12,18 @@ return {
 		".git",
 	},
 	filetypes = { "lua" },
-	on_init = require("jili.utils").lua_ls_on_init,
+	settings = {
+		Lua = {
+			runtime = {
+				version = "LuaJIT",
+			},
+			workspace = {
+				checkThirdParty = false,
+				library = {
+					vim.env.VIMRUNTIME,
+					"${3rd}/love2d/library",
+				},
+			},
+		},
+	},
 }
