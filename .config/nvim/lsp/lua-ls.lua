@@ -1,22 +1,6 @@
 ---@type vim.lsp.Config
 return {
 	cmd = { "lua-language-server" },
-	filetypes = { "lua" },
-	settings = {
-		Lua = {
-			workspace = {
-				library = {
-					"${3rd}/love2d/library",
-				},
-			},
-			runtime = {
-				version = "LuaJIT",
-			},
-			completion = {
-				callSnippet = "Replace",
-			},
-		},
-	},
 	root_markers = {
 		".luarc.json",
 		".luarc.jsonc",
@@ -27,4 +11,6 @@ return {
 		"selene.yml",
 		".git",
 	},
+	filetypes = { "lua" },
+	on_init = require("jili.utils").lua_ls_on_init,
 }
