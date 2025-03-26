@@ -1,9 +1,11 @@
 theme = GruvboxDarkHard
 background = #0f0f11
-font-family = AcPlus ToshibaSat 9x14
-font-family = Hack Nerd Font Mono
 
-font-size = 18
+# font-family = AcPlus ToshibaSat 9x14
+font-family = MonoLisa Jili
+font-family = Maple Mono NF CN
+font-family = Hack Nerd Font Mono
+font-size = 16
 
 cursor-style = block
 mouse-hide-while-typing = true
