@@ -98,6 +98,6 @@ end, { desc = "Go to next diagnostic message" })
 -- vim.keymap.set("n", "<leader>d", vim.diagnostic.open_float, { desc = "Open floating diagnostic message" })
 -- vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, { desc = "Open diagnostics list" })
 
-vim.keymap.set("n", "<leader>bo", "<cmd>%bd|e#<cr>", { desc = "Close all buffers but the current one" })
+vim.keymap.set("n", "<leader>bo", "<cmd>:%bd|e#|bd#<cr>", { desc = "Close all buffers but the current one" })
 
 vim.keymap.set("n", "<leader>lz", "<cmd>Lazy<cr>", { desc = "Lazy" })
