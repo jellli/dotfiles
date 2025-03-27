@@ -52,3 +52,4 @@ vim.opt.runtimepath:remove("/usr/share/vim/vimfiles") -- Separate Vim plugins fr
 
 vim.opt_local.spell = true
 vim.o.laststatus = 3
+vim.o.winborder = "rounded"
