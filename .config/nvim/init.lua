@@ -16,7 +16,7 @@ else
 	require("jili.config.options")
 	require("jili.config.remap")
 	require("jili.config.lazy")
-	require("jili.config.kickstart")
+	require("jili.config.autocmd")
 
 	vim.lsp.enable({
 		"lua-ls",
@@ -29,6 +29,5 @@ else
 		"vtsls",
 		"tailwindcss",
 		"html",
-		-- "json",
 	})
 end
