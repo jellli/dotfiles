@@ -1,6 +1,11 @@
 vim.wo.number = true -- Make line numbers default (default: false)
 vim.o.relativenumber = true -- Set relative numbered lines (default: false)
 
+vim.o.foldenable = true -- enable fold
+vim.o.foldlevel = 99 -- start editing with all folds opened
+vim.o.foldmethod = "expr" -- use tree-sitter for folding method
+vim.o.foldexpr = "v:lua.vim.treesitter.foldexpr()"
+
 vim.schedule(function()
 	vim.opt.clipboard = "unnamedplus"
 end)

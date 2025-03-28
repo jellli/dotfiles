@@ -5,7 +5,8 @@ return {
 		dependencies = {
 			"rafamadriz/friendly-snippets",
 		},
-		-- event = "InsertEnter",
+		event = { "InsertEnter", "CmdlineEnter" },
+		opts_extend = { "sources.default", "cmdline.sources", "term.sources" },
 		version = "*",
 		config = function()
 			require("blink.cmp").setup({

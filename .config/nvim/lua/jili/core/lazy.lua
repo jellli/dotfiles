@@ -1,4 +1,5 @@
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+vim.notify(lazypath, {})
 if not (vim.uv or vim.loop).fs_stat(lazypath) then
 	local lazyrepo = "https://github.com/folke/lazy.nvim.git"
 	local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
@@ -22,11 +23,10 @@ require("lazy").setup({
 	require("jili.plugins.mini"),
 	require("jili.plugins.misc"),
 	require("jili.plugins.neocodeium"),
-	require("jili.plugins.nvim-ufo"),
+	-- require("jili.plugins.nvim-ufo"),
 	-- require("jili.plugins.obsidian"),
 	require("jili.plugins.outline"),
-	require("jili.plugins.snacks.picker"),
-	require("jili.plugins.snacks.snacks"),
+	require("jili.plugins.snacks"),
 	require("jili.plugins.tabout"),
 	require("jili.plugins.tiny-inline-diagnostic"),
 	require("jili.plugins.treesitter"),

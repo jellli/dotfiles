@@ -19,7 +19,7 @@ return {
 	"williamboman/mason.nvim",
 	dependencies = {
 		"WhoIsSethDaniel/mason-tool-installer.nvim",
-		{ "j-hui/fidget.nvim", opts = {} },
+		-- { "j-hui/fidget.nvim", opts = {} },
 	},
 	config = function()
 		require("mason").setup()
