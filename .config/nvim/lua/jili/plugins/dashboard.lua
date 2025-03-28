@@ -55,8 +55,8 @@ return {
 		thera.buttons.val = {
 			{ type = "text", val = "Quick links", opts = { hl = "SpecialComment", position = "center" } },
 			{ type = "padding", val = 1 },
-			dashboard.button("b", "  > Browse files", ":Oil --float<CR>"),
-			dashboard.button("f", "󰈞  > Find file", ":Telescope find_files<CR>"),
+			dashboard.button("b", "  > Browse files", ":lua Snacks.explorer()<CR>"),
+			dashboard.button("f", "󰈞  > Find file", ":lua Snacks.picker.smart()<CR>"),
 			dashboard.button("u", "  > Update plugins", "<cmd>Lazy sync<CR>"),
 			dashboard.button("q", "󰅚  > Quit", "<cmd>qa<CR>"),
 		}
