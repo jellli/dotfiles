@@ -7,6 +7,6 @@ vim.lsp.enable({
 	"biome",
 	"marksman",
 	"vtsls",
-	"tailwindcss",
+	-- "tailwindcss",
 	"html",
 })

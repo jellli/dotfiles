@@ -9,6 +9,7 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
+	require("jili.plugins.avante"),
 	require("jili.plugins.blink"),
 	require("jili.plugins.color-scheme"),
 	require("jili.plugins.comment"),
