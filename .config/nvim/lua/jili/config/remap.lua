@@ -78,3 +78,7 @@ vim.keymap.set("n", "c", '"_c', opts)
 vim.keymap.set("n", "C", '"_C', opts)
 vim.keymap.set("n", "<leader>bo", "<cmd>:%bd|e#|bd#<cr>", { desc = "Close all buffers but the current one" })
 vim.keymap.set("n", "<leader>lz", "<cmd>Lazy<cr>", { desc = "Lazy" })
+
+vim.keymap.set("n", "gh", "^", opts)
+vim.keymap.set("n", "gl", "$", opts)
+vim.keymap.set("n", "gj", "%", opts)
