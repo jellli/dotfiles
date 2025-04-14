@@ -18,13 +18,6 @@ return {
 			auto_apply_diff_after_generation = true,
 			support_paste_from_clipboard = false,
 		},
-		--[[ openai = {
-			endpoint = "https://aihubmix.com/v1",
-			model = "DeepSeek-V3",
-			temperature = 0,
-			max_tokens = 4096,
-			api_key_name = "AIHUBMIX_API_KEY",
-		}, ]]
 		windows = {
 			sidebar_header = {
 				enabled = false,
