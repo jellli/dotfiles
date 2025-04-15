@@ -1,3 +1,12 @@
+vim.lsp.config( ---@type vim.lsp.Config
+	"zls",
+	{
+		cmd = { "zls" },
+		filetypes = { "zig", "zir" },
+		root_markers = { "zls.json", "build.zig", ".git" },
+	}
+)
+
 vim.lsp.config("vtsls", {
 	typescript = {
 		locale = "zh-CN",
@@ -29,4 +38,5 @@ vim.lsp.enable({
 	"cssmodules_ls",
 	"emmet_ls",
 	"marksman",
+	"zls",
 })

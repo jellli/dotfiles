@@ -1,4 +1,17 @@
 return {
+	--[[ {
+		"luckasRanarison/tailwind-tools.nvim",
+		name = "tailwind-tools",
+		build = ":UpdateRemotePlugins",
+		dependencies = {
+			"nvim-treesitter/nvim-treesitter",
+		},
+		config = function()
+			require("tailwind-tools").setup({
+				-- your configuration
+			})
+		end,
+	}, ]]
 	{ "sindrets/diffview.nvim" },
 	{
 		"bassamsdata/namu.nvim",
@@ -49,24 +62,14 @@ return {
 			vim.g.barbar_auto_setup = false
 		end,
 		opts = {
-			-- lazy.nvim will automatically call setup for you. put your options here, anything missing will use the default:
-			-- animation = true,
-			-- insert_at_start = true,
-			-- …etc.
+			insert_at_end = true,
 		},
 		version = "^1.0.0", -- optional: only update when a new 1.x version is released
 	},
 	{
 		"MagicDuck/grug-far.nvim",
 		config = function()
-			-- optional setup call to override plugin options
-			-- alternatively you can set options with vim.g.grug_far = { ... }
-			require("grug-far").setup({
-				-- options, see Configuration section below
-				-- there are no required options atm
-				-- engine = 'ripgrep' is default, but 'astgrep' or 'astgrep-rules' can
-				-- be specified
-			})
+			require("grug-far").setup({})
 		end,
 	},
 	--[[ {
@@ -75,8 +78,8 @@ return {
 			stiffness = 0.8, -- 0.6      [0, 1]
 			trailing_stiffness = 0.5, -- 0.3      [0, 1]
 			distance_stop_animating = 0.5, -- 0.1      > 0
-		}, 
-	},]]
+		},
+	}, ]]
 	{
 		-- Highlight todo, notes, etc in comments
 		"folke/todo-comments.nvim",
