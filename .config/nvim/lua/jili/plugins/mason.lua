@@ -1,5 +1,5 @@
 local ensure_installed = {
-	{ "zls", version = "0.13.0" },
+	{ "zls", version = "0.14.0" },
 	"rust-analyzer",
 	"cssmodules-language-server",
 	-- "json-lsp",

@@ -12,6 +12,12 @@ return {
 			})
 		end,
 	}, ]]
+	{
+		"m4xshen/hardtime.nvim",
+		lazy = false,
+		dependencies = { "MunifTanjim/nui.nvim" },
+		opts = {},
+	},
 	{ "sindrets/diffview.nvim" },
 	{
 		"bassamsdata/namu.nvim",
@@ -44,14 +50,14 @@ return {
 			})
 		end,
 	},
-	{
+	--[[ {
 		"zeioth/garbage-day.nvim",
 		dependencies = "neovim/nvim-lspconfig",
 		event = "VeryLazy",
 		opts = {
 			-- your options here
 		},
-	},
+	}, ]]
 	{
 		"romgrk/barbar.nvim",
 		dependencies = {

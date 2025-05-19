@@ -1,16 +1,12 @@
-vim.lsp.config( ---@type vim.lsp.Config
-	"zls",
-	{
-		cmd = { "zls" },
-		filetypes = { "zig", "zir" },
-		root_markers = { "zls.json", "build.zig", ".git" },
-	}
-)
-
 vim.lsp.config("vtsls", {
 	typescript = {
 		locale = "zh-CN",
 	},
+})
+
+vim.lsp.config("zls", {
+	enable_build_on_save = true,
+	-- build_on_save_args = { "install", "-Dtarget=wasm32-wasi", "-fwasmtime" },
 })
 
 vim.lsp.config("emmet_ls", {

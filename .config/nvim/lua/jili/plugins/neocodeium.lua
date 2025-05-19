@@ -5,6 +5,9 @@ return {
 		local neocodeium = require("neocodeium")
 		neocodeium.setup({
 			show_label = false,
+			filetypes = {
+				zig = false,
+			},
 		})
 		vim.keymap.set("i", "<C-f>", function()
 			neocodeium.accept()

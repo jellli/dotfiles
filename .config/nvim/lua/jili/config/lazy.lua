@@ -25,7 +25,8 @@ require("lazy").setup({
 	require("jili.plugins.misc"),
 	require("jili.plugins.neocodeium"),
 	-- require("jili.plugins.nvim-ufo"),
-	-- require("jili.plugins.obsidian"),
+	require("jili.plugins.lspconfig"),
+	require("jili.plugins.obsidian"),
 	require("jili.plugins.outline"),
 	require("jili.plugins.snacks"),
 	require("jili.plugins.tabout"),
@@ -38,8 +39,6 @@ require("lazy").setup({
 	require("jili.plugins.vim-tmux-navigator"),
 	require("jili.plugins.which-key"),
 	require("jili.plugins.yazi"),
-
-	require("jili.plugins.tmux-picker"),
 	{
 		dir = "~/personal/love2d-nvim",
 		dev = true,

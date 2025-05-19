@@ -32,9 +32,11 @@ return {
 		lazy = false,
 		priority = 1000,
 		config = function()
+			---@diagnostic disable-next-line: missing-fields
 			require("kanagawa").setup({
 				transparent = true,
 				terminalColors = false,
+				commentStyle = { italic = false },
 				colors = {
 					theme = {
 						all = {

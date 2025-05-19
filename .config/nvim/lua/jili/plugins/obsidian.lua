@@ -1,8 +1,7 @@
 return {
 	-- "epwalsh/obsidian.nvim",
-	"adamtajti/obsidian.nvim",
-	-- version = "*", -- recommended, use latest release instead of latest commit
-	branch = "blink-support",
+	"obsidian-nvim/obsidian.nvim",
+	version = "*", -- recommended, use latest release instead of latest commit
 	lazy = true,
 	ft = "markdown",
 	-- Replace the above line with this if you only want to load obsidian.nvim for markdown files in your vault:
@@ -14,10 +13,7 @@ return {
 	--   "BufNewFile path/to/my-vault/*.md",
 	-- },
 	dependencies = {
-		-- Required.
 		"nvim-lua/plenary.nvim",
-
-		-- see below for full list of optional dependencies 👇
 	},
 	config = function()
 		require("obsidian").setup({
