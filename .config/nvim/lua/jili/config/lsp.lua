@@ -1,12 +1,19 @@
 vim.lsp.config("vtsls", {
-	typescript = {
-		locale = "zh-CN",
+	settings = {
+		typescript = {
+			locale = "zh-CN",
+		},
 	},
 })
 
 vim.lsp.config("zls", {
-	enable_build_on_save = true,
-	-- build_on_save_args = { "install", "-Dtarget=wasm32-wasi", "-fwasmtime" },
+	settings = {
+		enable_build_on_save = true,
+
+		zls = {
+			enable_build_on_save = true,
+		},
+	},
 })
 
 vim.lsp.config("emmet_ls", {
