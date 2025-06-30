@@ -8,8 +8,6 @@ vim.lsp.config("vtsls", {
 
 vim.lsp.config("zls", {
 	settings = {
-		enable_build_on_save = true,
-
 		zls = {
 			enable_build_on_save = true,
 		},
@@ -42,4 +40,5 @@ vim.lsp.enable({
 	"emmet_ls",
 	"marksman",
 	"zls",
+	"biome",
 })

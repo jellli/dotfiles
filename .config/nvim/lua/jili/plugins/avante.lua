@@ -4,12 +4,16 @@ return {
 	version = false,
 	opts = {
 		provider = "openai",
-		openai = {
-			endpoint = "https://ark.cn-beijing.volces.com/api/v3",
-			model = "deepseek-v3-250324",
-			temperature = 0,
-			max_tokens = 4096,
-			api_key_name = "ARK_KEY",
+		providers = {
+			openai = {
+				endpoint = "https://ark.cn-beijing.volces.com/api/v3",
+				model = "deepseek-v3-250324",
+				temperature = 0,
+				api_key_name = "ARK_KEY",
+				extra_request_body = {
+					max_tokens = 4096,
+				},
+			},
 		},
 		behaviour = {
 			auto_suggestions = false, -- Experimental stage
