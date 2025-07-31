@@ -68,4 +68,10 @@ return {
 			vim.cmd.colorscheme("kanagawa")
 		end,
 	},
+	{
+		"folke/tokyonight.nvim",
+		lazy = false,
+		priority = 1000,
+		opts = {},
+	},
 }
