@@ -9,7 +9,6 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
-	require("jili.plugins.avante"),
 	require("jili.plugins.blink"),
 	require("jili.plugins.color-scheme"),
 	require("jili.plugins.comment"),
@@ -24,7 +23,6 @@ require("lazy").setup({
 	require("jili.plugins.mini"),
 	require("jili.plugins.misc"),
 	require("jili.plugins.neocodeium"),
-	-- require("jili.plugins.nvim-ufo"),
 	require("jili.plugins.lspconfig"),
 	require("jili.plugins.obsidian"),
 	require("jili.plugins.outline"),
@@ -39,12 +37,5 @@ require("lazy").setup({
 	require("jili.plugins.vim-tmux-navigator"),
 	require("jili.plugins.which-key"),
 	require("jili.plugins.yazi"),
-	{
-		dir = "~/personal/love2d-nvim",
-		dev = true,
-		config = function()
-			require("love2d-nvim").setup()
-		end,
-	},
 	checker = { enabled = true },
 })

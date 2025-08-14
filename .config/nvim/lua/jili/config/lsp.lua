@@ -41,4 +41,5 @@ vim.lsp.enable({
 	"marksman",
 	"zls",
 	"biome",
+	"tailwindcss",
 })

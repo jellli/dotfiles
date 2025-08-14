@@ -18,6 +18,7 @@ return {
 	-- 	dependencies = { "MunifTanjim/nui.nvim" },
 	-- 	opts = {},
 	-- },
+
 	{ "sindrets/diffview.nvim" },
 	{
 		"bassamsdata/namu.nvim",
