@@ -1,24 +1,12 @@
 return {
-	--[[ {
-		"luckasRanarison/tailwind-tools.nvim",
-		name = "tailwind-tools",
-		build = ":UpdateRemotePlugins",
-		dependencies = {
-			"nvim-treesitter/nvim-treesitter",
-		},
+	{
+		"MysticalDevil/inlay-hints.nvim",
+		event = "LspAttach",
+		dependencies = { "neovim/nvim-lspconfig" },
 		config = function()
-			require("tailwind-tools").setup({
-				-- your configuration
-			})
+			require("inlay-hints").setup()
 		end,
-	}, ]]
-	-- {
-	-- 	"m4xshen/hardtime.nvim",
-	-- 	lazy = false,
-	-- 	dependencies = { "MunifTanjim/nui.nvim" },
-	-- 	opts = {},
-	-- },
-
+	},
 	{ "sindrets/diffview.nvim" },
 	{
 		"bassamsdata/namu.nvim",

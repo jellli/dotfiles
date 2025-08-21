@@ -38,9 +38,31 @@ return {
 	{
 		-- High-performance color highlighter
 		"norcalli/nvim-colorizer.lua",
-		config = function()
-			require("colorizer").setup()
-		end,
+		opts = {
+			filetypes = {
+				"css",
+				js = { names = false },
+				lua = { names = false },
+				markdown = { names = false },
+				text = { names = false },
+			},
+		},
 	},
 	{ "dmmulroy/ts-error-translator.nvim" },
+	{
+		"Wansmer/symbol-usage.nvim",
+		event = "LspAttach",
+		opts = {
+			text_format = function(symbol)
+				local res = {}
+
+				if symbol.references then
+					local usage = symbol.references == 1 and "reference" or "references"
+					table.insert(res, { ("󰌹  %s %s"):format(symbol.references, usage), "LspCodeLens" })
+				end
+
+				return res
+			end,
+		},
+	},
 }

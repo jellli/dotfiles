@@ -14,7 +14,7 @@ return {
 				signature = { enabled = true },
 				appearance = {
 					use_nvim_cmp_as_default = false,
-					nerd_font_variant = "normal",
+					nerd_font_variant = "mono",
 				},
 				sources = {
 					default = { "lsp", "path", "snippets", "buffer" },
@@ -35,11 +35,15 @@ return {
 					},
 				},
 				completion = {
+					ghost_text = {
+						enabled = vim.g.ai_cmp,
+					},
 					menu = {
 						border = "none",
 						scrolloff = 1,
 						scrollbar = false,
 						draw = {
+							treesitter = { "lsp" },
 							columns = {
 								{ "kind_icon" },
 								{ "label", "label_description", gap = 1 },
@@ -54,7 +58,7 @@ return {
 							scrollbar = false,
 						},
 						auto_show = true,
-						auto_show_delay_ms = 500,
+						auto_show_delay_ms = 200,
 					},
 				},
 			})
