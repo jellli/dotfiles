@@ -35,7 +35,7 @@ zinit light zsh-users/zsh-completions
 zinit light zsh-users/zsh-autosuggestions
 zinit light Aloxaf/fzf-tab
 
-zinit light lukechilds/zsh-nvm
+# zinit light lukechilds/zsh-nvm
 zinit ice depth=1; zinit light jeffreytse/zsh-vi-mode
 
 # Add in snippets
@@ -89,6 +89,7 @@ alias lg='lazygit'
 alias cd='z'
 alias cat='bat'
 alias t='tmux'
+alias nvm='fnm'
 
 # Brew
 export HOMEBREW_API_DOMAIN="https://mirrors.aliyun.com/homebrew-bottles/api"
@@ -101,5 +102,9 @@ export LANG=zh_CN.UTF-8
 export LC_ALL=zh_CN.UTF-8
 
 eval "$(zoxide init zsh)"
-export PATH=$HOME/bin:~/local/nvim/bin/:$PATH
+# export PATH=$HOME/bin:~/local/nvim/bin/:$PATH
 source ~/.jili_env
+
+# bun completions
+[ -s "/Users/hoon/.bun/_bun" ] && source "/Users/hoon/.bun/_bun"
+eval "$(fnm env --use-on-cd --shell zsh)"
