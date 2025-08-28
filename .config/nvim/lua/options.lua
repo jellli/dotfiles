@@ -22,3 +22,8 @@ o.showmode = false
 o.swapfile = false
 o.signcolumn = "yes"
 o.winborder = "rounded"
+
+vim.o.foldenable = true -- enable fold
+vim.o.foldlevel = 99 -- start editing with all folds opened
+vim.o.foldmethod = "expr" -- use tree-sitter for folding method
+vim.o.foldexpr = "v:lua.vim.treesitter.foldexpr()"

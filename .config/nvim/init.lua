@@ -1,26 +1,9 @@
+require("lsp")
 require("options")
-require("keymap")
 require("autocmd")
-vim.pack.add({
-	"https://github.com/nvim-lua/plenary.nvim",
-	"https://github.com/nvim-tree/nvim-web-devicons",
-	"https://github.com/neovim/nvim-lspconfig",
-	"https://github.com/mason-org/mason.nvim",
-	"https://github.com/WhoIsSethDaniel/mason-tool-installer.nvim",
-	"https://github.com/nvim-treesitter/nvim-treesitter",
-	{ src = "https://github.com/rebelot/kanagawa.nvim", name = "kanagawa" },
-	"https://github.com/L3MON4D3/LuaSnip",
-	{ src = "https://github.com/Saghen/blink.cmp", version = "v1.6.0" },
-	"https://github.com/stevearc/conform.nvim",
-	"https://github.com/folke/lazydev.nvim",
-	"https://github.com/stevearc/oil.nvim",
+require("keymap")
+require("plugins")
 
-	"https://github.com/romgrk/barbar.nvim",
-	"https://github.com/bassamsdata/namu.nvim",
-})
-require("barbar").setup({
-	insert_at_end = true,
-})
 require("namu").setup({
 	-- Enable the modules you want
 	namu_symbols = {
@@ -38,76 +21,7 @@ require("namu").setup({
 		},
 	},
 })
-require("oil").setup({
-	default_file_explorer = true,
-	columns = { "icon" },
-	delete_to_trash = true,
-	skip_confirm_for_simple_edits = true,
-})
 vim.keymap.set("n", "-", "<CMD>Oil<CR>", { desc = "Open parent directory" })
-
-require("lazydev").setup()
-require("kanagawa").setup({
-	transparent = true,
-	terminalColors = false,
-	commentStyle = { italic = false },
-	colors = {
-		theme = {
-			all = {
-				ui = {
-					bg_gutter = "none",
-				},
-			},
-		},
-	},
-	overrides = function(colors)
-		local theme = colors.theme
-		return {
-			NormalFloat = { bg = "none" },
-			FloatBorder = { bg = "none" },
-			FloatTitle = { bg = "none" },
-
-			-- Save an hlgroup with dark background and dimmed foreground
-			-- so that you can use it where your still want darker windows.
-			-- E.g.: autocmd TermOpen * setlocal winhighlight=Normal:NormalDark
-			NormalDark = { fg = theme.ui.fg_dim, bg = theme.ui.bg_m3 },
-
-			-- Popular plugins that open floats will link to NormalFloat by default;
-			-- set their background accordingly if you wish to keep them dark and borderless
-			LazyNormal = { bg = theme.ui.bg_m3, fg = theme.ui.fg_dim },
-			MasonNormal = { bg = theme.ui.bg_m3, fg = theme.ui.fg_dim },
-		}
-	end,
-})
-vim.cmd.colorscheme("kanagawa")
-
-require("nvim-treesitter.configs").setup({
-	ensure_installed = { "lua", "vim", "vimdoc" },
-	sync_install = false,
-	auto_install = true,
-	highlight = {
-		enable = true,
-		additional_vim_regex_highlighting = false,
-	},
-})
-
-require("mason").setup()
-require("mason-tool-installer").setup({
-	ensure_installed = {
-		"rust-analyzer",
-		"cssmodules-language-server",
-		"html-lsp",
-		"css-lsp",
-		"tailwindcss-language-server",
-		"emmet-ls",
-		"stylua",
-		"biome",
-		"marksman",
-		"typescript-language-server",
-		"lua-language-server",
-	},
-})
-vim.lsp.enable({ "lua_ls" })
 
 require("blink.cmp").setup({
 	snippets = {
