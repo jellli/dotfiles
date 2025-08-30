@@ -15,6 +15,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
 		map("<leader>ca", vim.lsp.buf.code_action, "[C]ode [A]ction", { "n", "x" })
 		map("gD", vim.lsp.buf.declaration, "[G]oto [D]eclaration")
 		map("gd", vim.lsp.buf.definition, "[G]oto [D]eclaration")
+		map("gr", vim.lsp.buf.references, "[G]oto [R]eferences")
 
 		-- The following two autocommands are used to highlight references of the
 		-- word under your cursor when your cursor rests there for a little while.
