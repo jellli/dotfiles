@@ -20,9 +20,9 @@ vim.opt.rtp:prepend(lazypath)
 ---@type LazySpec
 local plugins = "plugins"
 
-require "options"
-require "keymap"
-require "lsp"
+require("options")
+require("keymap")
+require("lsp")
 
 require("lazy").setup(plugins, {
 	ui = { border = vim.g.border },
@@ -31,18 +31,18 @@ require("lazy").setup(plugins, {
 		missing = false,
 	},
 	change_detection = { notify = false },
-	  performance = {
-        rtp = {
-            -- Stuff I don't use.
-            disabled_plugins = {
-                'gzip',
-                'netrwPlugin',
-                'rplugin',
-                'tarPlugin',
-                'tohtml',
-                'tutor',
-                'zipPlugin',
-            },
-        },
-    },
+	performance = {
+		rtp = {
+			-- Stuff I don't use.
+			disabled_plugins = {
+				"gzip",
+				"netrwPlugin",
+				"rplugin",
+				"tarPlugin",
+				"tohtml",
+				"tutor",
+				"zipPlugin",
+			},
+		},
+	},
 })

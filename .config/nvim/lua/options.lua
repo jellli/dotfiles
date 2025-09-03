@@ -14,6 +14,7 @@ o.ignorecase = true
 o.smartcase = true
 o.tabstop = 2
 o.wrap = false
+o.termguicolors = true
 
 o.splitbelow = true
 o.splitright = true
