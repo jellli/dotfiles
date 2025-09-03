@@ -15,6 +15,7 @@ return {
 			"tsx",
 			"css",
 			"html",
+			"lua"
 		},
 		auto_install = true,
 	},
