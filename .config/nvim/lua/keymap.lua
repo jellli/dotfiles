@@ -74,6 +74,7 @@ local maps = {
 	{ "n", "gh", "^" },
 	{ "n", "gl", "$" },
 	{ "n", "gj", "%" },
+	{ "n", "<leader>so", "<cmd>:so ~/.config/nvim/init.lua<cr>" },
 }
 
 ---@alias KeymapMode string|string[]

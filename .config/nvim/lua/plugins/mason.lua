@@ -14,16 +14,23 @@ local ensure_installed = {
 --- @type LazySpec
 return {
 	"neovim/nvim-lspconfig",
-	{
-		"williamboman/mason.nvim",
-		dependencies = {
-			"WhoIsSethDaniel/mason-tool-installer.nvim",
+	dependencies = {
+		{
+			-- `lazydev` configures Lua LSP for your Neovim config, runtime and plugins
+			-- used for completion, annotations and signatures of Neovim apis
+			"folke/lazydev.nvim",
+			ft = "lua",
+			opts = {
+				library = {},
+			},
 		},
-		config = function()
-			require("mason").setup()
-			require("mason-tool-installer").setup({
-				ensure_installed = ensure_installed,
-			})
-		end,
+		"williamboman/mason.nvim",
+		"WhoIsSethDaniel/mason-tool-installer.nvim",
 	},
+	config = function()
+		require("mason").setup()
+		require("mason-tool-installer").setup({
+			ensure_installed = ensure_installed,
+		})
+	end,
 }
