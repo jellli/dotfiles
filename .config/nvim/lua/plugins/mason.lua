@@ -13,15 +13,17 @@ local ensure_installed = {
 }
 --- @type LazySpec
 return {
-	"williamboman/mason.nvim",
-	dependencies = {
-		"WhoIsSethDaniel/mason-tool-installer.nvim",
-		"neovim/nvim-lspconfig",
+	"neovim/nvim-lspconfig",
+	{
+		"williamboman/mason.nvim",
+		dependencies = {
+			"WhoIsSethDaniel/mason-tool-installer.nvim",
+		},
+		config = function()
+			require("mason").setup()
+			require("mason-tool-installer").setup({
+				ensure_installed = ensure_installed,
+			})
+		end,
 	},
-	config = function()
-		require("mason").setup()
-		require("mason-tool-installer").setup({
-			ensure_installed = ensure_installed,
-		})
-	end,
 }

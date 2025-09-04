@@ -1,5 +1,5 @@
 return {
-	{ "L3MON4D3/LuaSnip", keys = {} },
+	"L3MON4D3/LuaSnip",
 	{
 		"saghen/blink.cmp",
 		dependencies = {
@@ -39,7 +39,7 @@ return {
 						enabled = vim.g.ai_cmp,
 					},
 					menu = {
-						border = "none",
+						-- border = "none",
 						scrolloff = 1,
 						scrollbar = false,
 						draw = {

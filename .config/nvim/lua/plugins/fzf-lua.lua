@@ -1,193 +1,140 @@
-local icons = require("icons")
-
--- Picker, finder, etc.
 return {
-	{
-		"ibhagwan/fzf-lua",
-		cmd = "FzfLua",
-		keys = {
-			{ "<leader>f<", "<cmd>FzfLua resume<cr>", desc = "Resume last fzf command" },
-			{
-				"<leader>fb",
-				function()
-					local opts = {
-						winopts = {
-							height = 0.6,
-							width = 0.5,
-							preview = { vertical = "up:70%" },
-							-- Disable Treesitter highlighting for the matches.
-							treesitter = {
-								enabled = false,
-								fzf_colors = { ["fg"] = { "fg", "CursorLine" }, ["bg"] = { "bg", "Normal" } },
-							},
-						},
-						fzf_opts = {
-							["--layout"] = "reverse",
-						},
-					}
+	"ibhagwan/fzf-lua",
+	config = function()
+		local fzf = require("fzf-lua")
+		fzf.register_ui_select()
 
-					-- Use grep when in normal mode and blines in visual mode since the former doesn't support
-					-- searching inside visual selections.
-					-- See https://github.com/ibhagwan/fzf-lua/issues/2051
-					local mode = vim.api.nvim_get_mode().mode
-					if vim.startswith(mode, "n") then
-						require("fzf-lua").lgrep_curbuf(opts)
-					else
-						require("fzf-lua").blines(opts)
-					end
-				end,
-				desc = "Search current buffer",
-				mode = { "n", "x" },
+		fzf.setup({
+			hls = {
+				prompt = "Constant",
+				title = "Float",
+				border = "FloatBorder",
+				preview_border = "FloatBorder",
 			},
-			{ "<leader>fc", "<cmd>FzfLua highlights<cr>", desc = "Highlights" },
-			{ "<leader>fd", "<cmd>FzfLua lsp_document_diagnostics<cr>", desc = "Document diagnostics" },
-			{ "<leader>ff", "<cmd>FzfLua files<cr>", desc = "Find files" },
-			{ "<leader>fg", "<cmd>FzfLua live_grep<cr>", desc = "Grep" },
-			{ "<leader>fg", "<cmd>FzfLua grep_visual<cr>", desc = "Grep", mode = "x" },
-			{ "<leader>fh", "<cmd>FzfLua help_tags<cr>", desc = "Help" },
-			{ "<leader>fr", "<cmd>FzfLua oldfiles<cr>", desc = "Recently opened files" },
-			{ "z=", "<cmd>FzfLua spell_suggest<cr>", desc = "Spelling suggestions" },
-		},
-		opts = function()
-			local actions = require("fzf-lua.actions")
-
-			return {
-				{ "border-fused", "hide" },
-				-- Make stuff better combine with the editor.
-				fzf_colors = {
-					bg = { "bg", "Normal" },
-					gutter = { "bg", "Normal" },
-					info = { "fg", "Conditional" },
-					scrollbar = { "bg", "Normal" },
-					separator = { "fg", "Comment" },
-				},
-				fzf_opts = {
-					["--info"] = "default",
-					["--layout"] = "reverse-list",
-				},
-				keymap = {
-					builtin = {
-						["<C-/>"] = "toggle-help",
-						["<C-a>"] = "toggle-fullscreen",
-						["<C-i>"] = "toggle-preview",
-					},
-					fzf = {
-						["alt-s"] = "toggle",
-						["alt-a"] = "toggle-all",
-						["ctrl-i"] = "toggle-preview",
-					},
-				},
-				winopts = {
-					height = 0.7,
-					width = 0.55,
-					preview = {
-						scrollbar = false,
-						layout = "vertical",
-						vertical = "up:40%",
-					},
-				},
-				defaults = { git_icons = false },
-				-- Configuration for specific commands.
+			keymap = {
+				fzf = { ["ctrl-y"] = "toggle+down", ["ctrl-i"] = "up+toggle" },
+			},
+			actions = {
 				files = {
-					winopts = {
-						preview = { hidden = true },
-					},
+					["ctrl-v"] = fzf.actions.file_vsplit,
+					["ctrl-t"] = fzf.actions.file_tabedit,
+					["alt-q"] = fzf.actions.file_sel_to_qf,
+					["alt-Q"] = fzf.actions.file_sel_to_ll,
+					["alt-i"] = fzf.actions.toggle_ignore,
+					["alt-h"] = fzf.actions.toggle_hidden,
+					["alt-f"] = fzf.actions.toggle_follow,
+					["enter"] = fzf.actions.file_edit_or_qf,
 				},
-				grep = {
-					header_prefix = icons.misc.search .. " ",
-					rg_glob_fn = function(query, opts)
-						local regex, flags = query:match(string.format("^(.*)%s(.*)$", opts.glob_separator))
-						-- Return the original query if there's no separator.
-						return (regex or query), flags
-					end,
-				},
-				helptags = {
-					actions = {
-						-- Open help pages in a vertical split.
-						["enter"] = actions.help_vert,
-					},
-				},
-				lsp = {
-					symbols = {
-						symbol_icons = icons.symbol_kinds,
-					},
-				},
-				diagnostics = {
-					-- Remove the dashed line between diagnostic items.
-					multiline = 1,
-					diag_icons = {
-						icons.diagnostics.ERROR,
-						icons.diagnostics.WARN,
-						icons.diagnostics.INFO,
-						icons.diagnostics.HINT,
-					},
-					actions = {
-						["ctrl-e"] = {
-							fn = function(_, opts)
-								-- If not filtering by severity, show all diagnostics.
-								if opts.severity_only then
-									opts.severity_only = nil
-								else
-									-- Else only show errors.
-									opts.severity_only = vim.diagnostic.severity.ERROR
-								end
-								require("fzf-lua").resume(opts)
-							end,
-							noclose = true,
-							desc = "toggle-all-only-errors",
-							header = function(opts)
-								return opts.severity_only and "show all" or "show only errors"
-							end,
-						},
-					},
-				},
-				oldfiles = {
-					include_current_session = true,
-					winopts = {
-						preview = { hidden = true },
-					},
-				},
-			}
-		end,
-		init = function()
-			---@diagnostic disable-next-line: duplicate-set-field
-			vim.ui.select = function(items, opts, on_choice)
-				local ui_select = require("fzf-lua.providers.ui_select")
+			},
+			fzf_colors = {
+				["bg"] = { "bg", "FloatBorder" },
+				["bg+"] = { "bg", "FloatBorder" },
 
-				-- Register the fzf-lua picker the first time we call select.
-				if not ui_select.is_registered() then
-					ui_select.register(function(ui_opts)
-						if ui_opts.kind == "luasnip" then
-							ui_opts.prompt = "Snippet choice: "
-							ui_opts.winopts = {
-								relative = "cursor",
-								height = 0.35,
-								width = 0.3,
-							}
-						elseif ui_opts.kind == "color_presentation" then
-							ui_opts.winopts = {
-								relative = "cursor",
-								height = 0.35,
-								width = 0.3,
-							}
-						else
-							ui_opts.winopts = { height = 0.5, width = 0.4 }
-						end
+				["fg"] = { "fg", "Comment" },
+				["fg+"] = { "fg", "PreProc" },
 
-						-- Use the kind (if available) to set the previewer's title.
-						if ui_opts.kind then
-							ui_opts.winopts.title = string.format(" %s ", ui_opts.kind)
-						end
+				["hl"] = { "fg", "Constant" },
+				["hl+"] = { "fg", "Constant" },
 
-						return ui_opts
-					end)
+				["spinner"] = { "fg", "Label" },
+				["marker"] = { "fg", "PreProc" },
+				["pointer"] = { "fg", "PreProc" },
+
+				["prompt"] = { "fg", "Special" },
+				["info"] = { "fg", "Special" },
+
+				["header"] = { "fg", "Normal" },
+				["separator"] = { "fg", "Normal" },
+				["scrollbar"] = { "fg", "Normal" },
+			},
+			winopts = {
+				border = "single",
+				height = 15,
+				width = 76,
+				row = 0.2,
+				col = 0.5,
+				preview = {
+					hidden = true,
+				},
+			},
+		})
+
+		local builtin_opts = {
+			winopts = {
+				border = "single",
+				preview = {
+					border = "single",
+				},
+				height = 8,
+				width = 50,
+				row = 0.4,
+				col = 0.48,
+			},
+		}
+
+		local picker_opts = {
+			header = false,
+			file_icons = false,
+			git_icons = false,
+			color_icons = false,
+		}
+
+		local map = function(keys, picker, desc, mode)
+			local command
+			if type(picker) == "string" then
+				command = function()
+					fzf[picker](picker_opts)
 				end
-
-				-- Don't show the picker if there's nothing to pick.
-				if #items > 0 then
-					return vim.ui.select(items, opts, on_choice)
-				end
+			elseif type(picker) == "function" then
+				command = picker
+			else
+				error("Invalid picker type: must be a string or function")
 			end
-		end,
-	},
+			vim.keymap.set(mode and mode or "n", keys, command, { desc = desc })
+		end
+
+		local extend = function(table1, table2)
+			return vim.tbl_extend("force", table1, table2)
+		end
+
+		map("<leader>sa", function()
+			fzf.builtin(extend(builtin_opts, picker_opts))
+		end, "FZF")
+
+		map("<leader><leader>", function()
+			fzf.files(extend(picker_opts, {
+				cmd = "rg --files --hidden --ignore --glob='!.git' --sortr=modified",
+				fzf_opts = { ["--scheme"] = "path", ["--tiebreak"] = "index" },
+			}))
+		end, "Files")
+
+		map("<leader>sh", "help_tags", "Help")
+		map("<leader>sb", "buffers", "Buffers")
+		map("<leader>sr", function()
+			fzf.oldfiles(extend(picker_opts, { include_current_session = true }))
+		end, "Recent files")
+		map("<leader>sv", "grep_visual", "Grep Visual")
+		map("<leader>sc", "grep_cword", "Current Word")
+		map("<leader>sg", "live_grep_native", "Grep Word")
+		map("<leader>sd", "diagnostics_document", "Diagnostics")
+
+		--lsp
+		map("gd", function()
+			fzf.lsp_definitions(extend(picker_opts, { jump1 = true }))
+		end, "LSP Definitions")
+
+		map("gr", function()
+			fzf.lsp_references(extend(picker_opts, { includeDeclaration = false, ignore_current_line = true }))
+		end, "LSP References")
+
+		map("ca", "lsp_code_actions", "LSP Code Actions")
+		map("<leader>lt", "lsp_typedefs", "LSP Type Definitions")
+		map("<leader>lI", "lsp_implementations", "LSP Implementations")
+
+		--util
+		map("<C-e>", function()
+			require("fzf-lua.win").toggle_fullscreen()
+			require("fzf-lua.win").toggle_preview()
+		end, "Toggle FZF fullscreen", { "c", "i", "t" })
+	end,
 }
