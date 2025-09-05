@@ -4,7 +4,7 @@ return {
 		lazy = false,
 		priority = 1000,
 		config = function()
-			vim.cmd("colorscheme kanso-zen")
+			vim.cmd("colorscheme kanso-ink")
 		end,
 	},
 	{

@@ -1,45 +1,19 @@
--- vim.lsp.config("lua_ls", {
+-- vim.lsp.config("vtsls", {
 -- 	settings = {
--- 		Lua = {
--- 			runtime = {
--- 				-- Tell the language server which version of Lua you're using
--- 				-- (most likely LuaJIT in the case of Neovim)
--- 				version = "LuaJIT",
--- 			},
--- 			diagnostics = {
--- 				-- Get the language server to recognize the `vim` global
--- 				globals = {
--- 					"vim",
--- 					"require",
--- 				},
--- 			},
--- 			workspace = {
--- 				-- Make the server aware of Neovim runtime files
--- 				library = vim.api.nvim_get_runtime_file("", true),
--- 			},
--- 			-- Do not send telemetry data containing a randomized but unique identifier
--- 			telemetry = {
--- 				enable = false,
+-- 		typescript = {
+-- 			locale = "zh-CN",
+-- 			inlayHints = {
+-- 				parameterNames = { enabled = "all" },
+-- 				parameterTypes = { enabled = true },
+-- 				variableTypes = { enabled = true },
+-- 				propertyDeclarationTypes = { enabled = true },
+-- 				functionLikeReturnTypes = { enabled = true },
+-- 				enumMemberValues = { enabled = true },
 -- 			},
 -- 		},
 -- 	},
 -- })
-
-vim.lsp.config("vtsls", {
-	settings = {
-		typescript = {
-			locale = "zh-CN",
-			inlayHints = {
-				parameterNames = { enabled = "all" },
-				parameterTypes = { enabled = true },
-				variableTypes = { enabled = true },
-				propertyDeclarationTypes = { enabled = true },
-				functionLikeReturnTypes = { enabled = true },
-				enumMemberValues = { enabled = true },
-			},
-		},
-	},
-})
+--
 
 vim.lsp.config("zls", {
 	settings = {
@@ -78,36 +52,14 @@ vim.lsp.config("tsgo", {
 	settings = {
 		typescript = {
 			locale = "zh-CN",
-			inlayHints = {
-				includeInlayParameterNameHints = "all",
-				includeInlayParameterNameHintsWhenArgumentMatchesName = true,
-				includeInlayFunctionParameterTypeHints = true,
-				includeInlayVariableTypeHints = true,
-				includeInlayVariableTypeHintsWhenTypeMatchesName = true,
-				includeInlayPropertyDeclarationTypeHints = true,
-				includeInlayFunctionLikeReturnTypeHints = true,
-				includeInlayEnumMemberValueHints = true,
-			},
-		},
-		javascript = {
-			inlayHints = {
-				includeInlayParameterNameHints = "all",
-				includeInlayParameterNameHintsWhenArgumentMatchesName = true,
-				includeInlayFunctionParameterTypeHints = true,
-				includeInlayVariableTypeHints = true,
-				includeInlayVariableTypeHintsWhenTypeMatchesName = true,
-				includeInlayPropertyDeclarationTypeHints = true,
-				includeInlayFunctionLikeReturnTypeHints = true,
-				includeInlayEnumMemberValueHints = true,
-			},
 		},
 	},
 })
 
 vim.lsp.enable({
 	"lua_ls",
-	"vtsls",
-	-- "tsgo",
+	-- "vtsls",
+	"tsgo",
 	"cssls",
 	"cssmodules_ls",
 	"emmet_ls",

@@ -102,5 +102,19 @@ return {
 			require("fzf-lua.win").toggle_fullscreen()
 			require("fzf-lua.win").toggle_preview()
 		end, "Toggle FZF fullscreen", { "c", "i", "t" })
+
+		-- LSP
+		map("gd", function()
+			fzf.lsp_definitions({ jump1 = true })
+		end)
+		map("gr", function()
+			fzf.lsp_references({ jump1 = true })
+		end)
+		-- map("ca", function()
+		-- 	fzf.lsp_code_actions({ jump1 = true })
+		-- end)
+		map("ds", function()
+			fzf.lsp_document_symbols({ jump1 = true })
+		end)
 	end,
 }
