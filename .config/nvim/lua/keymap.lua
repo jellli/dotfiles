@@ -46,12 +46,12 @@ local maps = {
 	-- Buffers
 	{ "n", "<Tab>", ":bnext<CR>" },
 	{ "n", "<S-Tab>", ":bprevious<CR>" },
-	{ "n", "<leader>x", ":bdelete!<CR>" }, -- close buffer
+	-- { "n", "<leader>x", ":bdelete!<CR>" }, -- close buffer
 
 	-- Window management
 	{ "n", "<leader>v", "<C-w>v" }, -- split window vertically
 	{ "n", "<leader>h", "<C-w>s" }, -- split window horizontally
-	{ "n", "<leader>c", ":close<CR>" }, -- close current split window
+	-- { "n", "<leader>c", ":close<CR>" }, -- close current split window
 
 	-- Navigate between splits
 	{ "n", "<C-k>", ":wincmd k<CR>" },

@@ -3,6 +3,7 @@ return {
 	build = ":TSUpdate",
 	main = "nvim-treesitter.configs", -- Sets main module to use for opts
 	opts = {
+		highlight = { enable = true },
 		ensure_installed = {
 			"python",
 			"javascript",
@@ -15,8 +16,11 @@ return {
 			"tsx",
 			"css",
 			"html",
-			"lua"
+			"lua",
 		},
 		auto_install = true,
+		indent = {
+			enable = true,
+		},
 	},
 }
