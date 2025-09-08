@@ -3,7 +3,6 @@ return {
 	{
 		"rachartier/tiny-code-action.nvim",
 		event = "LspAttach",
-
 		opts = {
 			picker = {
 				"buffer",
@@ -17,13 +16,6 @@ return {
 							end)
 							:totable()
 					end,
-					auto_preview = true,
-				},
-			},
-			backend = "delta",
-			backend_opts = {
-				delta = {
-					header_lines_to_remove = 4,
 				},
 			},
 		},

@@ -1,7 +1,30 @@
-local M = {}
-
-function M.merge(table1, table2)
+function Merge(table1, table2)
 	return vim.tbl_extend("force", table1, table2)
 end
 
-return M
+---@param name string
+---@param option string
+---@return string | nil
+function Get_hl_hex(name, option)
+	if type(name) ~= "string" or (option ~= "fg" and option ~= "bg") then
+		error("Invalid arguments. Usage: highlight(name: string, option: 'fg' | 'bg')")
+	end
+	local hl = vim.api.nvim_get_hl(0, { name = name })
+	local color = hl[option]
+	if not color then
+		print("No " .. option .. " color found for highlight group: " .. name)
+		return nil
+	end
+	local hex_color = string.format("#%06x", color)
+	return hex_color
+end
+
+-- Maps a key to an action, mode is optional
+-- @param key string
+-- @param action string
+-- @param desc string
+-- @param mode string|nil
+function Map(key, action, desc, mode)
+	local m = mode or "n"
+	vim.keymap.set(m, key, action, { desc = desc, noremap = true, silent = true })
+end

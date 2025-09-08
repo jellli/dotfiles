@@ -1,19 +1,18 @@
--- vim.lsp.config("vtsls", {
--- 	settings = {
--- 		typescript = {
--- 			locale = "zh-CN",
--- 			inlayHints = {
--- 				parameterNames = { enabled = "all" },
--- 				parameterTypes = { enabled = true },
--- 				variableTypes = { enabled = true },
--- 				propertyDeclarationTypes = { enabled = true },
--- 				functionLikeReturnTypes = { enabled = true },
--- 				enumMemberValues = { enabled = true },
--- 			},
--- 		},
--- 	},
--- })
---
+vim.lsp.config("vtsls", {
+	settings = {
+		typescript = {
+			locale = "zh-CN",
+			inlayHints = {
+				parameterNames = { enabled = "all" },
+				parameterTypes = { enabled = true },
+				variableTypes = { enabled = true },
+				propertyDeclarationTypes = { enabled = true },
+				functionLikeReturnTypes = { enabled = true },
+				enumMemberValues = { enabled = true },
+			},
+		},
+	},
+})
 
 vim.lsp.config("zls", {
 	settings = {
@@ -58,8 +57,8 @@ vim.lsp.config("tsgo", {
 
 vim.lsp.enable({
 	"lua_ls",
-	-- "vtsls",
-	"tsgo",
+	"vtsls",
+	-- "tsgo",
 	"cssls",
 	"cssmodules_ls",
 	"emmet_ls",

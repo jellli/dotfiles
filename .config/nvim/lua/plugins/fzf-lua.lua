@@ -1,14 +1,14 @@
-local merge = require("utils").merge
+require("utils")
 
 return {
 	"ibhagwan/fzf-lua",
 	dependencies = { "nvim-tree/nvim-web-devicons" },
 	config = function()
-		local zen_colors = require("kanso.colors").setup({ theme = "zen" })
 		local fzf = require("fzf-lua")
 		fzf.register_ui_select()
 
 		fzf.setup({
+			"hide",
 			winopts = {
 				border = "single",
 				height = 15,
@@ -31,14 +31,11 @@ return {
 				["fg"] = { "fg", "Comment" },
 				["fg+"] = { "fg", "PreProc" },
 
-				["hl"] = { "fg", "Constant" },
-				["hl+"] = { "fg", "Constant" },
+				["hl"] = { "fg", "Error" },
+				["hl+"] = { "fg", "Error" },
 			},
 			actions = {
-				["ctrl-v"] = fzf.actions.file_vsplit,
 				["ctrl-h"] = fzf.actions.file_split,
-				["ctrl-q"] = fzf.actions.file_sel_to_qf,
-				["enter"] = fzf.actions.file_edit_or_qf,
 			},
 		})
 
@@ -61,60 +58,67 @@ return {
 			git_icons = false,
 			color_icons = false,
 		}
-		local map = function(keys, picker, desc, mode)
-			local command
-			if type(picker) == "string" then
-				command = function()
-					fzf[picker](picker_opts)
-				end
-			elseif type(picker) == "function" then
-				command = picker
-			else
-				error("Invalid picker type: must be a string or function")
-			end
-			vim.keymap.set(mode and mode or "n", keys, command, { desc = desc })
-		end
-		map("<leader>sa", function()
-			fzf.builtin(merge(builtin_opts, picker_opts))
-		end, "FZF")
+		Map("<leader>sa", function()
+			fzf.builtin(Merge(builtin_opts, picker_opts))
+		end, "FZF Builtin")
 
-		map("<leader><leader>", function()
-			fzf.files(merge(picker_opts, {
+		Map("<leader><leader>", function()
+			fzf.files(Merge(picker_opts, {
 				cmd = "rg --files --hidden --ignore --glob='!.git' --sortr=modified",
 				fzf_opts = { ["--scheme"] = "path", ["--tiebreak"] = "index" },
 			}))
-		end, "Files")
+		end, "Search Files")
 
-		map("<leader>sg", function()
-			fzf.live_grep_native(merge(picker_opts, {
+		Map("<leader>sr", function()
+			fzf.resume(Merge(picker_opts, { winopts = { width = 0.80 } }))
+		end, "FZF Search Resume")
+
+		Map("<leader>sg", function()
+			fzf.live_grep_native(Merge(picker_opts, {
 				winopts = {
 					width = 0.80,
 					preview = { hidden = false, layout = "horizontal" },
 				},
 			}))
-		end, "Grep Word")
+		end, "Live Grep")
+		Map("<leader>dd", function()
+			fzf.diagnostics_document(Merge(picker_opts))
+		end)
 
-		map("<leader>st", function()
-			fzf.colorschemes(merge(picker_opts, builtin_opts))
+		Map("<leader>st", function()
+			fzf.colorschemes(Merge(picker_opts, builtin_opts))
 		end, "Switch Theme")
 
-		map("<C-e>", function()
+		Map("<C-e>", function()
 			require("fzf-lua.win").toggle_fullscreen()
 			require("fzf-lua.win").toggle_preview()
 		end, "Toggle FZF fullscreen", { "c", "i", "t" })
 
 		-- LSP
-		map("gd", function()
+		-- Disable defaults
+		pcall(vim.keymap.del, "n", "gra")
+		pcall(vim.keymap.del, "n", "gri")
+		pcall(vim.keymap.del, "n", "grn")
+		pcall(vim.keymap.del, "n", "grr")
+		pcall(vim.keymap.del, "n", "grt")
+
+		Map("gd", function()
 			fzf.lsp_definitions({ jump1 = true })
-		end)
-		map("gr", function()
+		end, "Goto Definition")
+		Map("gr", function()
 			fzf.lsp_references({ jump1 = true })
-		end)
-		-- map("ca", function()
-		-- 	fzf.lsp_code_actions({ jump1 = true })
-		-- end)
-		map("ds", function()
+		end, "Goto Reference")
+		Map("gt", function()
+			fzf.lsp_typedefs({ jump1 = true })
+		end, "Goto Type Definition")
+		Map("gD", function()
+			fzf.lsp_implementations({ jump1 = true })
+		end, "Goto Implementation")
+		Map("gi", function()
+			fzf.lsp_implementations({ jump1 = true })
+		end, "Goto Implementation")
+		Map("<leader>ds", function()
 			fzf.lsp_document_symbols({ jump1 = true })
-		end)
+		end, "Goto Document Symbols")
 	end,
 }

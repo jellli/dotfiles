@@ -14,6 +14,7 @@ local ensure_installed = {
 --- @type LazySpec
 return {
 	"neovim/nvim-lspconfig",
+	event = { "BufReadPre", "BufNewFile" },
 	dependencies = {
 		{
 			-- `lazydev` configures Lua LSP for your Neovim config, runtime and plugins
@@ -26,6 +27,8 @@ return {
 		},
 		"williamboman/mason.nvim",
 		"WhoIsSethDaniel/mason-tool-installer.nvim",
+		"saghen/blink.cmp",
+		{ "j-hui/fidget.nvim", opts = {} },
 	},
 	config = function()
 		require("mason").setup()
