@@ -5,7 +5,7 @@ return {
 		cmd = "GrugFar",
 		keys = {
 			{
-				"<leader>cg",
+				"<leader>gf",
 				function()
 					local grug = require("grug-far")
 					grug.open({ transient = true })

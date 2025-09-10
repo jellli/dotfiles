@@ -25,6 +25,22 @@ return {
 					},
 				},
 				keymap = {
+					["<Tab>"] = {
+						function()
+							local tabout = require("tabout")
+							return tabout.tabout()
+						end,
+						"snippet_forward",
+						"fallback",
+					},
+					["<S-Tab>"] = {
+						function()
+							local tabout = require("tabout")
+							return tabout.taboutBack()
+						end,
+						"snippet_backward",
+						"fallback",
+					},
 					["<C-f>"] = {},
 				},
 				cmdline = {
@@ -35,6 +51,11 @@ return {
 					},
 				},
 				completion = {
+					list = {
+						selection = {
+							auto_insert = true,
+						},
+					},
 					ghost_text = {
 						enabled = vim.g.ai_cmp,
 					},

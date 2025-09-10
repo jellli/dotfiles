@@ -4,7 +4,7 @@ return {
 		"nvim-mini/mini.splitjoin",
 		keys = {
 			{
-				"<leader>m",
+				"<leader>sj",
 				function()
 					require("mini.splitjoin").toggle()
 				end,
@@ -13,7 +13,7 @@ return {
 		},
 		opts = {
 			mappings = {
-				toggle = "<leader>m",
+				toggle = "<leader>sj",
 			},
 		},
 	},

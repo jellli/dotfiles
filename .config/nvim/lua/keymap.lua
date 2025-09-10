@@ -4,10 +4,10 @@ local maps = {
 	{ { "n", "v" }, "<Space>", "<Nop>" },
 
 	-- Insert movement
-	{ "i", "<C-h>", "<Left>" },
+	--[[ { "i", "<C-h>", "<Left>" },
 	{ "i", "<C-j>", "<Down>" },
 	{ "i", "<C-k>", "<Up>" },
-	{ "i", "<C-l>", "<Right>" },
+	{ "i", "<C-l>", "<Right>" }, ]]
 	{ "i", "<C-o>", "<ESC>o" },
 
 	-- Visual mode line movement

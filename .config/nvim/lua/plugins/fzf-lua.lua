@@ -102,6 +102,9 @@ return {
 		pcall(vim.keymap.del, "n", "grr")
 		pcall(vim.keymap.del, "n", "grt")
 
+		Map("<leader>rn", function()
+			vim.lsp.buf.rename()
+		end, "Rename")
 		Map("gd", function()
 			fzf.lsp_definitions({ jump1 = true })
 		end, "Goto Definition")

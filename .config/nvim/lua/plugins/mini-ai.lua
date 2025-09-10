@@ -4,10 +4,9 @@ return {
 		"nvim-mini/mini.ai",
 		event = "BufReadPre",
 		dependencies = "nvim-treesitter/nvim-treesitter-textobjects",
-		opts = function()
+		config = function()
 			local miniai = require("mini.ai")
-
-			return {
+			miniai.setup({
 				n_lines = 300,
 				custom_textobjects = {
 					f = miniai.gen_spec.treesitter({ a = "@function.outer", i = "@function.inner" }, {}),
@@ -23,13 +22,7 @@ return {
 				},
 				-- Disable error feedback.
 				silent = true,
-				mappings = {
-					around_next = "",
-					inside_next = "",
-					around_last = "",
-					inside_last = "",
-				},
-			}
+			})
 		end,
 	},
 }
