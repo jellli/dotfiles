@@ -33,6 +33,14 @@ return {
 		keys = {
 			{ "m", save_mark, noremap = true, silent = true },
 			{ "'", open_mark, noremap = true, silent = true },
+			{
+				"<leader>gt",
+				function()
+					require("grapple").toggle_tags()
+				end,
+				noremap = true,
+				silent = true,
+			},
 		},
 	},
 }
