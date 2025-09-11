@@ -30,7 +30,6 @@ local plugins = "plugins"
 
 require("options")
 require("keymap")
-require("lsp")
 require("autocmds")
 
 require("lazy").setup(plugins, {
@@ -55,3 +54,4 @@ require("lazy").setup(plugins, {
 		},
 	},
 })
+require("lsp")

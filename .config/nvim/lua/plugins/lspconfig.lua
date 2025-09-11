@@ -31,6 +31,7 @@ return {
 		"WhoIsSethDaniel/mason-tool-installer.nvim",
 		"saghen/blink.cmp",
 		{ "j-hui/fidget.nvim", opts = {} },
+		"b0o/schemastore.nvim",
 	},
 	config = function()
 		require("mason").setup()
