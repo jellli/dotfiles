@@ -31,6 +31,7 @@ local plugins = "plugins"
 require("options")
 require("keymap")
 require("lsp")
+require("autocmds")
 
 require("lazy").setup(plugins, {
 	ui = { border = vim.g.border },

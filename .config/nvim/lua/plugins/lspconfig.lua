@@ -22,7 +22,9 @@ return {
 			"folke/lazydev.nvim",
 			ft = "lua",
 			opts = {
-				library = {},
+				library = {
+					{ path = "snacks.nvim", words = { "Snacks" } },
+				},
 			},
 		},
 		"williamboman/mason.nvim",
