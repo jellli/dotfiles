@@ -4,8 +4,8 @@ return {
 	"Wansmer/treesj",
 	keys = {
 		{
-			"n",
-			"<space>sj",
+			"<leader>sj",
+			mode = { "n" },
 			function()
 				require("treesj").toggle()
 			end,
