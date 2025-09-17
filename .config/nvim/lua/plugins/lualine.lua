@@ -2,12 +2,17 @@ local icons = require("icons")
 
 local diagnostics = {
 	"diagnostics",
-	sections = { "error", "warn", "info", "hint" },
+	sections = {
+		"error",
+		"warn",
+		"info",
+		-- "hint",
+	},
 	symbols = {
 		error = icons.diagnostics.ERROR .. " ",
 		warn = icons.diagnostics.WARN .. " ",
 		info = icons.diagnostics.INFO .. " ",
-		hint = icons.diagnostics.HINT .. " ",
+		-- hint = icons.diagnostics.HINT .. " ",
 	},
 	colored = true, -- Displays diagnostics status in color if set to true.
 	update_in_insert = false, -- Update diagnostics in insert mode.

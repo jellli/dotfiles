@@ -25,7 +25,7 @@ return {
 					},
 				},
 				keymap = {
-					["<Tab>"] = {
+					--[[ ["<Tab>"] = {
 						function()
 							local tabout = require("tabout")
 							return tabout.tabout()
@@ -40,7 +40,7 @@ return {
 						end,
 						"snippet_backward",
 						"fallback",
-					},
+					}, ]]
 					["<C-f>"] = {},
 				},
 				cmdline = {

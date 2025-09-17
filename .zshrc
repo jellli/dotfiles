@@ -108,3 +108,4 @@ eval "$(zoxide init zsh)"
 # bun completions
 [ -s "/Users/hoon/.bun/_bun" ] && source "/Users/hoon/.bun/_bun"
 eval "$(fnm env --use-on-cd --shell zsh)"
+export PATH="$HOME/.local/bin:$PATH"

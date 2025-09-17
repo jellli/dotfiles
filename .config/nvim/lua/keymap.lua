@@ -1,13 +1,20 @@
 ---@type KeymapEntry[]
 local maps = {
+	{
+		{ "i", "s", "n" },
+		"<esc>",
+		function()
+			if require("luasnip").expand_or_jumpable() then
+				require("luasnip").unlink_current()
+			end
+			vim.cmd("noh")
+			return "<esc>"
+		end,
+	},
+
 	-- Disable the spacebar key's default behavior in Normal and Visual modes
 	{ { "n", "v" }, "<Space>", "<Nop>" },
 
-	-- Insert movement
-	--[[ { "i", "<C-h>", "<Left>" },
-	{ "i", "<C-j>", "<Down>" },
-	{ "i", "<C-k>", "<Up>" },
-	{ "i", "<C-l>", "<Right>" }, ]]
 	{ "i", "<C-o>", "<ESC>o" },
 
 	-- Visual mode line movement
