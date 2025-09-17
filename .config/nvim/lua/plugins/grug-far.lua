@@ -2,23 +2,24 @@
 return {
 	{
 		"MagicDuck/grug-far.nvim",
-		cmd = "GrugFar",
+		opts = { headerMaxWidth = 80 },
+		cmd = { "GrugFar", "GrugFarWithin" },
 		keys = {
 			{
-				"<leader>gf",
+				"<leader>sr",
 				function()
 					local grug = require("grug-far")
-					grug.open({ transient = true })
+					local ext = vim.bo.buftype == "" and vim.fn.expand("%:e")
+					grug.open({
+						transient = true,
+						prefills = {
+							filesFilter = ext and ext ~= "" and "*." .. ext or nil,
+						},
+					})
 				end,
-				desc = "GrugFar",
 				mode = { "n", "v" },
+				desc = "Search and Replace",
 			},
-		},
-		opts = {
-			-- Disable folding.
-			folding = { enabled = false },
-			-- Don't numerate the result list.
-			resultLocation = { showNumberLabel = false },
 		},
 	},
 }

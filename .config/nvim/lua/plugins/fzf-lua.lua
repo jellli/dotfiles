@@ -69,7 +69,7 @@ return {
 			}))
 		end, "Search Files")
 
-		Map("<leader>sr", function()
+		Map("<leader>sR", function()
 			fzf.resume(Merge(picker_opts, { winopts = { width = 0.80 } }))
 		end, "FZF Search Resume")
 
@@ -102,26 +102,33 @@ return {
 		pcall(vim.keymap.del, "n", "grr")
 		pcall(vim.keymap.del, "n", "grt")
 
+		local lsp_opts = {
+			jump1 = true,
+			winopts = {
+				width = 0.80,
+				preview = {
+					layout = "horizontal",
+					hidden = false,
+				},
+			},
+		}
 		Map("<leader>rn", function()
 			vim.lsp.buf.rename()
 		end, "Rename")
 		Map("gd", function()
-			fzf.lsp_definitions({ jump1 = true })
+			fzf.lsp_definitions(lsp_opts)
 		end, "Goto Definition")
 		Map("gr", function()
-			fzf.lsp_references({ jump1 = true })
+			fzf.lsp_references(lsp_opts)
 		end, "Goto Reference")
 		Map("gt", function()
-			fzf.lsp_typedefs({ jump1 = true })
+			fzf.lsp_typedefs(lsp_opts)
 		end, "Goto Type Definition")
-		Map("gD", function()
-			fzf.lsp_implementations({ jump1 = true })
+		Map("gI", function()
+			fzf.lsp_implementations(lsp_opts)
 		end, "Goto Implementation")
-		Map("gi", function()
-			fzf.lsp_implementations({ jump1 = true })
-		end, "Goto Implementation")
-		Map("<leader>ds", function()
-			fzf.lsp_document_symbols({ jump1 = true })
+		Map("<leader>gs", function()
+			fzf.lsp_document_symbols(lsp_opts)
 		end, "Goto Document Symbols")
 	end,
 }
