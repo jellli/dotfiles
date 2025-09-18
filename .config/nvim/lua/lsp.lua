@@ -93,4 +93,5 @@ vim.lsp.enable({
 	"rust_analyzer",
 	"jsonls",
 	"yamlls",
+	"css-variables-language-server",
 })

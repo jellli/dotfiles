@@ -28,16 +28,17 @@ return {
 				},
 			},
 		},
-		"williamboman/mason.nvim",
-		"WhoIsSethDaniel/mason-tool-installer.nvim",
-		"saghen/blink.cmp",
+		{
+			"mason-org/mason.nvim",
+			opts = {},
+		},
+		{
+			"WhoIsSethDaniel/mason-tool-installer.nvim",
+			opts = {
+				ensure_installed = ensure_installed,
+			},
+		},
 		{ "j-hui/fidget.nvim", opts = {} },
 		"b0o/schemastore.nvim",
 	},
-	config = function()
-		require("mason").setup()
-		require("mason-tool-installer").setup({
-			ensure_installed = ensure_installed,
-		})
-	end,
 }

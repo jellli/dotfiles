@@ -2,6 +2,7 @@ function Merge(table1, table2)
 	return vim.tbl_extend("force", table1, table2)
 end
 
+--- Gets the hex color of the highlight group
 ---@param name string
 ---@param option string
 ---@return string | nil
@@ -19,11 +20,11 @@ function Get_hl_hex(name, option)
 	return hex_color
 end
 
--- Maps a key to an action, mode is optional
--- @param key string
--- @param action string
--- @param desc string
--- @param mode string|nil
+--- Maps a key to an action, mode is optional
+---@param key string
+---@param action string | function
+---@param desc string | nil
+---@param mode string | string[] | nil
 function Map(key, action, desc, mode)
 	local m = mode or "n"
 	vim.keymap.set(m, key, action, { desc = desc, noremap = true, silent = true })

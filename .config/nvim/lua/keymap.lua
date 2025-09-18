@@ -10,8 +10,7 @@ Map("J", ":m '>+1<CR>gv=gv", nil, "v")
 Map("K", ":m '<-2<CR>gv=gv", nil, "v")
 
 -- Save file
-Map("<C-s>", "<cmd>w<CR>", "Save file")
-Map("<C-s>", "<cmd>w<CR><Esc>", "Save file", "i")
+Map("<C-s>", "<cmd>w<CR><Esc>", "Save file", { "i", "x", "n", "s" })
 
 -- Save file without auto-formatting
 Map("<leader>sn", "<cmd>noautocmd w<CR>", "Save file without auto-formatting")
@@ -83,3 +82,5 @@ Map("]e", diagnostic_goto(true, "ERROR"), "Next Error")
 Map("[e", diagnostic_goto(false, "ERROR"), "Prev Error")
 Map("]w", diagnostic_goto(true, "WARN"), "Next Warning")
 Map("[w", diagnostic_goto(false, "WARN"), "Prev Warning")
+
+Map("<leader>qq", "<cmd>qa<cr>", "Quit All")
