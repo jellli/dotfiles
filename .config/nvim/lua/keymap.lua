@@ -1,5 +1,8 @@
 require("utils")
 
+Map("j", [[(v:count > 1 ? 'm`' . v:count : 'g') . 'j']], { expr = true })
+Map("k", [[(v:count > 1 ? 'm`' . v:count : 'g') . 'k']], { expr = true })
+
 Map("<esc>", function()
 	if require("luasnip").expand_or_jumpable() then
 		require("luasnip").unlink_current()

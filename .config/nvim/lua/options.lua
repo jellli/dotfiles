@@ -57,3 +57,5 @@ vim.o.foldexpr = "v:lua.vim.treesitter.foldexpr()"
 
 opt.undofile = true
 opt.undolevels = 10000
+
+opt.swapfile = false
