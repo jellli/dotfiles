@@ -50,6 +50,7 @@ return {
 				show_help = "?",
 				go_in_plus = "<cr>",
 				go_out_plus = "<tab>",
+				synchronize = "<c-s>",
 			},
 			content = {
 				filter = function(entry)
@@ -164,7 +165,6 @@ return {
 				pattern = "MiniFilesBufferCreate",
 				callback = function(args)
 					local buf_id = args.data.buf_id
-					map_split(buf_id, "<C-s>", "belowright horizontal")
 					map_split(buf_id, "<C-v>", "belowright vertical")
 				end,
 			})

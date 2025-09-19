@@ -23,9 +23,10 @@ end
 --- Maps a key to an action, mode is optional
 ---@param key string
 ---@param action string | function
----@param desc string | nil
+---@param opts  vim.keymap.set.Opts | nil
 ---@param mode string | string[] | nil
-function Map(key, action, desc, mode)
+function Map(key, action, opts, mode)
 	local m = mode or "n"
-	vim.keymap.set(m, key, action, { desc = desc, noremap = true, silent = true })
+	local o = opts or { noremap = true, silent = true }
+	vim.keymap.set(m, key, action, o)
 end

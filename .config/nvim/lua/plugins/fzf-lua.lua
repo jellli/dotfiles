@@ -60,18 +60,18 @@ return {
 		}
 		Map("<leader>sa", function()
 			fzf.builtin(Merge(builtin_opts, picker_opts))
-		end, "FZF Builtin")
+		end, { desc = "FZF Builtin" })
 
 		Map("<leader><leader>", function()
 			fzf.files(Merge(picker_opts, {
 				cmd = "rg --files --hidden --ignore --glob='!.git' --sortr=modified",
 				fzf_opts = { ["--scheme"] = "path", ["--tiebreak"] = "index" },
 			}))
-		end, "Search Files")
+		end, { desc = "Search Files" })
 
 		Map("<leader>sR", function()
 			fzf.resume(Merge(picker_opts, { winopts = { width = 0.80 } }))
-		end, "FZF Search Resume")
+		end, { desc = "FZF Search Resume" })
 
 		Map("<leader>sg", function()
 			fzf.live_grep_native(Merge(picker_opts, {
@@ -80,55 +80,15 @@ return {
 					preview = { hidden = false, layout = "horizontal" },
 				},
 			}))
-		end, "Live Grep")
-		Map("<leader>dd", function()
-			fzf.diagnostics_document(Merge(picker_opts))
-		end)
+		end, { desc = "Live Grep" })
 
 		Map("<leader>st", function()
 			fzf.colorschemes(Merge(picker_opts, builtin_opts))
-		end, "Switch Theme")
+		end, { desc = "Switch Theme" })
 
 		Map("<C-e>", function()
 			require("fzf-lua.win").toggle_fullscreen()
 			require("fzf-lua.win").toggle_preview()
-		end, "Toggle FZF fullscreen", { "c", "i", "t" })
-
-		-- LSP
-		-- Disable defaults
-		pcall(vim.keymap.del, "n", "gra")
-		pcall(vim.keymap.del, "n", "gri")
-		pcall(vim.keymap.del, "n", "grn")
-		pcall(vim.keymap.del, "n", "grr")
-		pcall(vim.keymap.del, "n", "grt")
-
-		local lsp_opts = {
-			jump1 = true,
-			winopts = {
-				width = 0.80,
-				preview = {
-					layout = "horizontal",
-					hidden = false,
-				},
-			},
-		}
-		Map("<leader>rn", function()
-			vim.lsp.buf.rename()
-		end, "Rename")
-		Map("gd", function()
-			fzf.lsp_definitions(lsp_opts)
-		end, "Goto Definition")
-		Map("gr", function()
-			fzf.lsp_references(lsp_opts)
-		end, "Goto Reference")
-		Map("gt", function()
-			fzf.lsp_typedefs(lsp_opts)
-		end, "Goto Type Definition")
-		Map("gI", function()
-			fzf.lsp_implementations(lsp_opts)
-		end, "Goto Implementation")
-		Map("<leader>gs", function()
-			fzf.lsp_document_symbols(lsp_opts)
-		end, "Goto Document Symbols")
+		end, { desc = "Toggle FZF fullscreen" }, { "c", "i", "t" })
 	end,
 }

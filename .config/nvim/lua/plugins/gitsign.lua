@@ -23,7 +23,7 @@ return {
 				topdelete = { text = dashed_bar },
 				changedelete = { text = dashed_bar },
 			},
-			preview_config = { border = "rounded" },
+			-- preview_config = { border = "rounded" },
 			current_line_blame = true,
 			gh = true,
 			on_attach = function(bufnr)
@@ -37,15 +37,8 @@ return {
 					},
 				}
 
-				-- Mappings.
-				---@param lhs string
-				---@param rhs function
-				---@param desc string
-				local function nmap(lhs, rhs, desc)
-					vim.keymap.set("n", lhs, rhs, { desc = desc, buffer = bufnr })
-				end
-				nmap("[g", gs.prev_hunk, "Previous hunk")
-				nmap("]g", gs.next_hunk, "Next hunk")
+				Map("[g", gs.prev_hunk, { desc = "Previous hunk" })
+				Map("]g", gs.next_hunk, { desc = "Next hunk" })
 			end,
 		},
 	},

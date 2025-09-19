@@ -1,9 +1,17 @@
 return {
-	"L3MON4D3/LuaSnip",
 	{
 		"saghen/blink.cmp",
 		dependencies = {
-			"rafamadriz/friendly-snippets",
+			{
+				"L3MON4D3/LuaSnip",
+				opts = {},
+				dependencies = {
+					"rafamadriz/friendly-snippets",
+					config = function()
+						require("luasnip.loaders.from_vscode").lazy_load()
+					end,
+				},
+			},
 		},
 		event = { "InsertEnter", "CmdlineEnter" },
 		opts_extend = { "sources.default", "cmdline.sources", "term.sources" },
@@ -12,12 +20,13 @@ return {
 			require("blink.cmp").setup({
 				snippets = { preset = "luasnip" },
 				signature = { enabled = true },
+				fuzzy = { implementation = "rust" },
 				appearance = {
 					use_nvim_cmp_as_default = false,
 					nerd_font_variant = "mono",
 				},
 				sources = {
-					default = { "lsp", "path", "snippets", "buffer" },
+					default = { "lsp", "snippets", "buffer", "path" },
 					providers = {
 						cmdline = {
 							min_keyword_length = 2,
@@ -25,22 +34,6 @@ return {
 					},
 				},
 				keymap = {
-					--[[ ["<Tab>"] = {
-						function()
-							local tabout = require("tabout")
-							return tabout.tabout()
-						end,
-						"snippet_forward",
-						"fallback",
-					},
-					["<S-Tab>"] = {
-						function()
-							local tabout = require("tabout")
-							return tabout.taboutBack()
-						end,
-						"snippet_backward",
-						"fallback",
-					}, ]]
 					["<C-f>"] = {},
 				},
 				cmdline = {
@@ -51,6 +44,7 @@ return {
 					},
 				},
 				completion = {
+
 					list = {
 						selection = {
 							auto_insert = true,
@@ -60,7 +54,7 @@ return {
 						enabled = vim.g.ai_cmp,
 					},
 					menu = {
-						-- border = "none",
+						border = "single",
 						scrolloff = 1,
 						scrollbar = false,
 						draw = {
@@ -75,7 +69,7 @@ return {
 					},
 					documentation = {
 						window = {
-							border = "rounded",
+							border = "single",
 							scrollbar = false,
 						},
 						auto_show = true,
@@ -83,7 +77,6 @@ return {
 					},
 				},
 			})
-			require("luasnip.loaders.from_vscode").lazy_load()
 		end,
 	},
 }

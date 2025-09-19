@@ -4,7 +4,6 @@ return {
 		{
 			"<leader>dt",
 			function()
-				local diffview = require("diffview")
 				if next(require("diffview.lib").views) == nil then
 					vim.cmd("DiffviewOpen")
 				else
