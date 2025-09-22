@@ -2,6 +2,7 @@ return {
 	{
 		"saghen/blink.cmp",
 		dependencies = {
+			"xzbdmw/colorful-menu.nvim",
 			{
 				"L3MON4D3/LuaSnip",
 				opts = {},
@@ -45,7 +46,6 @@ return {
 					},
 				},
 				completion = {
-
 					list = {
 						selection = {
 							auto_insert = true,
@@ -56,15 +56,32 @@ return {
 					},
 					menu = {
 						border = "single",
-						scrolloff = 1,
-						scrollbar = false,
+						-- scrolloff = 1,
+						-- scrollbar = false,
 						draw = {
 							treesitter = { "lsp" },
 							columns = {
 								{ "kind_icon" },
-								{ "label", "label_description", gap = 1 },
+								-- { "label", "label_description", gap = 1 },
+								{ "label", gap = 1 },
 								{ "kind" },
 								{ "source_name" },
+							},
+							components = {
+								label = {
+									text = function(ctx)
+										return require("colorful-menu").blink_components_text(ctx)
+									end,
+									highlight = function(ctx)
+										return require("colorful-menu").blink_components_highlight(ctx)
+									end,
+								},
+
+								source_name = {
+									text = function(ctx)
+										return "[" .. ctx.source_name .. "]"
+									end,
+								},
 							},
 						},
 					},
@@ -79,7 +96,7 @@ return {
 				},
 			})
 
-			vim.lsp.config("*", { capabilities = require("blink.cmp").get_lsp_capabilities(nil, true) })
+			-- vim.lsp.config("*", { capabilities = require("blink.cmp").get_lsp_capabilities(nil, true) })
 		end,
 	},
 }

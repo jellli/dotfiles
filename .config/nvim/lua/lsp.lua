@@ -25,7 +25,7 @@ vim.lsp.config("yamlls", {
 vim.lsp.config("vtsls", {
 	settings = {
 		typescript = {
-			locale = "zh-CN",
+			-- locale = "zh-CN",
 			inlayHints = {
 				parameterNames = { enabled = "all" },
 				parameterTypes = { enabled = true },
@@ -88,7 +88,7 @@ vim.lsp.enable({
 	"emmet_ls",
 	"marksman",
 	"zls",
-	"biome",
+	-- "biome",
 	"tailwindcss",
 	"rust_analyzer",
 	"jsonls",

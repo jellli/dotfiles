@@ -41,9 +41,9 @@ vim.api.nvim_create_autocmd("LspAttach", {
 				},
 			},
 		}
-		Map("<leader>rn", function()
-			vim.lsp.buf.rename()
-		end, { desc = "Rename" })
+		-- Map("<leader>rn", function()
+		-- 	vim.lsp.buf.rename()
+		-- end, { desc = "Rename" })
 		Map("gd", function()
 			fzf.lsp_definitions(lsp_opts)
 		end, { desc = "Goto Definition" })
