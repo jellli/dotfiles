@@ -54,9 +54,9 @@ return {
 
 		local picker_opts = {
 			header = false,
-			file_icons = false,
+			file_icons = "devicons",
 			git_icons = false,
-			color_icons = false,
+			color_icons = true,
 		}
 		Map("<leader>sa", function()
 			fzf.builtin(Merge(builtin_opts, picker_opts))
