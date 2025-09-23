@@ -26,6 +26,9 @@ vim.lsp.config("vtsls", {
 	settings = {
 		typescript = {
 			-- locale = "zh-CN",
+			tsserver = {
+				maxTsServerMemory = 4 * 1024,
+			},
 			inlayHints = {
 				parameterNames = { enabled = "all" },
 				parameterTypes = { enabled = true },
@@ -81,7 +84,7 @@ vim.lsp.config("tsgo", {
 
 vim.lsp.enable({
 	"lua_ls",
-	"vtsls",
+	-- "vtsls",
 	-- "tsgo",
 	"cssls",
 	"cssmodules_ls",

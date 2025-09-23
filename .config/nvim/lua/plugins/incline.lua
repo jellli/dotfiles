@@ -5,7 +5,6 @@ return {
 		local helpers = require("incline.helpers")
 		local navic = require("nvim-navic")
 		local devicons = require("nvim-web-devicons")
-		navic.setup({})
 		require("incline").setup({
 			window = {
 				padding = 0,
@@ -35,7 +34,7 @@ return {
 				if props.focused then
 					for _, item in ipairs(navic.get_data(props.buf) or {}) do
 						table.insert(res, {
-							{ " > ", group = "NavicSeparator" },
+							{ " ", group = "NavicSeparator" },
 							{ item.icon, group = "NavicIcons" .. item.type },
 							{ item.name, group = "NavicText" },
 						})
