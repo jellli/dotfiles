@@ -15,6 +15,9 @@ return {
 				if filename == "" then
 					filename = "[No Name]"
 				end
+				if filename:find("index") or filename:find("style") then
+					filename = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(props.buf), ":h:t") .. "/" .. filename
+				end
 				local ft_icon, ft_color = devicons.get_icon_color(filename)
 				local modified = vim.bo[props.buf].modified
 				local os_name = vim.loop.os_uname().sysname

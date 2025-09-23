@@ -24,18 +24,33 @@ vim.lsp.config("yamlls", {
 
 vim.lsp.config("vtsls", {
 	settings = {
+		complete_function_calls = true,
+		vtsls = {
+			enableMoveToFileCodeAction = true,
+			autoUseWorkspaceTsdk = true,
+			experimental = {
+				maxInlayHintLength = 30,
+				completion = {
+					enableServerSideFuzzyMatch = true,
+				},
+			},
+		},
 		typescript = {
+			updateImportsOnFileMove = { enabled = "always" },
+			suggest = {
+				completeFunctionCalls = true,
+			},
 			-- locale = "zh-CN",
 			tsserver = {
-				maxTsServerMemory = 4 * 1024,
+				maxTsServerMemory = 8 * 1024,
 			},
 			inlayHints = {
-				parameterNames = { enabled = "all" },
-				parameterTypes = { enabled = true },
-				variableTypes = { enabled = true },
-				propertyDeclarationTypes = { enabled = true },
-				functionLikeReturnTypes = { enabled = true },
 				enumMemberValues = { enabled = true },
+				functionLikeReturnTypes = { enabled = true },
+				parameterNames = { enabled = "literals" },
+				parameterTypes = { enabled = true },
+				propertyDeclarationTypes = { enabled = true },
+				variableTypes = { enabled = false },
 			},
 		},
 	},
@@ -84,7 +99,7 @@ vim.lsp.config("tsgo", {
 
 vim.lsp.enable({
 	"lua_ls",
-	-- "vtsls",
+	"vtsls",
 	-- "tsgo",
 	"cssls",
 	"cssmodules_ls",
