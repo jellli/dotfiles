@@ -1,3 +1,10 @@
+--- Create an augroup
+--- @param name string
+--- @return integer
+function Create_autocmd(name)
+	return vim.api.nvim_create_augroup(name, { clear = true })
+end
+
 function Merge(table1, table2)
 	return vim.tbl_extend("force", table1, table2)
 end

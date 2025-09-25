@@ -31,15 +31,15 @@ return {
 						guifg = helpers.contrast_color(ft_color),
 					} or "",
 					" ",
-					{ filename, gui = modified and "bold,italic" or "bold" },
+					{ filename, gui = "bold,italic" },
 					-- guibg = "#44406e",
 				}
 				if props.focused then
 					for _, item in ipairs(navic.get_data(props.buf) or {}) do
 						table.insert(res, {
-							{ " ", group = "NavicSeparator" },
+							{ " ›", group = "NavicSeparator" },
 							{ item.icon, group = "NavicIcons" .. item.type },
-							{ item.name, group = "NavicText" },
+							{ item.name, group = "NavicIcons" .. item.type },
 						})
 					end
 				end

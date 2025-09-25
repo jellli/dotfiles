@@ -23,7 +23,7 @@ return {
 				signature = { enabled = true },
 				fuzzy = { implementation = "rust" },
 				appearance = {
-					use_nvim_cmp_as_default = false,
+					use_nvim_cmp_as_default = true,
 					nerd_font_variant = "mono",
 					kind_icons = require("icons").symbol_kinds,
 				},
@@ -32,6 +32,30 @@ return {
 					providers = {
 						cmdline = {
 							min_keyword_length = 2,
+						},
+						lsp = {
+							name = "LSP",
+							module = "blink.cmp.sources.lsp",
+							fallbacks = { "buffer" },
+							transform_items = function(_, items)
+								-- filter out text items, since we have the buffer source
+								return vim.tbl_filter(function(item)
+									return item.kind ~= require("blink.cmp.types").CompletionItemKind.Text
+								end, items)
+							end,
+						},
+						path = {
+							module = "blink.cmp.sources.path",
+							score_offset = 3,
+							fallbacks = { "buffer" },
+						},
+						buffer = {
+							opts = {
+								-- or (recommended) filter to only "normal" buffers
+								get_bufnrs = function()
+									return { vim.api.nvim_get_current_buf() }
+								end,
+							},
 						},
 					},
 				},
@@ -52,7 +76,7 @@ return {
 						},
 					},
 					ghost_text = {
-						enabled = vim.g.ai_cmp,
+						enabled = true,
 					},
 					menu = {
 						border = "single",

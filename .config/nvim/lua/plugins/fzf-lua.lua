@@ -29,7 +29,7 @@ return {
 				["bg+"] = { "bg", "FloatBorder" },
 
 				["fg"] = { "fg", "Comment" },
-				["fg+"] = { "fg", "PreProc" },
+				["fg+"] = { "fg", "PreInsert" },
 
 				["hl"] = { "fg", "Error" },
 				["hl+"] = { "fg", "Error" },

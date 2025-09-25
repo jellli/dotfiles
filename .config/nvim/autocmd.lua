@@ -1,12 +1,6 @@
---- Create an augroup
---- @param name string
---- @return integer
-local function create_augroup(name)
-	return vim.api.nvim_create_augroup(name, { clear = true })
-end
-
+require("utils")
 vim.api.nvim_create_autocmd("FileType", {
-	group = create_augroup("CloseWithQ"),
+	group = Create_autocmd("CloseWithQ"),
 	pattern = { "qf" },
 	callback = function()
 		vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = true })
@@ -14,7 +8,7 @@ vim.api.nvim_create_autocmd("FileType", {
 })
 
 vim.api.nvim_create_autocmd("BufReadPost", {
-	group = create_augroup("LastLOC"),
+	group = Create_autocmd("LastLOC"),
 	callback = function(event)
 		local exclude = { "gitcommit" }
 		local buf = event.buf

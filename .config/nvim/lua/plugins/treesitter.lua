@@ -1,3 +1,4 @@
+require("utils")
 return {
 	{
 		"nvim-treesitter/nvim-treesitter",
@@ -24,6 +25,12 @@ return {
 				"css",
 				"html",
 				"lua",
+			})
+			vim.api.nvim_create_autocmd("FileType", {
+				group = Create_autocmd("treesitter"),
+				callback = function()
+					pcall(vim.treesitter.start)
+				end,
 			})
 		end,
 	},
