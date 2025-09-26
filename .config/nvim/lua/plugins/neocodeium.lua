@@ -4,7 +4,7 @@ return {
 	config = function()
 		local neocodeium = require("neocodeium")
 		neocodeium.setup({
-			show_label = false,
+			show_label = true,
 			filetypes = {
 				zig = false,
 			},
