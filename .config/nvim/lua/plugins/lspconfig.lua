@@ -190,4 +190,9 @@ return {
 			})
 		end,
 	},
+	{
+		"ravibrock/spellwarn.nvim",
+		event = "VeryLazy",
+		config = true,
+	},
 }

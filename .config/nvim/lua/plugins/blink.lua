@@ -76,7 +76,7 @@ return {
 						},
 					},
 					ghost_text = {
-						enabled = true,
+						enabled = false,
 					},
 					menu = {
 						border = "single",

@@ -25,6 +25,7 @@ return {
 				"css",
 				"html",
 				"lua",
+				"zig",
 			})
 			vim.api.nvim_create_autocmd("FileType", {
 				group = Create_autocmd("treesitter"),

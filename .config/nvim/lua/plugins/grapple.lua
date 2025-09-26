@@ -1,3 +1,4 @@
+local M = {}
 local function save_mark()
 	local char = vim.fn.getcharstr()
 	-- Handle ESC, Ctrl-C, etc.
