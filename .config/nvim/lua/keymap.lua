@@ -97,3 +97,8 @@ Map("]w", diagnostic_goto(true, "WARN"), { desc = "Next Warning" })
 Map("[w", diagnostic_goto(false, "WARN"), { desc = "Prev Warning" })
 
 Map("<leader>qq", "<cmd>qa<cr>", { desc = "Quit All" })
+
+-- Remap q to Q so I'm not accidentally recording macros all the time
+Map("q", "<nop>")
+Map("Q", "q", { desc = "Record macro" })
+Map("<M-q>", "Q", { desc = "Replay last register" })
