@@ -1,3 +1,4 @@
+require("utils")
 ---@diagnostic disable: missing-fields
 local ensure_installed = {
 	"rust-analyzer",
@@ -67,22 +68,45 @@ return {
 	{
 		"rachartier/tiny-code-action.nvim",
 		event = "LspAttach",
-		opts = {
-			picker = {
-				"buffer",
-				opts = {
-					hotkeys = true,
-					-- Use numeric labels.
-					hotkeys_mode = function(titles)
-						return vim.iter(ipairs(titles))
-							:map(function(i)
-								return tostring(i)
-							end)
-							:totable()
-					end,
+		config = function()
+			require("tiny-code-action").setup({
+				picker = {
+					"buffer",
+					opts = {
+						hotkeys = true,
+						-- Use numeric labels.
+						hotkeys_mode = function(titles)
+							return vim.iter(ipairs(titles))
+								:map(function(i)
+									return tostring(i)
+								end)
+								:totable()
+						end,
+					},
 				},
-			},
-		},
+			})
+
+			vim.api.nvim_create_autocmd("User", {
+				pattern = "TinyCodeActionWindowEnterMain",
+				callback = function(event)
+					local win = event.data.win
+					local group = Create_autocmd("AutoCloseCodeActionWindow")
+					vim.api.nvim_create_autocmd("CursorMoved", {
+						group = group,
+						pattern = "*",
+						callback = function()
+							local current_win = vim.api.nvim_get_current_win()
+							if current_win ~= win then
+								vim.api.nvim_clear_autocmds({ group = group })
+								vim.defer_fn(function()
+									pcall(vim.api.nvim_win_close, win, true)
+								end, 200)
+							end
+						end,
+					})
+				end,
+			})
+		end,
 		keys = {
 			{
 				"<leader>ca",
