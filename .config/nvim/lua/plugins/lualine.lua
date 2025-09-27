@@ -30,17 +30,7 @@ local function list_running_tasks()
 end
 local function overseer_running_task()
 	local tasks = list_running_tasks()
-
-	if #tasks > 0 then
-		local task_num_text = ""
-		if #tasks > 1 then
-			task_num_text = "+" .. (#tasks - 1)
-		end
-
-		return "⏳" .. tasks[1].name .. task_num_text
-	end
-
-	return "no task running"
+	return #tasks .. " task" .. (#tasks > 1 and "s" or "")
 end
 
 local function grapple_tag()
@@ -67,8 +57,19 @@ return {
 				lualine_a = {
 					{ "mode" },
 				},
-				lualine_b = { "branch", "diff", "grapple" },
-				lualine_c = {},
+				lualine_b = { "branch", "diff" },
+				lualine_c = {
+					{
+						function()
+							-- invoke `progress` here.
+							return require("lsp-progress").progress()
+						end,
+						color = {
+							fg = Get_hl_hex("Comment", "fg"),
+							bg = "NONE",
+						},
+					},
+				},
 				lualine_x = {},
 				lualine_y = {
 					{
@@ -76,9 +77,9 @@ return {
 						color = function()
 							local tasks = list_running_tasks()
 							if #tasks > 0 then
-								return { bg = "#d4a76b", fg = "#000000", gui = "bold,italic" }
+								return { bg = "#2853b8", fg = "#ffffff", gui = "bold,italic" }
 							end
-							return { bg = "NONE", fg = "#d4a76b", gui = "bold,italic" }
+							return { fg = "#ffffff", bg = "#b44a48", gui = "bold,italic" }
 						end,
 					},
 					{
@@ -101,7 +102,7 @@ return {
 							}
 
 							local status, server_status = require("neocodeium").get_status()
-							return symbols.status[status] .. symbols.server_status[server_status]
+							return symbols.status[status]
 						end,
 						color = function()
 							local status, server_status = require("neocodeium").get_status()
@@ -109,9 +110,9 @@ return {
 								return { fg = "#ffffff", bg = "#b44a48" }
 							end
 							if status == 0 and server_status == 0 then
-								return { fg = "#ffffff", bg = "#2853b8" }
+								return { fg = "#ffffff", bg = "#53b4a2" }
 							end
-							return { fg = "#ffffff", bg = "#d4a76b" }
+							return { fg = "#ffffff", bg = "#6b6b6b" }
 						end,
 					},
 					diagnostics,
