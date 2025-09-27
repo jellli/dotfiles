@@ -30,3 +30,11 @@ vim.api.nvim_create_autocmd("User", {
 		Snacks.rename.on_rename_file(event.data.from, event.data.to)
 	end,
 })
+
+vim.api.nvim_create_autocmd("TextYankPost", {
+	callback = function()
+		vim.highlight.on_yank()
+	end,
+	group = Create_autocmd("YankHighlight"),
+	pattern = "*",
+})
