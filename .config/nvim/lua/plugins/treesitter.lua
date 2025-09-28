@@ -28,7 +28,7 @@ return {
         "zig",
       })
       vim.api.nvim_create_autocmd("FileType", {
-        group = utils.create_autocmd("treesitter"),
+        group = utils.creat_group("treesitter"),
         callback = function()
           pcall(vim.treesitter.start)
         end,

@@ -3,12 +3,12 @@ vim.api.nvim_create_autocmd("TextYankPost", {
   callback = function()
     vim.highlight.on_yank()
   end,
-  group = utils.create_autocmd("YankHighlight"),
+  group = utils.creat_group("YankHighlight"),
   pattern = "*",
 })
 
 vim.api.nvim_create_autocmd("FileType", {
-  group = utils.create_autocmd("CloseWithQ"),
+  group = utils.creat_group("CloseWithQ"),
   pattern = { "checkhealth", "grug-far", "help", "lspinfo", "qf", "DiffviewFiles" },
   callback = function(event)
     vim.bo[event.buf].buflisted = false
@@ -22,7 +22,7 @@ vim.api.nvim_create_autocmd("FileType", {
 })
 
 vim.api.nvim_create_autocmd("LspAttach", {
-  group = utils.create_autocmd("lsp-attach"),
+  group = utils.creat_group("lsp-attach"),
   callback = function(event)
     local fzf = require("fzf-lua")
     -- LSP
@@ -72,7 +72,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
     local client = vim.lsp.get_client_by_id(event.data.client_id)
 
     if client and supports_method(client, vim.lsp.protocol.Methods.textDocument_documentHighlight, event.buf) then
-      local highlight_augroup = utils.create_autocmd("lsp-highlight")
+      local highlight_augroup = utils.creat_group("lsp-highlight")
       vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
         buffer = event.buf,
         group = highlight_augroup,
@@ -86,7 +86,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
       })
 
       vim.api.nvim_create_autocmd("LspDetach", {
-        group = utils.create_autocmd("lsp-detach"),
+        group = utils.creat_group("lsp-detach"),
         callback = function(detachEvent)
           vim.lsp.buf.clear_references()
           vim.api.nvim_clear_autocmds({ group = highlight_augroup, buffer = detachEvent.buf })
