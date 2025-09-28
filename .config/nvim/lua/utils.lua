@@ -2,11 +2,11 @@
 --- @param name string
 --- @return integer
 function Create_autocmd(name)
-	return vim.api.nvim_create_augroup(name, { clear = true })
+  return vim.api.nvim_create_augroup(name, { clear = true })
 end
 
 function Merge(table1, table2)
-	return vim.tbl_extend("force", table1, table2)
+  return vim.tbl_extend("force", table1, table2)
 end
 
 --- Gets the hex color of the highlight group
@@ -14,17 +14,17 @@ end
 ---@param option string
 ---@return string | nil
 function Get_hl_hex(name, option)
-	if type(name) ~= "string" or (option ~= "fg" and option ~= "bg") then
-		error("Invalid arguments. Usage: highlight(name: string, option: 'fg' | 'bg')")
-	end
-	local hl = vim.api.nvim_get_hl(0, { name = name })
-	local color = hl[option]
-	if not color then
-		print("No " .. option .. " color found for highlight group: " .. name)
-		return nil
-	end
-	local hex_color = string.format("#%06x", color)
-	return hex_color
+  if type(name) ~= "string" or (option ~= "fg" and option ~= "bg") then
+    error("Invalid arguments. Usage: highlight(name: string, option: 'fg' | 'bg')")
+  end
+  local hl = vim.api.nvim_get_hl(0, { name = name })
+  local color = hl[option]
+  if not color then
+    print("No " .. option .. " color found for highlight group: " .. name)
+    return nil
+  end
+  local hex_color = string.format("#%06x", color)
+  return hex_color
 end
 
 --- Maps a key to an action, mode is optional
@@ -33,7 +33,7 @@ end
 ---@param opts  vim.keymap.set.Opts | nil
 ---@param mode string | string[] | nil
 function Map(key, action, opts, mode)
-	local m = mode or "n"
-	local o = opts or { noremap = true, silent = true }
-	vim.keymap.set(m, key, action, o)
+  local m = mode or "n"
+  local o = opts or { noremap = true, silent = true }
+  vim.keymap.set(m, key, action, o)
 end

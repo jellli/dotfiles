@@ -4,12 +4,12 @@ Map("j", [[(v:count > 1 ? 'm`' . v:count : 'g') . 'j']], { expr = true })
 Map("k", [[(v:count > 1 ? 'm`' . v:count : 'g') . 'k']], { expr = true })
 
 Map("<esc>", function()
-	if require("luasnip").expand_or_jumpable() then
-		require("luasnip").unlink_current()
-		vim.notify("Snippet unlinked", vim.log.levels.INFO)
-	end
-	vim.cmd("noh")
-	return "<esc>"
+  if require("luasnip").expand_or_jumpable() then
+    require("luasnip").unlink_current()
+    vim.notify("Snippet unlinked", vim.log.levels.INFO)
+  end
+  vim.cmd("noh")
+  return "<esc>"
 end, { expr = true, desc = "escape, clear hlsearch, and stop snippet session" }, { "i", "n", "s" })
 
 -- Disable the spacebar key's default behavior in Normal and Visual modes
@@ -82,11 +82,11 @@ Map("gj", "%", { desc = "Go to matching bracket" }, { "n", "v" })
 
 -- diagnostic
 local diagnostic_goto = function(next, severity)
-	local direction = next and 1 or -1
-	severity = severity and vim.diagnostic.severity[severity] or nil
-	return function()
-		vim.diagnostic.jump({ count = direction, severity = severity })
-	end
+  local direction = next and 1 or -1
+  severity = severity and vim.diagnostic.severity[severity] or nil
+  return function()
+    vim.diagnostic.jump({ count = direction, severity = severity })
+  end
 end
 Map("<leader>cd", vim.diagnostic.open_float, { desc = "Line Diagnostics" })
 Map("]d", diagnostic_goto(true), { desc = "Next Diagnostic" })

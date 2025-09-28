@@ -3,7 +3,7 @@ vim.g.maplocalleader = " "
 
 local opt = vim.opt
 vim.schedule(function()
-	opt.clipboard = "unnamedplus"
+  opt.clipboard = "unnamedplus"
 end)
 
 opt.number = true
@@ -36,12 +36,12 @@ opt.wrap = false
 opt.termguicolors = true
 
 opt.fillchars = {
-	foldopen = "",
-	foldclose = "",
-	fold = " ",
-	foldsep = " ",
-	diff = "╱",
-	eob = " ",
+  foldopen = "",
+  foldclose = "",
+  fold = " ",
+  foldsep = " ",
+  diff = "╱",
+  eob = " ",
 }
 
 opt.splitbelow = true
