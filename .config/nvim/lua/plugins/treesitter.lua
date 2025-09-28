@@ -1,4 +1,4 @@
-require("utils")
+local utils = require("utils")
 return {
   {
     "nvim-treesitter/nvim-treesitter",
@@ -28,7 +28,7 @@ return {
         "zig",
       })
       vim.api.nvim_create_autocmd("FileType", {
-        group = Create_autocmd("treesitter"),
+        group = utils.create_autocmd("treesitter"),
         callback = function()
           pcall(vim.treesitter.start)
         end,

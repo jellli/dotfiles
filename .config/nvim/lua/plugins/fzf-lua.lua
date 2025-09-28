@@ -1,4 +1,4 @@
-require("utils")
+local utils = require("utils")
 
 return {
   "ibhagwan/fzf-lua",
@@ -58,23 +58,23 @@ return {
       git_icons = false,
       color_icons = true,
     }
-    Map("<leader>sa", function()
-      fzf.builtin(Merge(builtin_opts, picker_opts))
+    utils.map("<leader>sa", function()
+      fzf.builtin(utils.merge(builtin_opts, picker_opts))
     end, { desc = "FZF Builtin" })
 
-    Map("<leader><leader>", function()
-      fzf.files(Merge(picker_opts, {
+    utils.map("<leader><leader>", function()
+      fzf.files(utils.merge(picker_opts, {
         cmd = "rg --files --hidden --ignore --glob='!.git' --sortr=modified",
         fzf_opts = { ["--scheme"] = "path", ["--tiebreak"] = "index" },
       }))
     end, { desc = "Search Files" })
 
-    Map("<leader>sR", function()
-      fzf.resume(Merge(picker_opts, { winopts = { width = 0.80 } }))
+    utils.map("<leader>sR", function()
+      fzf.resume(utils.merge(picker_opts, { winopts = { width = 0.80 } }))
     end, { desc = "FZF Search Resume" })
 
-    Map("<leader>sg", function()
-      fzf.live_grep_native(Merge(picker_opts, {
+    utils.map("<leader>sg", function()
+      fzf.live_grep_native(utils.merge(picker_opts, {
         winopts = {
           width = 0.80,
           preview = { hidden = false, layout = "horizontal" },
@@ -82,11 +82,11 @@ return {
       }))
     end, { desc = "Live Grep" })
 
-    Map("<leader>st", function()
-      fzf.colorschemes(Merge(picker_opts, builtin_opts))
+    utils.map("<leader>st", function()
+      fzf.colorschemes(utils.merge(picker_opts, builtin_opts))
     end, { desc = "Switch Theme" })
 
-    Map("<C-e>", function()
+    utils.map("<C-e>", function()
       require("fzf-lua.win").toggle_fullscreen()
       require("fzf-lua.win").toggle_preview()
     end, { desc = "Toggle FZF fullscreen" }, { "c", "i", "t" })

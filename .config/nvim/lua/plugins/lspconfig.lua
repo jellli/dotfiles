@@ -1,4 +1,4 @@
-require("utils")
+local utils = require("utils")
 ---@diagnostic disable: missing-fields
 local ensure_installed = {
   "rust-analyzer",
@@ -105,13 +105,13 @@ return {
       vim.api.nvim_create_autocmd("User", {
         pattern = "TinyCodeActionWindowEnterMain",
         callback = function(event)
-          auto_close(event.data.win, Create_autocmd("AutoCloseCodeActionWindow"))
+          auto_close(event.data.win, utils.create_autocmd("AutoCloseCodeActionWindow"))
         end,
       })
       vim.api.nvim_create_autocmd("User", {
         pattern = "TinyCodeActionWindowEnterPreview",
         callback = function(event)
-          auto_close(event.data.win, Create_autocmd("AutoCloseCodeActionPreviewWindow"))
+          auto_close(event.data.win, utils.create_autocmd("AutoCloseCodeActionPreviewWindow"))
         end,
       })
     end,

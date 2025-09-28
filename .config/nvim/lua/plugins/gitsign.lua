@@ -1,5 +1,6 @@
 local solid_bar = require("icons").misc.vertical_bar
 local dashed_bar = require("icons").misc.dashed_bar
+local utils = require("utils")
 
 -- Adds git releated signs to the gutter, as well as utilities for managing changes.
 return {
@@ -37,8 +38,8 @@ return {
           },
         }
 
-        Map("[g", gs.prev_hunk, { desc = "Previous hunk" })
-        Map("]g", gs.next_hunk, { desc = "Next hunk" })
+        utils.map("[g", gs.prev_hunk, { desc = "Previous hunk" })
+        utils.map("]g", gs.next_hunk, { desc = "Next hunk" })
       end,
     },
   },

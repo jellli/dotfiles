@@ -1,12 +1,14 @@
---- Create an augroup
---- @param name string
---- @return integer
-local function create_augroup(name)
-  return vim.api.nvim_create_augroup("j/" .. name, { clear = true })
-end
+local utils = require("utils")
+vim.api.nvim_create_autocmd("TextYankPost", {
+  callback = function()
+    vim.highlight.on_yank()
+  end,
+  group = utils.create_autocmd("YankHighlight"),
+  pattern = "*",
+})
 
 vim.api.nvim_create_autocmd("FileType", {
-  group = create_augroup("CloseWithQ"),
+  group = utils.create_autocmd("CloseWithQ"),
   pattern = { "checkhealth", "grug-far", "help", "lspinfo", "qf", "DiffviewFiles" },
   callback = function(event)
     vim.bo[event.buf].buflisted = false
@@ -20,7 +22,7 @@ vim.api.nvim_create_autocmd("FileType", {
 })
 
 vim.api.nvim_create_autocmd("LspAttach", {
-  group = create_augroup("lsp-attach"),
+  group = utils.create_autocmd("lsp-attach"),
   callback = function(event)
     local fzf = require("fzf-lua")
     -- LSP
@@ -41,22 +43,22 @@ vim.api.nvim_create_autocmd("LspAttach", {
         },
       },
     }
-    -- Map("<leader>rn", function()
+    -- utils.map("<leader>rn", function()
     -- 	vim.lsp.buf.rename()
     -- end, { desc = "Rename" })
-    Map("gd", function()
+    utils.map("gd", function()
       fzf.lsp_definitions(lsp_opts)
     end, { desc = "Goto Definition" })
-    Map("gr", function()
+    utils.map("gr", function()
       fzf.lsp_references(lsp_opts)
     end, { desc = "Goto Reference" })
-    Map("gt", function()
+    utils.map("gt", function()
       fzf.lsp_typedefs(lsp_opts)
     end, { desc = "Goto Type Definition" })
-    Map("gI", function()
+    utils.map("gI", function()
       fzf.lsp_implementations(lsp_opts)
     end, { desc = "Goto Implementation" })
-    Map("<leader>gs", function()
+    utils.map("<leader>gs", function()
       fzf.lsp_document_symbols(lsp_opts)
     end, { desc = "Goto Document Symbols" })
 
@@ -70,7 +72,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
     local client = vim.lsp.get_client_by_id(event.data.client_id)
 
     if client and supports_method(client, vim.lsp.protocol.Methods.textDocument_documentHighlight, event.buf) then
-      local highlight_augroup = create_augroup("lsp-highlight")
+      local highlight_augroup = utils.create_autocmd("lsp-highlight")
       vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
         buffer = event.buf,
         group = highlight_augroup,
@@ -84,7 +86,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
       })
 
       vim.api.nvim_create_autocmd("LspDetach", {
-        group = create_augroup("lsp-detach"),
+        group = utils.create_autocmd("lsp-detach"),
         callback = function(detachEvent)
           vim.lsp.buf.clear_references()
           vim.api.nvim_clear_autocmds({ group = highlight_augroup, buffer = detachEvent.buf })
@@ -92,7 +94,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
       })
     end
 
-    Map("<leader>th", function()
+    utils.map("<leader>th", function()
       if client and supports_method(client, "textDocument/inlayHint", event.buf) then
         vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = event.buf }))
       else

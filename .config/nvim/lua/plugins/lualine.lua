@@ -1,4 +1,5 @@
 local icons = require("icons")
+local utils = require("utils")
 
 local diagnostics = {
   "diagnostics",
@@ -65,7 +66,7 @@ return {
               return require("lsp-progress").progress()
             end,
             color = {
-              fg = Get_hl_hex("Comment", "fg"),
+              fg = utils.get_hl_hex("Comment", "fg"),
               bg = "NONE",
             },
           },

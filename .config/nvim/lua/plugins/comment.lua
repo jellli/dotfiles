@@ -1,3 +1,4 @@
+local utils = require("utils")
 return {
   "numToStr/Comment.nvim",
   event = { "BufReadPre", "BufNewFile" },
@@ -25,9 +26,9 @@ return {
       pre_hook = require("ts_context_commentstring.integrations.comment_nvim").create_pre_hook(),
     })
 
-    Map("<C-_>", "<esc><cmd>lua require('Comment.api').toggle.linewise(vim.fn.visualmode())<cr>", nil, "v")
-    Map("<C-/>", "<esc><cmd>lua require('Comment.api').toggle.linewise(vim.fn.visualmode())<cr>", nil, "v")
-    Map("<C-_>", require("Comment.api").toggle.linewise.current, nil, { "n", "i" })
-    Map("<C-/>", require("Comment.api").toggle.linewise.current, nil, { "n", "i" })
+    utils.map("<C-_>", "<esc><cmd>lua require('Comment.api').toggle.linewise(vim.fn.visualmode())<cr>", nil, "v")
+    utils.map("<C-/>", "<esc><cmd>lua require('Comment.api').toggle.linewise(vim.fn.visualmode())<cr>", nil, "v")
+    utils.map("<C-_>", require("Comment.api").toggle.linewise.current, nil, { "n", "i" })
+    utils.map("<C-/>", require("Comment.api").toggle.linewise.current, nil, { "n", "i" })
   end,
 }
