@@ -36,6 +36,7 @@
   "mini.files": { "branch": "main", "commit": "d22c5b74b7764d0bd33e4988e5ee00139cfe22e3" },
   "neocodeium": { "branch": "main", "commit": "f67384cee91f8ffc0d2e09d257691b2461725d5b" },
   "neogen": { "branch": "main", "commit": "d7f9461727751fb07f82011051338a9aba07581d" },
+  "nui.nvim": { "branch": "main", "commit": "de740991c12411b663994b2860f1a4fd0937c130" },
   "nvim-autopairs": { "branch": "master", "commit": "23320e75953ac82e559c610bec5a90d9c6dfa743" },
   "nvim-lspconfig": { "branch": "master", "commit": "336b388c272555d2ae94627a50df4c2f89a5e257" },
   "nvim-navic": { "branch": "master", "commit": "f887d794a0f4594882814d7780980a949200a238" },

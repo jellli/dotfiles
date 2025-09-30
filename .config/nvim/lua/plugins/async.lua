@@ -1,4 +1,4 @@
 return {
   "lewis6991/async.nvim",
-  lazy = false,
+  "MunifTanjim/nui.nvim",
 }
