@@ -34,10 +34,6 @@ local function overseer_running_task()
   return #tasks .. " task" .. (#tasks > 1 and "s" or "")
 end
 
-local function grapple_tag()
-  local icon = "󰛢"
-end
-
 return {
   "nvim-lualine/lualine.nvim",
   event = "VeryLazy",
@@ -78,9 +74,9 @@ return {
             color = function()
               local tasks = list_running_tasks()
               if #tasks > 0 then
-                return { bg = "#2853b8", fg = "#ffffff", gui = "bold,italic" }
+                return { fg = "#8d9a7e", bg = "None", gui = "bold,italic" }
               end
-              return { fg = "#ffffff", bg = "#b44a48", gui = "bold,italic" }
+              return { fg = "#b44a48", bg = "None", gui = "italic" }
             end,
           },
           {
@@ -108,12 +104,12 @@ return {
             color = function()
               local status, server_status = require("neocodeium").get_status()
               if server_status == 2 then
-                return { fg = "#ffffff", bg = "#b44a48" }
+                return { bg = "None", fg = "#b44a48" }
               end
               if status == 0 and server_status == 0 then
-                return { fg = "#ffffff", bg = "#53b4a2" }
+                return { bg = "None", fg = "#53b4a2" }
               end
-              return { fg = "#ffffff", bg = "#6b6b6b" }
+              return { bg = "None", fg = "#6b6b6b" }
             end,
           },
           diagnostics,
