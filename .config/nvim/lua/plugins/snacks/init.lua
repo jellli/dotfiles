@@ -8,11 +8,9 @@ return {
     quickfile = {},
     bigfile = {},
     input = {},
+    indent = require("plugins.snacks.indent"),
     dashboard = require("plugins.snacks.dashboard"),
-    notifier = {
-      top_down = false,
-      margin = { top = 0, right = 1, bottom = 1 },
-    },
+    notifier = require("plugins.snacks.notifier"),
     lazygit = {
       theme = {
         inactiveBorderColor = { fg = "Comment" },
