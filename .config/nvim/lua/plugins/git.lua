@@ -52,8 +52,13 @@ return {
       "ibhagwan/fzf-lua",
     },
     opts = {
+      disable_hint = true,
       graph_style = "unicode",
       process_spinner = true,
+      remember_settings = false,
+
+      disable_line_numbers = false,
+      disable_relative_line_numbers = false,
       highlight = {
         italic = true,
         bold = true,

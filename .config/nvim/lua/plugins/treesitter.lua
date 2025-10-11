@@ -85,6 +85,7 @@ return {
         function()
           require("treesj").toggle()
         end,
+        desc = "Toggle Split Join",
       },
     },
     dependencies = { "nvim-treesitter/nvim-treesitter" },

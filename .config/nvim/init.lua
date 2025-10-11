@@ -27,6 +27,9 @@ require("lazy").setup(plugins, {
     -- Do not automatically install on startup.
     missing = false,
   },
+  dev = {
+    path = "~/personal/",
+  },
   change_detection = { notify = false },
   performance = {
     rtp = {

@@ -24,11 +24,9 @@ return {
     right = {
       { ft = "grug-far", title = "Search", size = { width = 0.40 } },
       {
-        title = "Overseer",
-        ft = "OverseerList",
-        open = function()
-          require("overseer").open()
-        end,
+        ft = "sidekick_terminal",
+        title = "AI",
+        size = { width = 0.40 },
       },
     },
     bottom = {

@@ -9,8 +9,9 @@ return {
         ---@diagnostic disable-next-line: unused-local
         overrides = function(colors)
           return {
+            Winseparator = { link = "FloatBorder" },
             CursorLineNr = { link = "Constant" },
-            -- BlinkCmpMenuBorder = { link = "FloatBorder" },
+            BlinkCmpMenuBorder = { link = "Comment" },
             ["@variable"] = { fg = "#a7706a" },
           }
         end,

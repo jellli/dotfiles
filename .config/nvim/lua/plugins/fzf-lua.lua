@@ -77,6 +77,7 @@ return {
       fzf.live_grep_native(utils.merge(picker_opts, {
         winopts = {
           width = 0.80,
+          height = 0.90,
           preview = { hidden = false, layout = "horizontal" },
         },
       }))

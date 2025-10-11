@@ -119,6 +119,7 @@ return {
       {
         "<leader>ca",
         mode = { "n", "x" },
+        desc = "Code Action",
         function()
           require("tiny-code-action").code_action({})
         end,
@@ -127,11 +128,21 @@ return {
   },
   {
     "smjonas/inc-rename.nvim",
+    cmd = "IncRename",
     opts = {
       input_buffer_type = "snacks",
     },
     keys = {
-      { "<leader>rn", ":IncRename ", desc = "Rename", mode = { "n", "v" } },
+      {
+        "<leader>rn",
+        function()
+          local inc_rename = require("inc_rename")
+          return ":" .. inc_rename.config.cmd_name .. " " .. vim.fn.expand("<cword>")
+        end,
+        expr = true,
+        desc = "Rename (inc-rename.nvim)",
+        mode = { "n", "v" },
+      },
     },
   },
   {
@@ -216,15 +227,5 @@ return {
         -- },
       })
     end,
-  },
-  {
-    "ravibrock/spellwarn.nvim",
-    event = "VeryLazy",
-    config = true,
-  },
-  {
-    "m-demare/hlargs.nvim",
-    opts = {},
-    event = "VeryLazy",
   },
 }

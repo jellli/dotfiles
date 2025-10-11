@@ -39,6 +39,7 @@ return {
         function()
           require("grapple").toggle_tags()
         end,
+        desc = "Toggle grapple",
         noremap = true,
         silent = true,
       },

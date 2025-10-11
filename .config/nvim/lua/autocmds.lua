@@ -58,9 +58,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
     utils.map("gI", function()
       fzf.lsp_implementations(lsp_opts)
     end, { desc = "Goto Implementation" })
-    utils.map("<leader>gs", function()
-      fzf.lsp_document_symbols(lsp_opts)
-    end, { desc = "Goto Document Symbols" })
 
     ---@param client vim.lsp.Client
     ---@param method vim.lsp.protocol.Method.ClientToServer
