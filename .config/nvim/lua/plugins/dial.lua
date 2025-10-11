@@ -125,6 +125,17 @@ return {
           augend.constant.alias.bool, -- boolean value (true <-> false)
           logical_alias,
         },
+        json = {},
+        css = {},
+        vue = {},
+        javascript = {},
+        typescript = {},
+        typescriptreact = {},
+        javascriptreact = {},
+        lua = {},
+        python = {},
+        sass = {},
+        scss = {},
         markdown = {
           augend.constant.new({
             elements = { "[ ]", "[x]" },

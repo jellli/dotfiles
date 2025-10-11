@@ -8,6 +8,7 @@ return {
     quickfile = {},
     bigfile = {},
     input = {},
+    dashboard = require("plugins.snacks.dashboard"),
     notifier = {
       top_down = false,
       margin = { top = 0, right = 1, bottom = 1 },
