@@ -108,4 +108,4 @@ source ~/.jili_env
 # bun completions
 [ -s "/Users/hoon/.bun/_bun" ] && source "/Users/hoon/.bun/_bun"
 eval "$(fnm env --use-on-cd --shell zsh)"
-export PATH="$HOME/.local/bin:$PATH"
+export PATH="$PATH:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.local/share/bob/nvim-bin"

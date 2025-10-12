@@ -26,6 +26,7 @@ opt.scrolloff = 8
 opt.confirm = true
 
 opt.linebreak = true
+opt.autoindent = true
 opt.smartindent = true -- Insert indents automatically
 
 opt.tabstop = 2

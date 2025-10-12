@@ -15,10 +15,13 @@ return {
     },
     left = {
       {
+        title = "Files",
+        ft = "Fyler",
+        size = { width = 0.20 },
+      },
+      {
         title = "Symbols",
         ft = "aerial",
-        pinned = true,
-        open = "AerialOpen",
       },
     },
     right = {
