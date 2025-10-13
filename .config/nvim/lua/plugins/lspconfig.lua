@@ -28,6 +28,7 @@ return {
           library = {
             { path = "snacks.nvim", words = { "Snacks" } },
             { path = "lazy.nvim", words = { "LazyVim" } },
+            { path = vim.fn.stdpath("data") .. "/LuaAddons/love2d/library" },
           },
         },
       },
