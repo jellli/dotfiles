@@ -31,8 +31,7 @@ return {
   },
   sections = {
     { section = "header", padding = 1, height = 2 },
-    { title = "Recent Files", section = "recent_files", indent = 2, padding = 1 },
-    { section = "startup" },
+    { title = "Recent Files", section = "recent_files", cwd = true, indent = 2, padding = 1 },
     { text = { { get_version(), hl = "Special" } }, padding = 1, height = 2, align = "center" },
   },
   formats = {},

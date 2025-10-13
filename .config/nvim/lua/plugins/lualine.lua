@@ -57,6 +57,7 @@ return {
         lualine_b = { "branch", "diff" },
         lualine_c = {
           {
+            "grapple",
             function()
               -- invoke `progress` here.
               return require("lsp-progress").progress()

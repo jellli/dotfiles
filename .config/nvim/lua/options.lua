@@ -29,8 +29,12 @@ opt.linebreak = true
 opt.autoindent = true
 opt.smartindent = true -- Insert indents automatically
 
-opt.tabstop = 2
-opt.expandtab = true
+vim.opt.tabstop = 2
+vim.opt.shiftwidth = 2
+vim.opt.expandtab = true
+
+vim.opt.autoindent = true
+vim.opt.smartindent = true
 
 opt.wrap = false
 
