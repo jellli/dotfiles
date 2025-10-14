@@ -51,8 +51,8 @@ map("N", "Nzzzv", { desc = "Previous search result" })
 -- map("<Right>", ":vertical resize +10<cr>")
 
 -- Buffers
-map("<Tab>", ":bnext<cr>", { desc = "Next buffer" })
-map("<S-Tab>", ":bprevious<cr>", { desc = "Previous buffer" })
+map("[b", ":bnext<cr>", { desc = "Next buffer" })
+map("]b", ":bprevious<cr>", { desc = "Previous buffer" })
 
 -- Window management
 map("<leader>v", "<C-w>v", { desc = "Split window vertically" })
