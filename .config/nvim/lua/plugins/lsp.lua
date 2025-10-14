@@ -110,34 +110,6 @@ return {
           },
         },
       })
-      --[[ local function auto_close(win, group)
-        vim.api.nvim_create_autocmd("CursorMoved", {
-          group = group,
-          pattern = "*",
-          callback = function()
-            local current_win = vim.api.nvim_get_current_win()
-            if current_win ~= win then
-              vim.api.nvim_clear_autocmds({ group = group })
-              vim.defer_fn(function()
-                pcall(vim.api.nvim_win_close, win, true)
-              end, 200)
-            end
-          end,
-        })
-      end
-
-      vim.api.nvim_create_autocmd("User", {
-        pattern = "TinyCodeActionWindowEnterMain",
-        callback = function(event)
-          auto_close(event.data.win, utils.creat_group("AutoCloseCodeActionWindow"))
-        end,
-      })
-      vim.api.nvim_create_autocmd("User", {
-        pattern = "TinyCodeActionWindowEnterPreview",
-        callback = function(event)
-          auto_close(event.data.win, utils.creat_group("AutoCloseCodeActionPreviewWindow"))
-        end,
-      }) ]]
     end,
     keys = {
       {
