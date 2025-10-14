@@ -1,3 +1,4 @@
+local utils = require("utils")
 return {
   "stevearc/conform.nvim",
   event = { "BufWritePre" },
@@ -14,11 +15,28 @@ return {
   },
   config = function()
     local conform = require("conform")
-    local webdev_opts = {
-      stop_after_first = true,
-      "biome",
-      "prettier",
-    }
+    local webdev_opts = function()
+      local cwd = vim.fn.getcwd()
+      local config_files = {
+        ".prettierrc",
+        ".prettierrc.json",
+        ".prettierrc.js",
+        "prettier.config.js",
+        ".prettierrc.yaml",
+        ".prettierrc.yml",
+      }
+      for _, config_file in ipairs(config_files) do
+        if utils.check_file_in_cwd(config_file) == 1 then
+          return {
+            "prettier",
+          }
+        end
+      end
+
+      return {
+        "biome",
+      }
+    end
     conform.setup({
       formatters_by_ft = {
         lua = { "stylua" },

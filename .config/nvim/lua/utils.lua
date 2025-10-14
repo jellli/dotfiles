@@ -56,4 +56,10 @@ function M.map(key, action, opts, mode)
   vim.keymap.set(m, key, action, o)
 end
 
+function M.check_file_in_cwd(filename)
+  local cwd = vim.fn.getcwd()
+  local filepath = cwd .. "/" .. filename
+  return vim.fn.filereadable(filepath) == 1
+end
+
 return M
