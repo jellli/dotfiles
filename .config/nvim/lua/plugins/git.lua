@@ -46,6 +46,7 @@ return {
   -- Neogit
   {
     "NeogitOrg/neogit",
+    event = { "BufReadPre", "BufNewFile" },
     dependencies = {
       "nvim-lua/plenary.nvim",
       "sindrets/diffview.nvim",
@@ -92,5 +93,10 @@ return {
     },
   },
   -- Git conflict
-  { "akinsho/git-conflict.nvim", version = "*", config = true },
+  {
+    "akinsho/git-conflict.nvim",
+    event = { "BufReadPre", "BufNewFile" },
+    version = "*",
+    config = true,
+  },
 }

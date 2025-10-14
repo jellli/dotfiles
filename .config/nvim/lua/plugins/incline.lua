@@ -1,5 +1,6 @@
 return {
   "b0o/incline.nvim",
+  event = "VeryLazy",
   dependencies = { "SmiteshP/nvim-navic" },
   config = function()
     local helpers = require("incline.helpers")

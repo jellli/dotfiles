@@ -106,7 +106,7 @@ vim.lsp.enable({
   "emmet_ls",
   "marksman",
   "zls",
-  -- "biome",
+  "biome",
   "tailwindcss",
   "rust_analyzer",
   "jsonls",
