@@ -51,12 +51,14 @@ return {
   },
   {
     "b0o/schemastore.nvim",
+    event = "LspAttach",
     ft = { "json", "yaml" },
   },
   {
     -- `lazydev` configures Lua LSP for your Neovim config, runtime and plugins
     -- used for completion, annotations and signatures of Neovim apis
     "folke/lazydev.nvim",
+    event = "LspAttach",
     ft = "lua",
     opts = {
       library = {
@@ -150,6 +152,7 @@ return {
   },
   {
     "smjonas/inc-rename.nvim",
+    event = "LspAttach",
     cmd = "IncRename",
     opts = {
       input_buffer_type = "snacks",

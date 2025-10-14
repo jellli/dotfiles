@@ -31,17 +31,17 @@ return {
         title = "AI",
         size = { width = 0.40 },
       },
+    },
+    bottom = {
+      { ft = "qf", title = "QuickFix" },
       {
         ft = "help",
-        size = { width = 0.40 },
+        size = { height = 0.40 },
         -- don't open help files in edgy that we're editing
         filter = function(buf)
           return vim.bo[buf].buftype == "help"
         end,
       },
-    },
-    bottom = {
-      { ft = "qf", title = "QuickFix" },
     },
   },
 }
