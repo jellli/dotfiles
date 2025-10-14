@@ -1,5 +1,6 @@
 return {
   "sindrets/diffview.nvim",
+  event = "VeryLazy",
   keys = {
     {
       "<leader>dt",

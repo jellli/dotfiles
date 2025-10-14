@@ -2,6 +2,7 @@
 return {
   {
     "nvim-mini/mini.bufremove",
+    event = "VeryLazy",
     opts = {},
     keys = {
       {

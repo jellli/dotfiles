@@ -2,6 +2,7 @@
 return {
   {
     "MagicDuck/grug-far.nvim",
+    event = "VeryLazy",
     opts = { headerMaxWidth = 80 },
     cmd = { "GrugFar", "GrugFarWithin" },
     keys = {
