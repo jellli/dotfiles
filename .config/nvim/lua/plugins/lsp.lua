@@ -110,7 +110,7 @@ return {
           },
         },
       })
-      local function auto_close(win, group)
+      --[[ local function auto_close(win, group)
         vim.api.nvim_create_autocmd("CursorMoved", {
           group = group,
           pattern = "*",
@@ -137,7 +137,7 @@ return {
         callback = function(event)
           auto_close(event.data.win, utils.creat_group("AutoCloseCodeActionPreviewWindow"))
         end,
-      })
+      }) ]]
     end,
     keys = {
       {
