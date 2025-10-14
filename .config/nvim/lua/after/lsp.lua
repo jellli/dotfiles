@@ -40,7 +40,7 @@ vim.lsp.config("vtsls", {
       suggest = {
         completeFunctionCalls = true,
       },
-      -- locale = "zh-CN",
+      locale = "zh-CN",
       tsserver = {
         maxTsServerMemory = 8 * 1024,
       },

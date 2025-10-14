@@ -1,14 +1,4 @@
 return {
-  -- {
-  -- 	"pmizio/typescript-tools.nvim",
-  -- 	dependencies = { "nvim-lua/plenary.nvim", "neovim/nvim-lspconfig" },
-  -- 	opts = {},
-  -- },
-  {
-    "dmmulroy/ts-error-translator.nvim",
-    event = "LspAttach",
-    opts = {},
-  },
   {
     event = "InsertEnter",
     "windwp/nvim-ts-autotag",
