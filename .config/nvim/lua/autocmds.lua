@@ -100,3 +100,9 @@ vim.api.nvim_create_autocmd("LspAttach", {
     end, { desc = "Toggle Inlay Hints" })
   end,
 })
+
+vim.api.nvim_create_autocmd("FileType", {
+  callback = function()
+    vim.cmd("setlocal formatoptions-=c formatoptions-=o")
+  end,
+})

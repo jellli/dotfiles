@@ -33,6 +33,7 @@ return {
     { section = "header", padding = 1, height = 2 },
     { title = "Recent Files", section = "recent_files", cwd = true, indent = 2, padding = 1 },
     { text = { { get_version(), hl = "Special" } }, padding = 1, height = 2, align = "center" },
+    { section = "startup" },
   },
   formats = {},
 }
