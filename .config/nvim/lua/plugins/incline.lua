@@ -1,6 +1,6 @@
 return {
   "b0o/incline.nvim",
-  event = "VeryLazy",
+  event = { "BufReadPre", "BufNewFile" },
   dependencies = { "SmiteshP/nvim-navic" },
   config = function()
     local helpers = require("incline.helpers")
@@ -20,7 +20,7 @@ return {
           filename = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(props.buf), ":h:t") .. "/" .. filename
         end
         local ft_icon, ft_color = devicons.get_icon_color(filename)
-        local modified = vim.bo[props.buf].modified
+        -- local modified = vim.bo[props.buf].modified
         local os_name = vim.loop.os_uname().sysname
         local prefix = os_name == "Darwin" and "" or " "
         local res = {
@@ -49,5 +49,4 @@ return {
       end,
     })
   end,
-  event = "VeryLazy",
 }
