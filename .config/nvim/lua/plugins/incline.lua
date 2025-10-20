@@ -22,17 +22,16 @@ return {
         local ft_icon, ft_color = devicons.get_icon_color(filename)
         -- local modified = vim.bo[props.buf].modified
         local os_name = vim.loop.os_uname().sysname
-        local prefix = os_name == "Darwin" and "" or " "
         local res = {
           ft_icon and {
-            prefix,
+            " ",
             ft_icon,
             " ",
             guibg = ft_color,
             guifg = helpers.contrast_color(ft_color),
           } or "",
           " ",
-          { filename, gui = "bold,italic" },
+          { filename, gui = "bold" },
           -- guibg = "#44406e",
         }
         if props.focused then

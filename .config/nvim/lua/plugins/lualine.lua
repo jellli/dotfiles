@@ -75,9 +75,9 @@ return {
             color = function()
               local tasks = list_running_tasks()
               if #tasks > 0 then
-                return { fg = "#8d9a7e", bg = "None", gui = "bold,italic" }
+                return { fg = "#8d9a7e", bg = "None" }
               end
-              return { fg = "#b44a48", bg = "None", gui = "italic" }
+              return { fg = "#b44a48", bg = "None", gui = "bold" }
             end,
           },
           {

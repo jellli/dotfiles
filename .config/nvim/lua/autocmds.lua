@@ -9,12 +9,24 @@ local utils = require("utils")
 
 vim.api.nvim_create_autocmd("FileType", {
   group = utils.creat_group("CloseWithQ"),
-  pattern = { "checkhealth", "grug-far", "help", "lspinfo", "qf", "DiffviewFiles" },
+  pattern = {
+    "checkhealth",
+    "grug-far",
+    "help",
+    "lspinfo",
+    "qf",
+    "DiffviewFiles",
+    "codecompanion",
+  },
   callback = function(event)
     vim.bo[event.buf].buflisted = false
     vim.schedule(function()
       vim.keymap.set("n", "q", function()
-        vim.cmd("close")
+        if vim.bo.buftype == "codecompanion" then
+          require("codecompanion").toggle()
+          return
+        end
+        pcall(vim.cmd, "close")
         pcall(vim.api.nvim_buf_delete, event.buf, { force = true })
       end, { buffer = event.buf, silent = true, desc = "Quit buffer" })
     end)

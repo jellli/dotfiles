@@ -109,3 +109,8 @@ source ~/.jili_env
 [ -s "/Users/hoon/.bun/_bun" ] && source "/Users/hoon/.bun/_bun"
 eval "$(fnm env --use-on-cd --shell zsh)"
 export PATH="$PATH:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.local/share/bob/nvim-bin"
+
+HOMEBREW_COMMAND_NOT_FOUND_HANDLER="$(brew --repository)/Library/Homebrew/command-not-found/handler.sh"
+if [ -f "$HOMEBREW_COMMAND_NOT_FOUND_HANDLER" ]; then
+  source "$HOMEBREW_COMMAND_NOT_FOUND_HANDLER";
+fi

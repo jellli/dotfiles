@@ -17,59 +17,23 @@ return {
     "olimorris/codecompanion.nvim",
     dependencies = {
       "nvim-lua/plenary.nvim",
-      --[[ {
-        "OXY2DEV/markview.nvim",
-        ft = "codecompanion",
-        lazy = false,
-        opts = {
-          preview = {
-            filetypes = { "markdown", "codecompanion" },
-            ignore_buftypes = {},
-          },
-        },
-      }, ]]
-      {
-        "ravitemer/mcphub.nvim",
-        config = function()
-          require("mcphub").setup({
-            port = 37373,
-            config = vim.fn.stdpath("data") .. "/mcphub.json",
-          })
-        end,
-      },
-
-      {
-        "echasnovski/mini.diff",
-        ft = "codecompanion",
-        config = function()
-          local diff = require("mini.diff")
-          diff.setup({
-            -- Disabled by default
-            source = diff.gen_source.none(),
-          })
-        end,
-      },
-      {
-        "HakonHarnes/img-clip.nvim",
-        ft = "codecompanion",
-        opts = {
-          filetypes = {
-            codecompanion = {
-              prompt_for_file_name = false,
-              template = "[Image]($FILE_PATH)",
-              use_absolute_path = true,
-            },
-          },
-        },
-      },
+      "ravitemer/mcphub.nvim",
+      "echasnovski/mini.diff",
     },
     keys = {
       {
         "<leader>ac",
         function()
-          require("codecompanion").chat()
+          require("codecompanion").actions({})
         end,
-        desc = "Code companion",
+        desc = "code companion actions",
+      },
+      {
+        "<leader>aa",
+        function()
+          require("codecompanion").toggle()
+        end,
+        desc = "toggle code companion chat",
       },
     },
     opts = {
@@ -86,33 +50,33 @@ return {
       strategies = {
         chat = {
           adapter = "anthropic_with_bearer_token",
-          model = "claude-3-7-sonnet-20250219",
+          model = "claude-3-5-sonnet-20241022",
         },
       },
       opts = {
         language = "Chinese",
       },
       adapters = {
-        acp = {
+        --[[ acp = {
           claude_code = function()
             return require("codecompanion.adapters").extend("claude_code", {
               env = {
-                CLAUDE_CODE_OAUTH_TOKEN = "",
+                CLAUDE_CODE_OAUTH_TOKEN = "ANTHROPIC_BEARER_TOKEN",
               },
             })
           end,
-        },
+        }, ]]
         anthropic_with_bearer_token = function()
           local utils = require("codecompanion.utils.adapters")
           local tokens = require("codecompanion.utils.tokens")
 
           return require("codecompanion.adapters").extend("anthropic", {
             env = {
-              bearer_token = "",
+              bearer_token = "ANTHROPIC_BEARER_TOKEN",
             },
             headers = {
               ["content-type"] = "application/json",
-              ["authorization"] = "Bearer ",
+              ["authorization"] = "Bearer ${bearer_token}",
               ["anthropic-version"] = "2023-06-01",
               ["anthropic-beta"] = "claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14",
             },
@@ -306,6 +270,80 @@ return {
             },
           })
         end,
+      },
+      prompt_library = {
+        ["Commit concise"] = {
+          strategy = "chat",
+          description = "Generate a conventional commit message without long description.",
+          opts = {
+            short_name = "commit-concise",
+            auto_submit = true,
+            adapter = {
+              name = "deepseek",
+              model = "deepseek-chat",
+            },
+          },
+          --[[ context = {
+            {
+              type = "file",
+              path = {
+                ".vscode/settings.json",
+              },
+            },
+          }, ]]
+          prompts = {
+            {
+              role = "user",
+              content = function()
+                return string.format(
+                  [[I want you to use the @{cmd_runner} tool to create a commit using a concise commit message that follows the conventional commit format. Make sure to:
+1. Use only a header (no detailed description).
+2. Choose the correct scope based on the changes.
+3. Ensure the message is clear, relevant, and properly formatted.
+4. DO NOT run git add, as all the changes is provided and already staged.
+
+Here is the diff:
+
+```diff
+%s
+```]],
+                  vim.fn.system("git diff --no-ext-diff --staged")
+                )
+              end,
+              opts = {
+                contains_code = true,
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  {
+    "ravitemer/mcphub.nvim",
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+    },
+    build = "npm install -g mcp-hub@latest",
+    config = true,
+  },
+  {
+    "echasnovski/mini.diff",
+    config = function()
+      local diff = require("mini.diff")
+      diff.setup({
+        -- Disabled by default
+        source = diff.gen_source.none(),
+      })
+    end,
+  },
+  {
+    "MeanderingProgrammer/render-markdown.nvim",
+    ft = { "markdown", "codecompanion" },
+    opts = {
+      render_modes = true,
+      sign = {
+        enabled = false,
       },
     },
   },
