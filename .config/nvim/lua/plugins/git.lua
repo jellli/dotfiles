@@ -46,6 +46,24 @@ return {
   {
     "tpope/vim-fugitive",
     cmd = { "Git" },
+    config = function()
+      vim.api.nvim_create_autocmd("FileType", {
+        group = utils.creat_group("GitCloseWithQ"),
+        pattern = {
+          "fugitive",
+          "git",
+          "gitcommit",
+        },
+        callback = function(event)
+          vim.bo[event.buf].buflisted = false
+          vim.schedule(function()
+            vim.keymap.set("n", "q", function()
+              vim.cmd("q")
+            end, { buffer = event.buf, silent = true, desc = "Quit buffer" })
+          end)
+        end,
+      })
+    end,
     keys = {
       { "<leader>gf", ":Git ", desc = "Fugitive" },
       { "<leader>gs", "<cmd>Git<cr>", desc = "Git status" },
