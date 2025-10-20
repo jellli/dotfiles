@@ -1,11 +1,4 @@
 local utils = require("utils")
---[[ vim.api.nvim_create_autocmd("TextYankPost", {
-  callback = function()
-    vim.highlight.on_yank()
-  end,
-  group = utils.creat_group("YankHighlight"),
-  pattern = "*",
-}) ]]
 
 vim.api.nvim_create_autocmd("FileType", {
   group = utils.creat_group("CloseWithQ"),
@@ -17,15 +10,22 @@ vim.api.nvim_create_autocmd("FileType", {
     "qf",
     "DiffviewFiles",
     "codecompanion",
+    "fugitive",
+    "git",
+    "gitcommit",
   },
   callback = function(event)
     vim.bo[event.buf].buflisted = false
     vim.schedule(function()
       vim.keymap.set("n", "q", function()
+        if vim.bo.filetype == "git" or vim.bo.filetype == "gitcommit" then
+          vim.cmd("q")
+        end
         if vim.bo.buftype == "codecompanion" then
           require("codecompanion").toggle()
           return
         end
+        ---@diagnostic disable-next-line: param-type-mismatch
         pcall(vim.cmd, "close")
         pcall(vim.api.nvim_buf_delete, event.buf, { force = true })
       end, { buffer = event.buf, silent = true, desc = "Quit buffer" })
