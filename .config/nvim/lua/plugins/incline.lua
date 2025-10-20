@@ -1,4 +1,5 @@
-return {
+return {}
+--[[ return {
   "b0o/incline.nvim",
   event = { "BufReadPre", "BufNewFile" },
   dependencies = { "SmiteshP/nvim-navic" },
@@ -48,4 +49,4 @@ return {
       end,
     })
   end,
-}
+} ]]
