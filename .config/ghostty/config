@@ -1,12 +1,16 @@
 theme = Kanagawa Wave
+
 background = #0f0f11
-# font-family = Terminus (TTF)
-# font-family = AcPlus ToshibaSat 9x14
-font-family = MonoLisa Jili
-font-family = Maple Mono NF CN
-font-family = Hack Nerd Font Mono
-font-size = 16
+font-family = Berkeley Mono
+font-family = Sarasa Mono SC
+font-style = Regular
+font-size = 15
+font-thicken = true
 
 cursor-style = block
 mouse-hide-while-typing = true
 macos-option-as-alt = true
+
+
+adjust-underline-position = 40%
+adjust-underline-thickness = -60%
