@@ -55,7 +55,6 @@ return {
           "gitcommit",
         },
         callback = function(event)
-          vim.bo[event.buf].buflisted = false
           vim.schedule(function()
             vim.keymap.set("n", "q", function()
               vim.cmd("q")
