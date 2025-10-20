@@ -43,53 +43,25 @@ return {
       end,
     },
   },
-  -- Neogit
   {
-    "NeogitOrg/neogit",
-    event = { "BufReadPre", "BufNewFile" },
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      "sindrets/diffview.nvim",
-      "ibhagwan/fzf-lua",
-    },
-    opts = {
-      disable_hint = true,
-      graph_style = "unicode",
-      process_spinner = true,
-      remember_settings = false,
-
-      disable_line_numbers = false,
-      disable_relative_line_numbers = false,
-      highlight = {
-        italic = true,
-        bold = true,
-        underline = true,
-      },
-      signs = {
-        section = { "", "" },
-        item = { "", "" },
-        hunk = { "", "" },
-      },
-      integrations = {
-        diffview = true,
-        fzf_lua = true,
-      },
-      git_services = {
-        ["gitlab.tangees.com"] = {
-          pull_request = "https://gitlab.tangees.com/${owner}/${repository}/merge_requests/new?merge_request[source_branch]=${branch_name}",
-          commit = "https://gitlab.tangees.com/${owner}/${repository}/-/commit/${oid}",
-          tree = "https://gitlab.tangees.com/${owner}/${repository}/-/tree/${branch_name}?ref_type=heads",
-        },
-      },
-    },
+    "tpope/vim-fugitive",
+    cmd = { "Git" },
     keys = {
-      {
-        "<leader>gg",
-        function()
-          require("neogit").open()
-        end,
-        desc = "Neogit",
-      },
+      { "<leader>gs", "<cmd>Git<cr>", desc = "Git status" },
+      { "<leader>ga", "<cmd>Git add %:p<cr><cr>", desc = "Git add current file" },
+      { "<leader>gc", "<cmd>Git commit -v -q<cr>", desc = "Git commit" },
+      { "<leader>gt", "<cmd>Git commit -v -q %:p<cr>", desc = "Git commit current file" },
+      { "<leader>gd", "<cmd>Gdiff<cr>", desc = "Git diff" },
+      { "<leader>ge", "<cmd>Gedit<cr>", desc = "Git edit" },
+      { "<leader>gr", "<cmd>Gread<cr>", desc = "Git read" },
+      { "<leader>gw", "<cmd>Gwrite<cr><cr>", desc = "Git write" },
+      { "<leader>gl", "<cmd>silent! Glog<cr>:bot copen<cr>", desc = "Git log" },
+      { "<leader>gp", ":Ggrep ", desc = "Git grep" },
+      { "<leader>gm", ":Gmove ", desc = "Git move" },
+      { "<leader>gb", ":Git branch ", desc = "Git branch" },
+      { "<leader>go", ":Git checkout ", desc = "Git checkout" },
+      { "<leader>gps", "<cmd>Dispatch! git push<cr>", desc = "Git push" },
+      { "<leader>gpl", "<cmd>Dispatch! git pull<cr>", desc = "Git pull" },
     },
   },
   -- Git conflict
