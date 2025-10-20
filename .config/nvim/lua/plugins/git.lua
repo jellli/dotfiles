@@ -47,6 +47,7 @@ return {
     "tpope/vim-fugitive",
     cmd = { "Git" },
     keys = {
+      { "<leader>gf", ":Git ", desc = "Fugitive" },
       { "<leader>gs", "<cmd>Git<cr>", desc = "Git status" },
       { "<leader>ga", "<cmd>Git add %:p<cr><cr>", desc = "Git add current file" },
       { "<leader>gc", "<cmd>Git commit -v -q<cr>", desc = "Git commit" },
@@ -60,8 +61,8 @@ return {
       { "<leader>gm", ":Gmove ", desc = "Git move" },
       { "<leader>gb", ":Git branch ", desc = "Git branch" },
       { "<leader>go", ":Git checkout ", desc = "Git checkout" },
-      { "<leader>gps", "<cmd>Dispatch! git push<cr>", desc = "Git push" },
-      { "<leader>gpl", "<cmd>Dispatch! git pull<cr>", desc = "Git pull" },
+      { "<leader>gP", "<cmd>Git push<cr>", desc = "Git push" },
+      { "<leader>gp", "<cmd>Git pull<cr>", desc = "Git pull" },
     },
   },
   -- Git conflict

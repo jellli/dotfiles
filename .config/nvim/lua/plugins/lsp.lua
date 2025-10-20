@@ -69,27 +69,6 @@ return {
     },
   },
   {
-    "SmiteshP/nvim-navic",
-    event = "LspAttach",
-    opts = {
-      separator = " ",
-      highlight = true,
-      depth_limit = 5,
-      lazy_update_context = true,
-    },
-    init = function()
-      vim.lsp.config("*", {
-        ---@param client vim.lsp.Client
-        ---@param bufnr integer
-        on_attach = function(client, bufnr)
-          if client:supports_method("textDocument/documentSymbol", bufnr) then
-            require("nvim-navic").attach(client, bufnr)
-          end
-        end,
-      })
-    end,
-  },
-  {
     "rachartier/tiny-code-action.nvim",
     event = "LspAttach",
     config = function()
