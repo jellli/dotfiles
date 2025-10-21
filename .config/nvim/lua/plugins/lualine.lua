@@ -80,39 +80,6 @@ return {
               return { fg = "#b44a48", bg = "None", gui = "bold" }
             end,
           },
-          {
-            function()
-              local symbols = {
-                status = {
-                  [0] = "󰚩 ", -- Enabled
-                  [1] = "󱚧 ", -- Disabled Globally
-                  [2] = "󱙻 ", -- Disabled for Buffer
-                  [3] = "󱙺 ", -- Disabled for Buffer filetype
-                  [4] = "󱙺 ", -- Disabled for Buffer with enabled function
-                  [5] = "󱚠 ", -- Disabled for Buffer encoding
-                  [6] = "󱚠 ", -- Buffer is special type
-                },
-                server_status = {
-                  [0] = " ✓", -- Connected
-                  [1] = " ◌", -- Connecting
-                  [2] = " ✖", -- Disconnected
-                },
-              }
-
-              local status, server_status = require("neocodeium").get_status()
-              return symbols.status[status]
-            end,
-            color = function()
-              local status, server_status = require("neocodeium").get_status()
-              if server_status == 2 then
-                return { bg = "None", fg = "#b44a48" }
-              end
-              if status == 0 and server_status == 0 then
-                return { bg = "None", fg = "#53b4a2" }
-              end
-              return { bg = "None", fg = "#6b6b6b" }
-            end,
-          },
           diagnostics,
           "filetype",
         },

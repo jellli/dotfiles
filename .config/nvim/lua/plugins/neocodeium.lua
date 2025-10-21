@@ -1,4 +1,4 @@
-return {
+return {--[[ 
   "monkoose/neocodeium",
   event = "VeryLazy",
   config = function()
@@ -21,5 +21,5 @@ return {
     vim.keymap.set("i", "<A-c>", function()
       neocodeium.clear()
     end)
-  end,
+  end, ]]
 }

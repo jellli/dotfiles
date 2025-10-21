@@ -17,6 +17,7 @@ return {
       "OverseerTaskAction",
       "OverseerClearCache",
     },
+    version = "1.6.0",
     opts = {
       -- Setup DAP later when lazy-loading the plugin.
       dap = false,
