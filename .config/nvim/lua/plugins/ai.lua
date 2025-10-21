@@ -351,6 +351,7 @@ Here is the diff:
   },
   {
     "github/copilot.vim",
+    event = "InsertEnter",
     config = function()
       vim.g.copilot_proxy = "socks5://localhost:7890"
       vim.keymap.set("i", "<C-f>", 'copilot#Accept("\\<CR>")', {
