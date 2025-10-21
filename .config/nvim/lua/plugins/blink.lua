@@ -3,16 +3,9 @@ return {
     "saghen/blink.cmp",
     dependencies = {
       "xzbdmw/colorful-menu.nvim",
-      {
-        "L3MON4D3/LuaSnip",
-        opts = {},
-        dependencies = {
-          "rafamadriz/friendly-snippets",
-          config = function()
-            require("luasnip.loaders.from_vscode").lazy_load()
-          end,
-        },
-      },
+      "rafamadriz/friendly-snippets",
+      "fang2hou/blink-copilot",
+      "L3MON4D3/LuaSnip",
     },
     event = { "InsertEnter", "CmdlineEnter" },
     opts_extend = { "sources.default", "cmdline.sources", "term.sources" },
@@ -28,8 +21,23 @@ return {
           kind_icons = require("icons").symbol_kinds,
         },
         sources = {
-          default = { "lsp", "snippets", "buffer", "path" },
+          default = { "copilot", "lsp", "snippets", "buffer", "path" },
           providers = {
+            copilot = {
+              name = "copilot",
+              module = "blink-copilot",
+              score_offset = 100,
+              async = true,
+              opts = {
+                -- Local options override global ones
+                max_completions = 3, -- Override global max_completions
+
+                -- Final settings:
+                -- * max_completions = 3
+                -- * max_attempts = 2
+                -- * all other options are default
+              },
+            },
             cmdline = {
               min_keyword_length = 2,
             },
@@ -122,6 +130,12 @@ return {
 
       -- vim.lsp.config("*", { capabilities = require("blink.cmp").get_lsp_capabilities(nil, true) })
       -- v
+    end,
+  },
+  {
+    "L3MON4D3/LuaSnip",
+    config = function()
+      require("luasnip.loaders.from_vscode").lazy_load()
     end,
   },
 }

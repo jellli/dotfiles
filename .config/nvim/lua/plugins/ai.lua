@@ -277,10 +277,10 @@ return {
             })
           end,
         },
-        opts = {
-          allow_insecure = true,
-          proxy = "socks5://127.0.0.1:7890",
-        },
+        -- opts = {
+        -- allow_insecure = true,
+        -- proxy = "socks5://127.0.0.1:7890",
+        -- },
       },
       prompt_library = {
         ["Commit concise"] = {
@@ -351,14 +351,27 @@ Here is the diff:
   },
   {
     "github/copilot.vim",
-    event = "InsertEnter",
-    config = function()
+    cmd = "Copilot",
+    event = "BufWinEnter",
+    init = function()
+      vim.g.copilot_no_maps = true
       vim.g.copilot_proxy = "socks5://localhost:7890"
       vim.keymap.set("i", "<C-f>", 'copilot#Accept("\\<CR>")', {
         expr = true,
         replace_keycodes = false,
       })
       vim.g.copilot_no_tab_map = true
+    end,
+    config = function()
+      -- Block the normal Copilot suggestions
+      vim.api.nvim_create_augroup("github_copilot", { clear = true })
+      vim.api.nvim_create_autocmd({ "FileType", "BufUnload" }, {
+        group = "github_copilot",
+        callback = function(args)
+          vim.fn["copilot#On" .. args.event]()
+        end,
+      })
+      vim.fn["copilot#OnFileType"]()
     end,
   },
 }
