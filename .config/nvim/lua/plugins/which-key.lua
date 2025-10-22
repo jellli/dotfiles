@@ -24,6 +24,10 @@ return {
           "<leader>o",
           group = "Overseer",
         },
+        {
+          "<leader>ob",
+          group = "Obsidian",
+        },
       },
     },
     keys = {

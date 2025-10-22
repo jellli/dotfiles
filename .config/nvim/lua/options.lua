@@ -85,7 +85,7 @@ vim.schedule(function()
 
   if node_path ~= "" and vim.fn.filereadable(node_path) == 1 then
     vim.g.copilot_node_command = node_path
-    vim.notify("Copilot is using node:" .. node_path, vim.log.levels.INFO)
+    -- vim.notify("Copilot is using node:" .. node_path, vim.log.levels.INFO)
   else
     vim.notify("can not find node path", vim.log.levels.WARN)
   end

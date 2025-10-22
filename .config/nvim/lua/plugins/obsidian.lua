@@ -1,26 +1,42 @@
 return {
-  -- "epwalsh/obsidian.nvim",
-  "obsidian-nvim/obsidian.nvim",
-  version = "3.12.*", -- recommended, use latest release instead of latest commit
-  lazy = true,
-  ft = "markdown",
-  -- Replace the above line with this if you only want to load obsidian.nvim for markdown files in your vault:
-  -- event = {
-  --   -- If you want to use the home shortcut '~' here you need to call 'vim.fn.expand'.
-  --   -- E.g. "BufReadPre " .. vim.fn.expand "~" .. "/my-vault/*.md"
-  --   -- refer to `:h file-pattern` for more examples
-  --   "BufReadPre path/to/my-vault/*.md",
-  --   "BufNewFile path/to/my-vault/*.md",
-  -- },
-  dependencies = {
-    "nvim-lua/plenary.nvim",
-  },
-  config = function()
-    require("obsidian").setup({
+  {
+    -- "epwalsh/obsidian.nvim",
+    "obsidian-nvim/obsidian.nvim",
+    version = "*",
+    lazy = true,
+    ft = "markdown",
+    cmd = {
+      "Obsidian",
+    },
+    keys = {
+      {
+        "<leader>obt",
+        "<cmd>Obsidian new_from_template<cr>",
+        mode = "n",
+        desc = "Obsidian: New from Template",
+      },
+    },
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+      "ibhagwan/fzf-lua",
+    },
+    opts = {
       workspaces = {
         {
           name = "Jili",
           path = "~/vaults/jili",
+        },
+      },
+      templates = {
+        folder = "templates",
+        date_format = "%Y-%m-%d-%a",
+        customizations = {
+          reading = {
+            notes_subdir = "readings",
+            note_id_func = function(title)
+              return title
+            end,
+          },
         },
       },
       ---@diagnostic disable-next-line: missing-fields
@@ -39,6 +55,20 @@ return {
 
         return out
       end,
-    })
-  end,
+    },
+  },
+  {
+    "ibhagwan/fzf-lua",
+    keys = {
+      {
+        "<leader>obf",
+        function()
+          require("fzf-lua").files({
+            cwd = "~/vaults/jili",
+          })
+        end,
+        desc = "Obsidian: FZF Files in Vault",
+      },
+    },
+  },
 }
