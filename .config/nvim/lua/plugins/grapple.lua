@@ -1,4 +1,3 @@
-local M = {}
 local function save_mark()
   local char = vim.fn.getcharstr()
   -- Handle ESC, Ctrl-C, etc.
@@ -34,15 +33,6 @@ return {
     keys = {
       { "m", save_mark, noremap = true, silent = true },
       { "'", open_mark, noremap = true, silent = true },
-      {
-        "<leader>gt",
-        function()
-          require("grapple").toggle_tags()
-        end,
-        desc = "Toggle grapple",
-        noremap = true,
-        silent = true,
-      },
     },
   },
 }

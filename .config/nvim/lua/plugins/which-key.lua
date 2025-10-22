@@ -21,6 +21,10 @@ return {
           group = "Code",
         },
         {
+          "<leader>g",
+          group = "Git",
+        },
+        {
           "<leader>o",
           group = "Overseer",
         },
