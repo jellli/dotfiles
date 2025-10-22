@@ -51,7 +51,6 @@ return {
   },
   {
     "b0o/schemastore.nvim",
-    event = "LspAttach",
     ft = { "json", "yaml" },
   },
   {

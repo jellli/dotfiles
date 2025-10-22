@@ -117,3 +117,14 @@ map("<leader><tab><tab>", "<cmd>tabnew<cr>", { desc = "New Tab" })
 map("<leader><tab>]", "<cmd>tabnext<cr>", { desc = "Next Tab" })
 map("<leader><tab>d", "<cmd>tabclose<cr>", { desc = "Close Tab" })
 map("<leader><tab>[", "<cmd>tabprevious<cr>", { desc = "Previous Tab" })
+
+-- quickfix list
+map("<leader>xq", function()
+  local success, err = pcall(vim.fn.getqflist({ winid = 0 }).winid ~= 0 and vim.cmd.cclose or vim.cmd.copen)
+  if not success and err then
+    vim.notify(err, vim.log.levels.ERROR)
+  end
+end, { desc = "Quickfix List" })
+
+map("[q", vim.cmd.cprev, { desc = "Previous Quickfix" })
+map("]q", vim.cmd.cnext, { desc = "Next Quickfix" })
