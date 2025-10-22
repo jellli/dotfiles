@@ -2,9 +2,10 @@ local utils = require("utils")
 return {
   {
     "nvim-treesitter/nvim-treesitter",
-    lazy = false,
     build = ":TSUpdate",
     branch = "main",
+    version = false,
+    event = { "VeryLazy" },
     config = function()
       require("nvim-treesitter").setup({
         highlight = { enable = true },

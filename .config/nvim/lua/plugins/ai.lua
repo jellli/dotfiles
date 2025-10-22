@@ -363,7 +363,7 @@ Here is the diff:
   {
     "github/copilot.vim",
     cmd = "Copilot",
-    event = "BufWinEnter",
+    event = "BufReadPost",
     init = function()
       vim.g.copilot_no_maps = true
       vim.g.copilot_proxy = "socks5://localhost:7890"

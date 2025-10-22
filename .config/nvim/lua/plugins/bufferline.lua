@@ -11,7 +11,10 @@ return {
         truncate_names = false,
         -- indicator = { style = "underline" },
         close_command = function(bufnr)
-          require("mini.bufremove").delete(bufnr, false)
+          Snacks.bufdelete({
+            buf = bufnr,
+            force = true,
+          })
         end,
         diagnostics = "nvim_lsp",
         diagnostics_indicator = function(_, _, diag)

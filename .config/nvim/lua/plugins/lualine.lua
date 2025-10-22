@@ -56,30 +56,30 @@ return {
       },
       lualine_b = { "branch", "diff" },
       lualine_c = {
-        {
-          "grapple",
-          function()
-            -- invoke `progress` here.
-            return require("lsp-progress").progress()
-          end,
-          color = {
-            fg = utils.get_hl_hex("Comment", "fg"),
-            bg = "NONE",
-          },
-        },
+        -- {
+        --   "grapple",
+        --   function()
+        --     -- invoke `progress` here.
+        --     return require("lsp-progress").progress()
+        --   end,
+        --   color = {
+        --     fg = utils.get_hl_hex("Comment", "fg"),
+        --     bg = "NONE",
+        --   },
+        -- },
       },
       lualine_x = {},
       lualine_y = {
-        {
-          overseer_running_task,
-          color = function()
-            local tasks = list_running_tasks()
-            if #tasks > 0 then
-              return { fg = "#8d9a7e", bg = "None" }
-            end
-            return { fg = "#b44a48", bg = "None", gui = "bold" }
-          end,
-        },
+        -- {
+        --   overseer_running_task,
+        --   color = function()
+        --     local tasks = list_running_tasks()
+        --     if #tasks > 0 then
+        --       return { fg = "#8d9a7e", bg = "None" }
+        --     end
+        --     return { fg = "#b44a48", bg = "None", gui = "bold" }
+        --   end,
+        -- },
         diagnostics,
         "filetype",
       },

@@ -30,6 +30,13 @@ return {
   },
   keys = {
     {
+      "<leader>bd",
+      function()
+        Snacks.bufdelete()
+      end,
+      desc = "Delete Buffer",
+    },
+    {
       "<leader>lg",
       function()
         Snacks.lazygit()
