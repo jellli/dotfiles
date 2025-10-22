@@ -322,12 +322,23 @@ Here is the diff:
     },
   },
   {
+
     "ravitemer/mcphub.nvim",
     dependencies = {
       "nvim-lua/plenary.nvim",
     },
-    build = "npm install -g mcp-hub@latest",
-    config = true,
+    cmd = "MCPHub",
+    build = "bundled_build.lua",
+    config = function()
+      require("mcphub").setup({
+        use_bundled_binary = true,
+        auto_approve = true,
+        codecompanion = {
+          show_result_in_chat = true,
+          make_vars = true,
+        },
+      })
+    end,
   },
   {
     "echasnovski/mini.diff",
