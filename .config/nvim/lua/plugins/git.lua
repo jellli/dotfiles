@@ -65,11 +65,4 @@ return {
       { "<leader>gp", "<cmd>Git pull<cr>", desc = "Git pull" },
     },
   },
-  -- Git conflict
-  {
-    "akinsho/git-conflict.nvim",
-    event = { "BufReadPre", "BufNewFile" },
-    version = "*",
-    config = true,
-  },
 }

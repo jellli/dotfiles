@@ -45,10 +45,10 @@ map("n", "nzzzv", { desc = "Next search result" })
 map("N", "Nzzzv", { desc = "Previous search result" })
 
 -- Resize with arrows
--- map("<Up>", ":resize -10<cr>")
--- map("<Down>", ":resize +10<cr>")
--- map("<Left>", ":vertical resize -10<cr>")
--- map("<Right>", ":vertical resize +10<cr>")
+map("<Up>", ":resize -10<cr>")
+map("<Down>", ":resize +10<cr>")
+map("<Left>", ":vertical resize -10<cr>")
+map("<Right>", ":vertical resize +10<cr>")
 
 -- Buffers
 map("]b", ":bnext<cr>", { desc = "Next buffer" })
@@ -104,3 +104,16 @@ map("Q", "q", { desc = "Record macro" })
 map("<M-q>", "Q", { desc = "Replay last register" })
 
 map("<leader>R", "<cmd>restart<cr>", { desc = "Restart" })
+
+-- commenting
+map("gco", "o<esc>Vcx<esc><cmd>normal gcc<cr>fxa<bs>", { desc = "Add Comment Below" })
+map("gcO", "O<esc>Vcx<esc><cmd>normal gcc<cr>fxa<bs>", { desc = "Add Comment Above" })
+
+-- tabs
+map("<leader><tab>l", "<cmd>tablast<cr>", { desc = "Last Tab" })
+map("<leader><tab>o", "<cmd>tabonly<cr>", { desc = "Close Other Tabs" })
+map("<leader><tab>f", "<cmd>tabfirst<cr>", { desc = "First Tab" })
+map("<leader><tab><tab>", "<cmd>tabnew<cr>", { desc = "New Tab" })
+map("<leader><tab>]", "<cmd>tabnext<cr>", { desc = "Next Tab" })
+map("<leader><tab>d", "<cmd>tabclose<cr>", { desc = "Close Tab" })
+map("<leader><tab>[", "<cmd>tabprevious<cr>", { desc = "Previous Tab" })

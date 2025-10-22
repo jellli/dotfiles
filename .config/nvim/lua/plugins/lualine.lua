@@ -40,58 +40,57 @@ return {
   dependencies = {
     "nvim-tree/nvim-web-devicons",
   },
-  config = function()
-    require("lualine").setup({
-      options = {
-        theme = "auto",
-        icons_enabled = true,
-        globalstatus = true,
-        component_separators = "",
-        section_separators = "",
-      },
+  opts = {
+    options = {
+      theme = "auto",
+      icons_enabled = true,
+      globalstatus = true,
+      component_separators = "",
+      section_separators = "",
+      disabled_filetypes = { statusline = { "snacks_dashboard" } },
+    },
 
-      sections = {
-        lualine_a = {
-          { "mode" },
-        },
-        lualine_b = { "branch", "diff" },
-        lualine_c = {
-          {
-            "grapple",
-            function()
-              -- invoke `progress` here.
-              return require("lsp-progress").progress()
-            end,
-            color = {
-              fg = utils.get_hl_hex("Comment", "fg"),
-              bg = "NONE",
-            },
+    sections = {
+      lualine_a = {
+        { "mode" },
+      },
+      lualine_b = { "branch", "diff" },
+      lualine_c = {
+        {
+          "grapple",
+          function()
+            -- invoke `progress` here.
+            return require("lsp-progress").progress()
+          end,
+          color = {
+            fg = utils.get_hl_hex("Comment", "fg"),
+            bg = "NONE",
           },
         },
-        lualine_x = {},
-        lualine_y = {
-          {
-            overseer_running_task,
-            color = function()
-              local tasks = list_running_tasks()
-              if #tasks > 0 then
-                return { fg = "#8d9a7e", bg = "None" }
-              end
-              return { fg = "#b44a48", bg = "None", gui = "bold" }
-            end,
-          },
-          diagnostics,
-          "filetype",
+      },
+      lualine_x = {},
+      lualine_y = {
+        {
+          overseer_running_task,
+          color = function()
+            local tasks = list_running_tasks()
+            if #tasks > 0 then
+              return { fg = "#8d9a7e", bg = "None" }
+            end
+            return { fg = "#b44a48", bg = "None", gui = "bold" }
+          end,
         },
-        lualine_z = {},
+        diagnostics,
+        "filetype",
       },
-      extensions = {
-        "fzf",
-        "lazy",
-        "mason",
-        "overseer",
-        "quickfix",
-      },
-    })
-  end,
+      lualine_z = {},
+    },
+    extensions = {
+      "fzf",
+      "lazy",
+      "mason",
+      "overseer",
+      "quickfix",
+    },
+  },
 }

@@ -3,7 +3,7 @@ return {
   event = "VeryLazy",
   keys = {
     {
-      "<leader>dt",
+      "<leader>dv",
       function()
         if next(require("diffview.lib").views) == nil then
           vim.cmd("DiffviewOpen")

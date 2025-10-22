@@ -13,10 +13,8 @@ return {
       desc = "[F]ormat [D]ocument",
     },
   },
-  config = function()
-    local conform = require("conform")
+  opts = function()
     local webdev_opts = function()
-      local cwd = vim.fn.getcwd()
       local config_files = {
         ".prettierrc",
         ".prettierrc.json",
@@ -37,7 +35,7 @@ return {
         "biome",
       }
     end
-    conform.setup({
+    return {
       formatters_by_ft = {
         lua = { "stylua" },
         rust = { "rustfmt" },
@@ -56,6 +54,6 @@ return {
         lsp_fallback = true,
         async = false,
       },
-    })
+    }
   end,
 }

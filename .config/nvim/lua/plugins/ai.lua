@@ -209,7 +209,7 @@ return {
     dependencies = {
       "nvim-lua/plenary.nvim",
       "ravitemer/mcphub.nvim",
-      "echasnovski/mini.diff",
+      -- "echasnovski/mini.diff",
       "github/copilot.vim",
     },
     cmd = { "CodeCompanion", "CodeCompanionChat" },
@@ -340,16 +340,16 @@ Here is the diff:
       })
     end,
   },
-  {
-    "echasnovski/mini.diff",
-    config = function()
-      local diff = require("mini.diff")
-      diff.setup({
-        -- Disabled by default
-        source = diff.gen_source.none(),
-      })
-    end,
-  },
+  -- {
+  --   "echasnovski/mini.diff",
+  --   config = function()
+  --     local diff = require("mini.diff")
+  --     diff.setup({
+  --       -- Disabled by default
+  --       source = diff.gen_source.none(),
+  --     })
+  --   end,
+  -- },
   {
     "MeanderingProgrammer/render-markdown.nvim",
     ft = { "markdown", "codecompanion" },
