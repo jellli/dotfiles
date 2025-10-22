@@ -72,3 +72,21 @@ vim.o.formatlistpat = [[^\s*[0-9\-\+\*]\+[\.\)]*\s\+]]
 vim.schedule(function()
   vim.o.clipboard = "unnamedplus"
 end)
+
+vim.schedule(function()
+  local check_stable = vim.fn.system("fnm list | grep -q lts-latest && echo 'exists' || echo 'missing'")
+
+  if check_stable:match("missing") then
+    vim.notify("installing lts node", vim.log.levels.INFO)
+    vim.fn.system("fnm install --lts")
+  end
+
+  local node_path = vim.fn.system("fnm exec --using=lts-latest which node"):gsub("%s+", "")
+
+  if node_path ~= "" and vim.fn.filereadable(node_path) == 1 then
+    vim.g.copilot_node_command = node_path
+    vim.notify("Copilot is using node:" .. node_path, vim.log.levels.INFO)
+  else
+    vim.notify("can not find node path", vim.log.levels.WARN)
+  end
+end)

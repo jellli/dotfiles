@@ -215,7 +215,7 @@ return {
     cmd = { "CodeCompanion", "CodeCompanionChat" },
     keys = {
       {
-        "<C-a>",
+        "<leader>ac",
         function()
           require("codecompanion").actions({})
         end,
