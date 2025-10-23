@@ -22,18 +22,16 @@ vim.api.nvim_create_autocmd("FileType", {
     "gitcommit",
   },
   callback = function(event)
-    vim.schedule(function()
-      if vim.bo.filetype == "git" or vim.bo.filetype == "gitcommit" then
-        vim.keymap.set("n", "q", ":q<cr>", { silent = true, desc = "Quit buffer" })
-        return
-      end
-      if vim.bo.buftype == "codecompanion" then
-        vim.keymap.set("n", "q", function()
-          require("codecompanion").toggle()
-        end, { silent = true, desc = "Quit buffer" })
-        return
-      end
-    end)
+    if vim.bo.filetype == "git" or vim.bo.filetype == "gitcommit" then
+      vim.keymap.set("n", "q", ":q<cr>", { silent = true, desc = "Quit buffer" })
+      return
+    end
+    if vim.bo.buftype == "codecompanion" then
+      vim.keymap.set("n", "q", function()
+        require("codecompanion").toggle()
+      end, { silent = true, desc = "Quit buffer" })
+      return
+    end
 
     vim.bo[event.buf].buflisted = false
     vim.schedule(function()
