@@ -22,18 +22,23 @@ vim.api.nvim_create_autocmd("FileType", {
     "gitcommit",
   },
   callback = function(event)
+    vim.schedule(function()
+      if vim.bo.filetype == "git" or vim.bo.filetype == "gitcommit" then
+        vim.keymap.set("n", "q", ":q<cr>", { silent = true, desc = "Quit buffer" })
+        return
+      end
+      if vim.bo.buftype == "codecompanion" then
+        vim.keymap.set("n", "q", function()
+          require("codecompanion").toggle()
+        end, { silent = true, desc = "Quit buffer" })
+        return
+      end
+    end)
+
     vim.bo[event.buf].buflisted = false
     vim.schedule(function()
       vim.keymap.set("n", "q", function()
-        if vim.bo.filetype == "git" or vim.bo.filetype == "gitcommit" then
-          vim.cmd("q")
-        end
-        if vim.bo.buftype == "codecompanion" then
-          require("codecompanion").toggle()
-          return
-        end
-        ---@diagnostic disable-next-line: param-type-mismatch
-        pcall(vim.cmd, "close")
+        vim.cmd("close")
         pcall(vim.api.nvim_buf_delete, event.buf, { force = true })
       end, { buffer = event.buf, silent = true, desc = "Quit buffer" })
     end)
