@@ -34,7 +34,9 @@ vim.o.signcolumn     = 'yes'      -- Always show signcolumn (less flicker)
 vim.o.splitbelow     = true       -- Horizontal splits will be below
 vim.o.splitkeep      = 'screen'   -- Reduce scroll during window split
 vim.o.splitright     = true       -- Vertical splits will be to the right
-vim.o.winborder      = 'single'   -- Use border in floating windows
+vim.g.winborder      = 'single'   -- Use border in floating windows
+vim.o.winborder      = vim.g.winborder   -- Use border in floating windows
+vim.o.pumborder = vim.g.winborder      -- Use border in popup menu
 vim.o.wrap           = false      -- Don't visually wrap lines (toggle with \w)] 
 
 vim.o.cursorlineopt  = 'screenline,number' -- Show cursor line per screen line

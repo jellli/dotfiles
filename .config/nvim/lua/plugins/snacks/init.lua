@@ -19,7 +19,7 @@ return {
     styles = {
       input = {
         backdrop = false,
-        border = "single",
+        border = vim.g.winborder,
         title_pos = "left",
         wo = {
           winhighlight = "NormalFloat:Special,FloatBorder:FloatBorder,FloatTitle:Special",

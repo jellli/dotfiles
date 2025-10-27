@@ -84,7 +84,7 @@ return {
           enabled = false,
         },
         menu = {
-          border = "single",
+          border = vim.g.winborder,
           -- scrolloff = 1,
           -- scrollbar = false,
           draw = {
@@ -116,7 +116,7 @@ return {
         },
         documentation = {
           window = {
-            border = "single",
+            border = vim.g.winborder,
             scrollbar = false,
           },
           auto_show = true,

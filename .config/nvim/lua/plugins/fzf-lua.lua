@@ -1,9 +1,9 @@
 local utils = require("utils")
 local builtin_opts = {
   winopts = {
-    border = "single",
+    border = vim.g.winborder,
     preview = {
-      border = "single",
+      border = vim.g.winborder,
     },
     height = 8,
     width = 50,
@@ -81,7 +81,7 @@ return {
   opts = {
     "hide",
     winopts = {
-      border = "single",
+      border = vim.g.winborder,
       height = 15,
       width = 76,
       row = 0.2,
