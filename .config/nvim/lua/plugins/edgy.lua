@@ -23,6 +23,7 @@ return {
         title = "Symbols",
         ft = "aerial",
       },
+      { title = "Neotest Summary", ft = "neotest-summary" },
     },
     right = {
       { ft = "grug-far", title = "Search", size = { width = 0.40 } },
@@ -42,6 +43,7 @@ return {
           return vim.bo[buf].buftype == "help"
         end,
       },
+      { title = "Neotest Output", ft = "neotest-output-panel", size = { height = 15 } },
     },
   },
 }

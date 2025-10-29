@@ -1,11 +1,11 @@
 local utils = require("utils")
-vim.api.nvim_create_autocmd("TextYankPost", {
-  callback = function()
-    vim.highlight.on_yank()
-  end,
-  group = utils.creat_group("YankHighlight"),
-  pattern = "*",
-})
+-- vim.api.nvim_create_autocmd("TextYankPost", {
+--   callback = function()
+--     vim.highlight.on_yank()
+--   end,
+--   group = utils.creat_group("YankHighlight"),
+--   pattern = "*",
+-- })
 
 vim.api.nvim_create_autocmd("FileType", {
   group = utils.creat_group("CloseWithQ"),
