@@ -17,7 +17,7 @@ return {
           }
         end,
       })
-      vim.cmd("colorscheme kanso-zen")
+      vim.cmd("colorscheme kanso-ink")
     end,
   },
 }
