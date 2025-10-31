@@ -1,4 +1,3 @@
-local utils = require("utils")
 ---@diagnostic disable: missing-fields
 local ensure_installed = {
   "rust-analyzer",
@@ -51,13 +50,12 @@ return {
   },
   {
     "b0o/schemastore.nvim",
-    ft = { "json", "yaml" },
+    lazy = true,
   },
   {
     -- `lazydev` configures Lua LSP for your Neovim config, runtime and plugins
     -- used for completion, annotations and signatures of Neovim apis
     "folke/lazydev.nvim",
-    event = "LspAttach",
     ft = "lua",
     opts = {
       library = {
@@ -128,7 +126,10 @@ return {
   {
     "zeioth/garbage-day.nvim",
     dependencies = "neovim/nvim-lspconfig",
-    event = "VeryLazy",
-    opts = {},
+    event = "LspAttach",
+    opts = {
+      grace_period = 60 * 15, -- 15分钟
+      wakeup_delay = 3000,
+    },
   },
 }

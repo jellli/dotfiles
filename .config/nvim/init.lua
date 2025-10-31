@@ -31,12 +31,16 @@ require("lazy").setup(plugins, {
   },
   change_detection = { notify = false },
   performance = {
+    cache = {
+      enabled = true,
+    },
+    reset_packpath = true, -- 重置包路径以提高性能
     rtp = {
-      -- Stuff I don't use.
       disabled_plugins = {
         "gzip",
+        "matchit",
+        "matchparen",
         "netrwPlugin",
-        "rplugin",
         "tarPlugin",
         "tohtml",
         "tutor",
