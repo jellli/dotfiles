@@ -16,7 +16,7 @@ return {
     left = {
       {
         title = "Files",
-        ft = "Fyler",
+        ft = "fyler",
         size = { width = 0.20 },
       },
       {

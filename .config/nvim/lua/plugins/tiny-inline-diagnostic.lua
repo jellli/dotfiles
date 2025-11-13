@@ -1,6 +1,7 @@
 return {
   "rachartier/tiny-inline-diagnostic.nvim",
   event = "LspAttach",
+  commit = "29315861711f11daf75e1cf0953ab92ec1a3e69f",
   priority = 1000,
   config = function()
     require("tiny-inline-diagnostic").setup({

@@ -1,15 +1,19 @@
 ---@diagnostic disable: missing-fields
 local ensure_installed = {
   "rust-analyzer",
+  "bacon",
+  "bacon-ls",
+
   "cssmodules-language-server",
   "html-lsp",
   "css-lsp",
   "tailwindcss-language-server",
   "emmet-ls",
-  "stylua",
   "biome",
+  "vtsls",
+
+  "stylua",
   "marksman",
-  "typescript-language-server",
   "lua-language-server",
 }
 --- @type LazySpec
@@ -41,10 +45,11 @@ return {
         "zls",
         "biome",
         "tailwindcss",
-        "rust_analyzer",
+        -- "rust_analyzer",
         "jsonls",
         "yamlls",
         "css-variables-language-server",
+        -- "bacon_ls",
       })
     end,
   },
@@ -130,6 +135,12 @@ return {
     opts = {
       grace_period = 60 * 15, -- 15分钟
       wakeup_delay = 3000,
+    },
+  },
+  {
+    "j-hui/fidget.nvim",
+    opts = {
+      -- options
     },
   },
 }
