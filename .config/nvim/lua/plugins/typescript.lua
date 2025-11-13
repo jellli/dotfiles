@@ -1,6 +1,14 @@
+local ft = {
+  "javascript",
+  "javascriptreact",
+  "javascript.jsx",
+  "typescript",
+  "typescriptreact",
+  "typescript.tsx",
+}
 return {
   {
-    event = "InsertEnter",
+    ft = ft,
     "windwp/nvim-ts-autotag",
     opts = {
       opts = {

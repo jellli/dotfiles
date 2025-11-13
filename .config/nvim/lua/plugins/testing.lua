@@ -10,6 +10,7 @@ return {
       status = { virtual_text = true },
       output = { open_on_run = true },
       adapters = {
+        require("rustaceanvim.neotest"),
         require("neotest-vitest")({
           filter_dir = function(name)
             return name ~= "node_modules"
