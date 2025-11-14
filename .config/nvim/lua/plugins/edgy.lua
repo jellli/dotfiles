@@ -32,8 +32,16 @@ return {
         title = "AI",
         size = { width = 0.40 },
       },
+      {
+        title = "Overseer",
+        ft = "OverseerList",
+        open = function()
+          require("overseer").open()
+        end,
+      },
     },
     bottom = {
+      "Trouble",
       { ft = "qf", title = "QuickFix" },
       {
         ft = "help",
