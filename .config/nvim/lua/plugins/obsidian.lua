@@ -18,7 +18,6 @@ return {
     },
     dependencies = {
       "nvim-lua/plenary.nvim",
-      "ibhagwan/fzf-lua",
     },
     opts = {
       workspaces = {
@@ -55,20 +54,6 @@ return {
 
         return out
       end,
-    },
-  },
-  {
-    "ibhagwan/fzf-lua",
-    keys = {
-      {
-        "<leader>obf",
-        function()
-          require("fzf-lua").files({
-            cwd = "~/vaults/jili",
-          })
-        end,
-        desc = "Obsidian: FZF Files in Vault",
-      },
     },
   },
 }

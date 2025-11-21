@@ -70,39 +70,39 @@ return {
       },
     },
   },
-  {
-    "rachartier/tiny-code-action.nvim",
-    event = "LspAttach",
-    config = function()
-      require("tiny-code-action").setup({
-        picker = {
-          "buffer",
-          opts = {
-            hotkeys = true,
-            -- Use numeric labels.
-            hotkeys_mode = function(titles)
-              return vim
-                .iter(ipairs(titles))
-                :map(function(i)
-                  return tostring(i)
-                end)
-                :totable()
-            end,
-          },
-        },
-      })
-    end,
-    keys = {
-      {
-        "<leader>ca",
-        mode = { "n", "x" },
-        desc = "Code Action",
-        function()
-          require("tiny-code-action").code_action({})
-        end,
-      },
-    },
-  },
+  -- {
+  --   "rachartier/tiny-code-action.nvim",
+  --   event = "LspAttach",
+  --   config = function()
+  --     require("tiny-code-action").setup({
+  --       picker = {
+  --         "buffer",
+  --         opts = {
+  --           hotkeys = true,
+  --           -- Use numeric labels.
+  --           hotkeys_mode = function(titles)
+  --             return vim
+  --               .iter(ipairs(titles))
+  --               :map(function(i)
+  --                 return tostring(i)
+  --               end)
+  --               :totable()
+  --           end,
+  --         },
+  --       },
+  --     })
+  --   end,
+  --   keys = {
+  --     {
+  --       "<leader>ca",
+  --       mode = { "n", "x" },
+  --       desc = "Code Action",
+  --       function()
+  --         require("tiny-code-action").code_action({})
+  --       end,
+  --     },
+  --   },
+  -- },
   {
     "smjonas/inc-rename.nvim",
     event = "LspAttach",

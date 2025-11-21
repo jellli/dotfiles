@@ -46,7 +46,7 @@ vim.api.nvim_create_autocmd("FileType", {
 vim.api.nvim_create_autocmd("LspAttach", {
   group = utils.creat_group("lsp-attach"),
   callback = function(event)
-    local fzf = require("fzf-lua")
+    local mini_extra = require("mini.extra")
     -- LSP
     -- Disable defaults
     pcall(vim.keymap.del, "n", "gra")
@@ -55,30 +55,28 @@ vim.api.nvim_create_autocmd("LspAttach", {
     pcall(vim.keymap.del, "n", "grr")
     pcall(vim.keymap.del, "n", "grt")
 
-    local lsp_opts = {
-      jump1 = true,
-      winopts = {
-        width = 0.80,
-        preview = {
-          layout = "horizontal",
-          hidden = false,
-        },
-      },
-    }
-    -- utils.map("<leader>rn", function()
-    -- 	vim.lsp.buf.rename()
-    -- end, { desc = "Rename" })
+    utils.map("<leader>rn", function()
+      vim.lsp.buf.rename()
+    end, { desc = "Rename" })
     utils.map("gd", function()
-      fzf.lsp_definitions(lsp_opts)
+      mini_extra.pickers.lsp({
+        scope = "definition",
+      })
     end, { desc = "Goto Definition" })
     utils.map("gr", function()
-      fzf.lsp_references(lsp_opts)
+      mini_extra.pickers.lsp({
+        scope = "references",
+      })
     end, { desc = "Goto Reference" })
     utils.map("gt", function()
-      fzf.lsp_typedefs(lsp_opts)
+      mini_extra.pickers.lsp({
+        scope = "type_definition",
+      })
     end, { desc = "Goto Type Definition" })
     utils.map("gI", function()
-      fzf.lsp_implementations(lsp_opts)
+      mini_extra.pickers.lsp({
+        scope = "implementation",
+      })
     end, { desc = "Goto Implementation" })
 
     ---@param client vim.lsp.Client

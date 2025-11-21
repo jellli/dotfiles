@@ -1,18 +1,17 @@
 local pick = function()
   local refactoring = require("refactoring")
-  local fzf_lua = require("fzf-lua")
   local results = refactoring.get_refactors()
 
-  local opts = {
-    fzf_opts = {},
-    fzf_colors = true,
-    actions = {
-      ["default"] = function(selected)
-        refactoring.refactor(selected[1])
+  require("mini.pick").start({
+    source = {
+      name = "Refactor",
+      items = results,
+      choose = function(selected)
+        vim.notify(selected)
+        refactoring.refactor(selected)
       end,
     },
-  }
-  fzf_lua.fzf_exec(results, opts)
+  })
 end
 return {
   "ThePrimeagen/refactoring.nvim",

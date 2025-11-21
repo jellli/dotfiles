@@ -1,4 +1,6 @@
 return {
+  { "nvim-mini/mini.extra", version = false },
+
   {
     "nvim-mini/mini.pairs",
     event = "VeryLazy",

@@ -65,11 +65,6 @@ return {
         desc = "Toggle breakpoint",
       },
       {
-        "<leader>dB",
-        "<cmd>FzfLua dap_breakpoints<cr>",
-        desc = "List breakpoints",
-      },
-      {
         "<leader>dc",
         function()
           require("dap").set_breakpoint(vim.fn.input("Breakpoint condition: "))
