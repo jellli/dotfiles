@@ -6,7 +6,6 @@ map("k", [[(v:count > 1 ? 'm`' . v:count : 'g') . 'k']], { expr = true })
 map("<esc>", function()
   if require("luasnip").expand_or_jumpable() then
     require("luasnip").unlink_current()
-    vim.notify("Snippet unlinked", vim.log.levels.INFO)
   end
   vim.cmd("noh")
   return "<esc>"
