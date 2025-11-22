@@ -195,6 +195,27 @@ return {
         end,
         desc = "Switch Theme",
       },
+      {
+        "<leader>sd",
+        function()
+          MiniExtra.pickers.diagnostic()
+        end,
+        desc = "Search diagnostic",
+      },
+      {
+        "<leader>sc",
+        function()
+          MiniExtra.pickers.commands()
+        end,
+        desc = "Search commands",
+      },
+      {
+        "<leader>sk",
+        function()
+          MiniExtra.pickers.keymaps()
+        end,
+        desc = "Search commands",
+      },
     },
   },
 }
