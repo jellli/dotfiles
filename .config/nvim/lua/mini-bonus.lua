@@ -84,22 +84,27 @@ function M.fff.picker_show(buf_id, items, query)
     end
 
     local icon_match = line:match("^%S+")
+    local len_of_icon_and_space = #icon_match + 1
     if icon_match and #filename > 0 and #dir_path > 0 then
-      local prefix_len = #icon_match + 1 + #filename + 1
+      local prefix_len = len_of_icon_and_space + #filename + 1
       vim.api.nvim_buf_add_highlight(buf_id, M.fff.ns_id, "Comment", i - 1, prefix_len, prefix_len + #dir_path)
     end
 
     local match_start, match_end =
       -- do not highlight icon and score
-      string.find(line:sub(#icon_match + 1, #icon_match + 1 + #filename + 1 + #dir_path), table.concat(query) or "", 1)
+      string.find(
+        line:sub(len_of_icon_and_space, len_of_icon_and_space + #filename + 1 + #dir_path),
+        table.concat(query) or "",
+        1
+      )
     if match_start and match_end then
       vim.api.nvim_buf_add_highlight(
         buf_id,
         M.fff.ns_id,
         "IncSearch",
         i - 1,
-        #icon_match + match_start - 1,
-        #icon_match + match_end
+        len_of_icon_and_space + match_start - 2,
+        len_of_icon_and_space + match_end - 1
       )
     end
   end
