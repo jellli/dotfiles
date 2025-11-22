@@ -55,7 +55,7 @@ return {
   },
   {
     "b0o/schemastore.nvim",
-    lazy = true,
+    ft = { "json", "yaml" },
   },
   {
     -- `lazydev` configures Lua LSP for your Neovim config, runtime and plugins

@@ -136,7 +136,22 @@ local function setup_extra()
 end
 
 local function setup_pick()
-  require("mini.pick").setup({})
+  local paste_orig = vim.paste
+  local mini_pick = require("mini.pick")
+  mini_pick.setup({})
+  vim.paste = function(...)
+    if not mini_pick.is_picker_active() then
+      return paste_orig(...)
+    else
+      local reg_contents = vim.fn.getreg("+"):gsub("[\n\t]", " ")
+      local char_table = {}
+      for i = 1, #reg_contents do
+        table.insert(char_table, string.sub(reg_contents, i, i))
+      end
+      vim.fn.strchars(reg_contents)
+      mini_pick.set_picker_query(char_table)
+    end
+  end
   vim.api.nvim_create_autocmd("LspAttach", {
     group = utils.creat_group("lsp-attach"),
     callback = function()
