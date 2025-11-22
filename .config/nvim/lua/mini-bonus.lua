@@ -113,6 +113,7 @@ end
 ---@param query string[]|nil
 ---@return FFFItem[]
 function M.fff.match(query)
+  query = query or {}
   local file_picker = require("fff.file_picker")
   if not file_picker.is_initialized() then
     if not file_picker.setup() then
@@ -120,10 +121,7 @@ function M.fff.match(query)
       return {}
     end
   end
-  if query and #query > 0 then
-    return file_picker.search_files(table.concat(query), 100, 4, vim.fn.expand("%:."), false)
-  end
-  return {}
+  return file_picker.search_files(table.concat(query), 100, 4, vim.fn.expand("%:."), false)
 end
 
 function M.fff.run()
