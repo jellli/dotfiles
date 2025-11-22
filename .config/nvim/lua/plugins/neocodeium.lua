@@ -1,25 +1,39 @@
-return {--[[ 
+return {
   "monkoose/neocodeium",
-  event = "VeryLazy",
-  config = function()
-    local neocodeium = require("neocodeium")
-    neocodeium.setup({
-      show_label = false,
-      filetypes = {
-        zig = false,
-      },
-    })
-    vim.keymap.set("i", "<C-f>", function()
-      neocodeium.accept()
-    end)
-    vim.keymap.set("i", "<A-w>", function()
-      neocodeium.accept_word()
-    end)
-    vim.keymap.set("i", "<A-l>", function()
-      neocodeium.accept_line()
-    end)
-    vim.keymap.set("i", "<A-c>", function()
-      neocodeium.clear()
-    end)
-  end, ]]
+  event = "InsertEnter",
+  opts = {
+    show_label = false,
+    filetypes = {
+      zig = false,
+    },
+  },
+  keys = {
+    {
+      "<C-f>",
+      function()
+        require("neocodeium").accept()
+      end,
+      mode = { "i" },
+    },
+    {
+      "<A-w>",
+      function()
+        require("neocodeium").accept_word()
+      end,
+      mode = { "i" },
+    },
+    {
+      "<A-l>",
+      function()
+        require("neocodeium").accept_line()
+      end,
+      mode = { "i" },
+    },
+    {
+      "<A-c>",
+      function()
+        require("neocodeium").clear()
+      end,
+    },
+  },
 }

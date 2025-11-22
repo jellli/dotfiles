@@ -70,72 +70,10 @@ return {
       },
     },
   },
-  -- {
-  --   "rachartier/tiny-code-action.nvim",
-  --   event = "LspAttach",
-  --   config = function()
-  --     require("tiny-code-action").setup({
-  --       picker = {
-  --         "buffer",
-  --         opts = {
-  --           hotkeys = true,
-  --           -- Use numeric labels.
-  --           hotkeys_mode = function(titles)
-  --             return vim
-  --               .iter(ipairs(titles))
-  --               :map(function(i)
-  --                 return tostring(i)
-  --               end)
-  --               :totable()
-  --           end,
-  --         },
-  --       },
-  --     })
-  --   end,
-  --   keys = {
-  --     {
-  --       "<leader>ca",
-  --       mode = { "n", "x" },
-  --       desc = "Code Action",
-  --       function()
-  --         require("tiny-code-action").code_action({})
-  --       end,
-  --     },
-  --   },
-  -- },
-  {
-    "smjonas/inc-rename.nvim",
-    event = "LspAttach",
-    cmd = "IncRename",
-    opts = {
-      input_buffer_type = "snacks",
-    },
-    keys = {
-      {
-        "<leader>rn",
-        function()
-          local inc_rename = require("inc_rename")
-          return ":" .. inc_rename.config.cmd_name .. " " .. vim.fn.expand("<cword>")
-        end,
-        expr = true,
-        desc = "Rename (inc-rename.nvim)",
-        mode = { "n", "v" },
-      },
-    },
-  },
   {
     "Wansmer/symbol-usage.nvim",
     event = "LspAttach",
     config = true,
-  },
-  {
-    "zeioth/garbage-day.nvim",
-    dependencies = "neovim/nvim-lspconfig",
-    event = "LspAttach",
-    opts = {
-      grace_period = 60 * 15, -- 15分钟
-      wakeup_delay = 3000,
-    },
   },
   {
     "j-hui/fidget.nvim",
