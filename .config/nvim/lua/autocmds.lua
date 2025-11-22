@@ -55,29 +55,9 @@ vim.api.nvim_create_autocmd("LspAttach", {
     pcall(vim.keymap.del, "n", "grr")
     pcall(vim.keymap.del, "n", "grt")
 
-    utils.map("<leader>rn", function()
-      vim.lsp.buf.rename()
-    end, { desc = "Rename" })
-    utils.map("gd", function()
-      mini_extra.pickers.lsp({
-        scope = "definition",
-      })
-    end, { desc = "Goto Definition" })
-    utils.map("gr", function()
-      mini_extra.pickers.lsp({
-        scope = "references",
-      })
-    end, { desc = "Goto Reference" })
-    utils.map("gt", function()
-      mini_extra.pickers.lsp({
-        scope = "type_definition",
-      })
-    end, { desc = "Goto Type Definition" })
-    utils.map("gI", function()
-      mini_extra.pickers.lsp({
-        scope = "implementation",
-      })
-    end, { desc = "Goto Implementation" })
+    utils.map("<leader>rn", vim.lsp.buf.rename, { desc = "Rename" })
+    -- other keybinds that use bufopts
+    utils.map("<space>ca", vim.lsp.buf.code_action, { desc = "Code Actions" })
 
     ---@param client vim.lsp.Client
     ---@param method vim.lsp.protocol.Method.ClientToServer
