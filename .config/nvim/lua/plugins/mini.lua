@@ -1,8 +1,8 @@
 local utils = require("utils")
+local mini_bonus = require("mini-bonus")
 
 -- Open LSP picker for the given scope
 ---@param scope "declaration" | "definition" | "document_symbol" | "implementation" | "references" | "type_definition" | "workspace_symbol"
----@param autojump boolean? If there is only one result it will jump to it.
 local function lsp_picker(scope)
   ---@return string
   local function get_symbol_query()
@@ -33,62 +33,6 @@ local function lsp_picker(scope)
   vim.lsp.buf[scope]({ on_list = on_list })
 end
 
----@class FFFItem
----@field name string
----@field path string
----@field relative_path string
----@field size number
----@field modified number
----@field total_frecency_score number
----@field modification_frecency_score number
----@field access_frecency_score number
----@field git_status string
-
----@class PickerItem
----@field text string
----@field path string
----@field score number
-
-local function fff()
-  local mini_pick = require("mini.pick")
-  local file_picker = require("fff.file_picker")
-  if not file_picker.is_initialized() then
-    if not file_picker.setup() then
-      vim.notify("Could not setup fff.nvim", vim.log.levels.ERROR)
-      return
-    end
-  end
-
-  ---@param query string|nil
-  ---@return PickerItem[]
-  local function find(query)
-    ---@type FFFItem[]
-    local fff_result = file_picker.search_files(query or "", 100, 4, vim.fn.expand("%:."), false)
-
-    local result = {}
-    for _, fff_item in ipairs(fff_result) do
-      table.insert(result, {
-        text = fff_item.relative_path,
-        path = fff_item.path,
-        score = fff_item.total_frecency_score,
-      })
-    end
-    return result
-  end
-  mini_pick.start({
-    source = {
-      name = "FFFiles",
-      items = find,
-      match = function(_, _, query)
-        local items = find(table.concat(query))
-        mini_pick.set_picker_items(items, { do_match = false })
-      end,
-      show = function(buf_id, items, query)
-        mini_pick.default_show(buf_id, items, query, { show_icons = true })
-      end,
-    },
-  })
-end
 local function setup_ai()
   local ai = require("mini.ai")
   ai.setup({
@@ -139,6 +83,7 @@ local function setup_pick()
   local paste_orig = vim.paste
   local mini_pick = require("mini.pick")
   mini_pick.setup({})
+  ---@diagnostic disable-next-line: duplicate-set-field
   vim.paste = function(...)
     if not mini_pick.is_picker_active() then
       return paste_orig(...)
@@ -193,7 +138,7 @@ return {
     keys = {
       {
         "<leader><leader>",
-        fff,
+        mini_bonus.fff.run,
         desc = "Search Files",
       },
       {
