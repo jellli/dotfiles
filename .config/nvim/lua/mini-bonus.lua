@@ -91,7 +91,7 @@ function M.fff.picker_show(buf_id, items, query)
 
     local match_start, match_end =
       -- do not highlight icon and score
-      string.find(line:sub(#icon_match + 1, #icon_match + 1 + #filename), table.concat(query) or "", 1)
+      string.find(line:sub(#icon_match + 1, #icon_match + 1 + #filename + 1 + #dir_path), table.concat(query) or "", 1)
     if match_start and match_end then
       vim.api.nvim_buf_add_highlight(
         buf_id,
