@@ -98,7 +98,7 @@ local function setup_pick()
     end
   end
   vim.api.nvim_create_autocmd("LspAttach", {
-    group = utils.creat_group("lsp-attach"),
+    group = utils.creat_group("mini-lsp-attach"),
     callback = function()
       utils.map("gd", function()
         lsp_picker("definition")
@@ -122,8 +122,6 @@ return {
     build = function()
       require("fff.download").download_or_build_binary()
     end,
-    lazy = false,
-    config = true,
   },
   {
     "nvim-mini/mini.nvim",

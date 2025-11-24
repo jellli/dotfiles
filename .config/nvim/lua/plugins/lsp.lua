@@ -1,8 +1,8 @@
 ---@diagnostic disable: missing-fields
 local ensure_installed = {
   "rust-analyzer",
-  "bacon",
-  "bacon-ls",
+  -- "bacon",
+  -- "bacon-ls",
 
   "cssmodules-language-server",
   "html-lsp",
@@ -16,41 +16,47 @@ local ensure_installed = {
   "marksman",
   "lua-language-server",
 }
+
+local function install_missing_lsp()
+  local success, mason_registry = pcall(require, "mason-registry")
+  if not success then
+    vim.notify("mason-registry not found", vim.log.levels.ERROR)
+    return
+  end
+
+  local function enable_lsp(p)
+    if p.spec.neovim and p.spec.neovim.lspconfig then
+      vim.lsp.enable(p.spec.neovim.lspconfig)
+      return
+    end
+    vim.notify("LSP " .. p.name .. " does not have a neovim config, skipping", vim.log.levels.WARN)
+  end
+
+  local installed = mason_registry.get_installed_package_names()
+  for _, package_name in ipairs(ensure_installed) do
+    local p = mason_registry.get_package(package_name)
+    if not vim.tbl_contains(installed, package_name) and vim.fn.executable(package_name) ~= 1 then
+      p:install():once("install:success", function()
+        enable_lsp(p)
+      end)
+      vim.notify("Installing missing lsp: " .. package_name, vim.log.levels.INFO)
+    else
+      enable_lsp(p)
+    end
+  end
+end
+
 --- @type LazySpec
 return {
   {
     "neovim/nvim-lspconfig",
     event = { "BufReadPre", "BufNewFile" },
-    dependencies = {
-      {
-        "mason-org/mason.nvim",
-        config = true,
-      },
-      {
-        "WhoIsSethDaniel/mason-tool-installer.nvim",
-        opts = {
-          ensure_installed = ensure_installed,
-        },
-      },
-    },
+  },
+  {
+    "mason-org/mason.nvim",
     config = function()
-      vim.lsp.enable({
-        "lua_ls",
-        "vtsls",
-        -- "tsgo",
-        "cssls",
-        "cssmodules_ls",
-        "emmet_ls",
-        "marksman",
-        "zls",
-        "biome",
-        "tailwindcss",
-        -- "rust_analyzer",
-        "jsonls",
-        "yamlls",
-        "css-variables-language-server",
-        -- "bacon_ls",
-      })
+      require("mason").setup()
+      install_missing_lsp()
     end,
   },
   {
