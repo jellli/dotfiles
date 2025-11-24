@@ -26,10 +26,7 @@ return {
     },
     keys = {
       -- Buffer navigation.
-      { "<leader>bp", "<cmd>BufferLinePick<cr>", desc = "Pick a buffer to open" },
-      { "<leader>bc", "<cmd>BufferLinePickClose<cr>", desc = "Select a buffer to close" },
-      { "<leader>bl", "<cmd>BufferLineCloseLeft<cr>", desc = "Close buffers to the left" },
-      { "<leader>br", "<cmd>BufferLineCloseRight<cr>", desc = "Close buffers to the right" },
+      { "<leader>bc", "<cmd>BufferLinePick<cr>", desc = "Pick a buffer to open" },
       { "<leader>bo", "<cmd>BufferLineCloseOthers<cr><C-w><C-o>", desc = "Close other buffers" },
     },
   },

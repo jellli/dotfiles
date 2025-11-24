@@ -46,7 +46,6 @@ vim.api.nvim_create_autocmd("FileType", {
 vim.api.nvim_create_autocmd("LspAttach", {
   group = utils.creat_group("lsp-attach"),
   callback = function(event)
-    local mini_extra = require("mini.extra")
     -- LSP
     -- Disable defaults
     pcall(vim.keymap.del, "n", "gra")
