@@ -109,13 +109,13 @@ map("gco", "o<esc>Vcx<esc><cmd>normal gcc<cr>fxa<bs>", { desc = "Add Comment Bel
 map("gcO", "O<esc>Vcx<esc><cmd>normal gcc<cr>fxa<bs>", { desc = "Add Comment Above" })
 
 -- tabs
-map("<leader><tab>l", "<cmd>tablast<cr>", { desc = "Last Tab" })
-map("<leader><tab>o", "<cmd>tabonly<cr>", { desc = "Close Other Tabs" })
-map("<leader><tab>f", "<cmd>tabfirst<cr>", { desc = "First Tab" })
-map("<leader><tab><tab>", "<cmd>tabnew<cr>", { desc = "New Tab" })
-map("<leader><tab>]", "<cmd>tabnext<cr>", { desc = "Next Tab" })
-map("<leader><tab>d", "<cmd>tabclose<cr>", { desc = "Close Tab" })
-map("<leader><tab>[", "<cmd>tabprevious<cr>", { desc = "Previous Tab" })
+map("<c-t>l", "<cmd>tablast<cr>", { desc = "Last Tab" })
+map("<c-t>o", "<cmd>tabonly<cr>", { desc = "Close Other Tabs" })
+map("<c-t>f", "<cmd>tabfirst<cr>", { desc = "First Tab" })
+map("<c-t><tab>", "<cmd>tabnew<cr>", { desc = "New Tab" })
+map("<c-t>]", "<cmd>tabnext<cr>", { desc = "Next Tab" })
+map("<c-t>d", "<cmd>tabclose<cr>", { desc = "Close Tab" })
+map("<c-t>[", "<cmd>tabprevious<cr>", { desc = "Previous Tab" })
 
 -- quickfix list
 map("<leader>xq", function()
