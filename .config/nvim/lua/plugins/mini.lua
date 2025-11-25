@@ -120,6 +120,7 @@ local function settup_files()
   require("mini.files").setup({
     mappings = {
       go_in_plus = "<cr>",
+      synchronize = "<c-s>",
     },
   })
 
@@ -150,7 +151,7 @@ local function settup_files()
     callback = function(args)
       local buf_id = args.data.buf_id
       -- Tweak keys to your liking
-      map_split(buf_id, "<C-s>", "belowright horizontal")
+      -- map_split(buf_id, "<C-s>", "belowright horizontal")
       map_split(buf_id, "<C-v>", "belowright vertical")
       map_split(buf_id, "<C-t>", "tab")
     end,
@@ -176,6 +177,7 @@ local function settup_files()
       local b = args.data.buf_id
       vim.keymap.set("n", "gx", ui_open, { buffer = b, desc = "OS open" })
       vim.keymap.set("n", "gy", yank_path, { buffer = b, desc = "Yank path" })
+      vim.keymap.set("i", "<c-s>", "<esc><cmd>lua MiniFiles.synchronize()<cr>", { buffer = b, desc = "Yank path" })
     end,
   })
 
