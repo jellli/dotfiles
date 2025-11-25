@@ -64,24 +64,6 @@ return {
     ft = { "json", "yaml" },
   },
   {
-    -- `lazydev` configures Lua LSP for your Neovim config, runtime and plugins
-    -- used for completion, annotations and signatures of Neovim apis
-    "folke/lazydev.nvim",
-    ft = "lua",
-    opts = {
-      library = {
-        { path = "snacks.nvim", words = { "Snacks" } },
-        { path = "lazy.nvim", words = { "LazyVim" } },
-        { path = vim.fn.stdpath("data") .. "/LuaAddons/love2d/library" },
-      },
-    },
-  },
-  {
-    "Wansmer/symbol-usage.nvim",
-    event = "LspAttach",
-    config = true,
-  },
-  {
     "j-hui/fidget.nvim",
     opts = {
       -- options

@@ -55,19 +55,7 @@ return {
         { "mode" },
       },
       lualine_b = { "branch", "diff" },
-      lualine_c = {
-        -- {
-        --   "grapple",
-        --   function()
-        --     -- invoke `progress` here.
-        --     return require("lsp-progress").progress()
-        --   end,
-        --   color = {
-        --     fg = utils.get_hl_hex("Comment", "fg"),
-        --     bg = "NONE",
-        --   },
-        -- },
-      },
+      lualine_c = {},
       lualine_x = {},
       lualine_y = {
         -- {

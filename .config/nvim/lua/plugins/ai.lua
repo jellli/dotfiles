@@ -219,7 +219,6 @@ return {
     "olimorris/codecompanion.nvim",
     dependencies = {
       "nvim-lua/plenary.nvim",
-      "ravitemer/mcphub.nvim",
       -- "echasnovski/mini.diff",
       "github/copilot.vim",
     },
@@ -248,16 +247,7 @@ return {
       },
     },
     opts = {
-      extensions = {
-        mcphub = {
-          callback = "mcphub.extensions.codecompanion",
-          opts = {
-            make_vars = true,
-            make_slash_commands = true,
-            show_result_in_chat = true,
-          },
-        },
-      },
+      extensions = {},
       strategies = {
         --[[ cmd = {
           adapter = "anthropic_with_bearer_token",
@@ -322,25 +312,6 @@ Here is the diff:
         },
       },
     },
-  },
-  {
-
-    "ravitemer/mcphub.nvim",
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-    },
-    cmd = "MCPHub",
-    -- build = "bundled_build.lua",
-    config = function()
-      require("mcphub").setup({
-        -- use_bundled_binary = true,
-        auto_approve = true,
-        codecompanion = {
-          show_result_in_chat = true,
-          make_vars = true,
-        },
-      })
-    end,
   },
   {
     "github/copilot.vim",

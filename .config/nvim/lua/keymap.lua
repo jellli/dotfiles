@@ -18,8 +18,8 @@ map("<Space>", "<Nop>", nil, "v")
 map("<C-o>", "<esc>o", nil, "i")
 
 -- Visual mode line movement
-map("J", ":m '>+1<cr>gv=gv", nil, "v")
-map("K", ":m '<-2<cr>gv=gv", nil, "v")
+-- map("J", ":m '>+1<cr>gv=gv", nil, "v")
+-- map("K", ":m '<-2<cr>gv=gv", nil, "v")
 
 -- Save file
 map("<C-s>", "<cmd>w<cr><esc>", { desc = "Save file" }, { "i", "x", "n", "s" })

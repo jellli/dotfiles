@@ -32,10 +32,6 @@ return {
   },
   {
     "saghen/blink.cmp",
-    dependencies = {
-      "xzbdmw/colorful-menu.nvim",
-      "fang2hou/blink-copilot",
-    },
     event = { "InsertEnter", "CmdlineEnter" },
     opts_extend = { "sources.default", "cmdline.sources", "term.sources" },
     version = "*",
@@ -49,23 +45,8 @@ return {
         kind_icons = require("icons").symbol_kinds,
       },
       sources = {
-        default = { "copilot", "lsp", "snippets", "buffer", "path" },
+        default = { "lsp", "snippets", "buffer", "path" },
         providers = {
-          copilot = {
-            name = "copilot",
-            module = "blink-copilot",
-            score_offset = 100,
-            async = true,
-            opts = {
-              -- Local options override global ones
-              max_completions = 3, -- Override global max_completions
-
-              -- Final settings:
-              -- * max_completions = 3
-              -- * max_attempts = 2
-              -- * all other options are default
-            },
-          },
           cmdline = {
             min_keyword_length = 2,
           },
@@ -128,15 +109,6 @@ return {
               { "source_name" },
             },
             components = {
-              label = {
-                text = function(ctx)
-                  return require("colorful-menu").blink_components_text(ctx)
-                end,
-                highlight = function(ctx)
-                  return require("colorful-menu").blink_components_highlight(ctx)
-                end,
-              },
-
               source_name = {
                 text = function(ctx)
                   return "[" .. ctx.source_name .. "]"

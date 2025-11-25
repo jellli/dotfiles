@@ -228,6 +228,15 @@ return {
       setup_extra()
       setup_pick()
       settup_files()
+
+      require("mini.move").setup({
+        mappings = {
+          left = "H",
+          right = "L",
+          down = "J",
+          up = "K",
+        },
+      })
     end,
     keys = {
       {

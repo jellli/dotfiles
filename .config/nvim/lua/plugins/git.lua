@@ -65,5 +65,4 @@ return {
       { "<leader>gp", "<cmd>Git pull<cr>", desc = "Git pull" },
     },
   },
-  { "akinsho/git-conflict.nvim", version = "*", config = true },
 }
