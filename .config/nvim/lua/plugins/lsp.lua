@@ -2,15 +2,13 @@ vim.g.inlay_hint = true
 
 ---@diagnostic disable: missing-fields
 local ensure_installed = {
-  "rust-analyzer",
-  -- "bacon",
-  -- "bacon-ls",
+  -- "rust-analyzer",
 
   "cssmodules-language-server",
   "css-lsp",
-  "tailwindcss-language-server",
+  -- "tailwindcss-language-server",
   "emmet-ls",
-  "biome",
+  -- "biome",
   "vtsls",
 
   "stylua",
@@ -185,10 +183,10 @@ end
 
 --- @type LazySpec
 return {
-  {
-    "neovim/nvim-lspconfig",
-    event = { "BufReadPre", "BufNewFile" },
-  },
+  -- {
+  --   "neovim/nvim-lspconfig",
+  --   event = { "BufReadPre", "BufNewFile" },
+  -- },
   {
     "mason-org/mason.nvim",
     -- cmd = { "Mason", "MasonInstall", "MasonUninstall", "MasonUninstallAll", "MasonLog" },
