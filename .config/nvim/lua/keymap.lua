@@ -79,21 +79,7 @@ map("gh", "^", { desc = "Go to start of line" }, { "n", "v" })
 map("gl", "$", { desc = "Go to end of line" }, { "n", "v" })
 map("gj", "%", { desc = "Go to matching bracket" }, { "n", "v" })
 
--- diagnostic
-local diagnostic_goto = function(next, severity)
-  local direction = next and 1 or -1
-  severity = severity and vim.diagnostic.severity[severity] or nil
-  return function()
-    vim.diagnostic.jump({ count = direction, severity = severity })
-  end
-end
 map("<leader>cd", vim.diagnostic.open_float, { desc = "Line Diagnostics" })
-map("]d", diagnostic_goto(true), { desc = "Next Diagnostic" })
-map("[d", diagnostic_goto(false), { desc = "Prev Diagnostic" })
-map("]e", diagnostic_goto(true, "ERROR"), { desc = "Next Error" })
-map("[e", diagnostic_goto(false, "ERROR"), { desc = "Prev Error" })
-map("]w", diagnostic_goto(true, "WARN"), { desc = "Next Warning" })
-map("[w", diagnostic_goto(false, "WARN"), { desc = "Prev Warning" })
 
 map("<leader>qq", "<cmd>qa<cr>", { desc = "Quit All" })
 

@@ -1,38 +1,6 @@
 local utils = require("utils")
 local mini_bonus = require("mini-bonus")
 
--- Open LSP picker for the given scope
----@param scope "declaration" | "definition" | "document_symbol" | "implementation" | "references" | "type_definition" | "workspace_symbol"
-local function lsp_picker(scope)
-  ---@return string
-  local function get_symbol_query()
-    return vim.fn.input("Symbol: ")
-  end
-
-  ---@param opts vim.lsp.LocationOpts.OnList
-  local function on_list(opts)
-    vim.fn.setqflist({}, " ", opts)
-
-    if #opts.items == 1 then
-      vim.cmd.cfirst()
-    else
-      require("mini.extra").pickers.list({ scope = "quickfix" }, { source = { name = opts.title } })
-    end
-  end
-
-  if scope == "references" then
-    vim.lsp.buf.references(nil, { on_list = on_list })
-    return
-  end
-
-  if scope == "workspace_symbol" then
-    vim.lsp.buf.workspace_symbol(get_symbol_query(), { on_list = on_list })
-    return
-  end
-
-  vim.lsp.buf[scope]({ on_list = on_list })
-end
-
 local function setup_ai()
   local ai = require("mini.ai")
   ai.setup({
@@ -97,23 +65,6 @@ local function setup_pick()
       mini_pick.set_picker_query(char_table)
     end
   end
-  vim.api.nvim_create_autocmd("LspAttach", {
-    group = utils.creat_group("mini-lsp-attach"),
-    callback = function()
-      utils.map("gd", function()
-        lsp_picker("definition")
-      end, { desc = "Goto Definition" })
-      utils.map("gr", function()
-        lsp_picker("references")
-      end, { desc = "Goto Reference" })
-      utils.map("gt", function()
-        lsp_picker("type_definition")
-      end, { desc = "Goto Type Definition" })
-      utils.map("gI", function()
-        lsp_picker("implementation")
-      end, { desc = "Goto Implementation" })
-    end,
-  })
 end
 
 local function settup_files()

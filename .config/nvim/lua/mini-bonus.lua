@@ -137,4 +137,36 @@ function M.fff.run()
   })
 end
 
+-- Open LSP picker for the given scope
+---@param scope "declaration" | "definition" | "document_symbol" | "implementation" | "references" | "type_definition" | "workspace_symbol"
+function M.lsp_picker(scope)
+  ---@return string
+  local function get_symbol_query()
+    return vim.fn.input("Symbol: ")
+  end
+
+  ---@param opts vim.lsp.LocationOpts.OnList
+  local function on_list(opts)
+    vim.fn.setqflist({}, " ", opts)
+
+    if #opts.items == 1 then
+      vim.cmd.cfirst()
+    else
+      require("mini.extra").pickers.list({ scope = "quickfix" }, { source = { name = opts.title } })
+    end
+  end
+
+  if scope == "references" then
+    vim.lsp.buf.references(nil, { on_list = on_list })
+    return
+  end
+
+  if scope == "workspace_symbol" then
+    vim.lsp.buf.workspace_symbol(get_symbol_query(), { on_list = on_list })
+    return
+  end
+
+  vim.lsp.buf[scope]({ on_list = on_list })
+end
+
 return M
