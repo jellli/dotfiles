@@ -124,6 +124,29 @@ local function on_attact(client, bufnr)
       vim.lsp.inlay_hint.enable(vim.g.inlay_hint, { bufnr })
     end, { desc = "Toggle Inlay Hints" })
   end
+
+  vim.diagnostic.config({
+    virtual_text = {
+      spacing = 2,
+      source = true,
+      prefix = "󰊠",
+    },
+    float = {
+      spacing = 2,
+      source = true,
+    },
+  })
+
+  local origin_virtual_text_handler = vim.diagnostic.handlers.virtual_text
+  vim.diagnostic.handlers.virtual_text = {
+    show = function(namespace, bufnr, diagnostics, opts)
+      table.sort(diagnostics, function(a, b)
+        return a.severity > b.severity
+      end)
+      return origin_virtual_text_handler.show(namespace, bufnr, diagnostics, opts)
+    end,
+    hide = origin_virtual_text_handler.hide,
+  }
 end
 
 vim.api.nvim_create_autocmd("LspAttach", {
