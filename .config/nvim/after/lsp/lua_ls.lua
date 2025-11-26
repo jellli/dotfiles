@@ -16,7 +16,21 @@ return {
   settings = {
     Lua = {
       codeLens = { enable = true },
-      hint = { enable = true, semicolon = "Disable" },
+      hint = {
+        enable = true,
+        arrayIndex = "Disable",
+        semicolon = "Disable",
+      },
+      runtime = {
+        version = "LuaJIT",
+      },
+      workspace = {
+        checkThirdParty = false,
+        library = {
+          vim.env.VIMRUNTIME,
+          "${3rd}/luv/library",
+        },
+      },
     },
   },
 }
