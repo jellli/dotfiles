@@ -1,5 +1,7 @@
 local map = require("utils").map
 
+map("<leader>X", "<cmd>source %<cr>")
+
 map("j", [[(v:count > 1 ? 'm`' . v:count : 'g') . 'j']], { expr = true })
 map("k", [[(v:count > 1 ? 'm`' . v:count : 'g') . 'k']], { expr = true })
 
