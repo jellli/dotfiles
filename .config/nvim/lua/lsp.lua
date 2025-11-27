@@ -115,7 +115,6 @@ local function on_attact(client, bufnr)
       buffer = bufnr,
       callback = function()
         if vim.g.inlay_hint and not vim.lsp.inlay_hint.is_enabled() then
-          vim.notify("Enable inlay hint", vim.log.levels.INFO)
           vim.lsp.inlay_hint.enable(true, { bufnr })
         end
       end,
@@ -139,14 +138,17 @@ local function on_attact(client, bufnr)
     },
   })
 
-  local show_handler = assert(vim.diagnostic.handlers.virtual_text.show)
   local origin_virtual_text_handler = vim.diagnostic.handlers.virtual_text
   vim.diagnostic.handlers.virtual_text = {
-    show = function(ns, bufnr, diagnostics, opts)
+    show = function(ns, buf, diagnostics, opts)
       table.sort(diagnostics, function(a, b)
         return a.severity > b.severity
       end)
-      return show_handler(ns, bufnr, diagnostics, opts)
+      if type(origin_virtual_text_handler.show) ~= "function" then
+        vim.notify("No origin virtual text handler", vim.log.levels.WARN)
+        return
+      end
+      return origin_virtual_text_handler.show(ns, buf, diagnostics, opts)
     end,
     hide = origin_virtual_text_handler.hide,
   }
