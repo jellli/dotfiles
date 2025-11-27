@@ -68,7 +68,8 @@ local filetype = function()
 end
 
 local function cwd()
-  return H.hl("Directory", vim.fn.fnamemodify(vim.fn.getcwd(), ":p:h:t"))
+  local dir = string.format("󰘍 %s/", vim.fn.fnamemodify(vim.fn.getcwd(), ":p:h:t"))
+  return H.hl("Directory", dir)
 end
 
 local function d()
@@ -79,9 +80,7 @@ local function d()
   end)
   local error_count = H.hl("DiagnosticError", string.format("󰃤 %d", counts[1]))
   local warning_count = H.hl("DiagnosticWarn", string.format("󰮯 %d", counts[2]))
-  local info_count = H.hl("DiagnosticInfo", string.format("ℹ% d", counts[3]))
-  local hint_count = H.hl("DiagnosticHint", string.format(" %d", counts[4]))
-  return string.format("%s %s %s %s", error_count, warning_count, info_count, hint_count)
+  return string.format("%s %s", error_count, warning_count)
 end
 
 local lsp_progress_status = {
@@ -134,16 +133,20 @@ end
 
 H.create_hl("ModeNormal", { fg = "#000000", bg = "#ffffff" })
 vim.o.statusline = "%!v:lua.Statusline.render()"
-vim.o.laststatus = 3
+-- vim.o.laststatus = 3
 
--- vim.api.nvim_exec(
---   [[
---   augroup Statusline
---   au!
---   au WinEnter,BufEnter,CursorMoved,InsertEnter,InsertLeave * setlocal statusline=%!v:lua.Statusline.render()
---   augroup END
--- ]],
---   false
--- )
--- -- au WinLeave,BufLeave * setlocal statusline=%!v:lua.Statusline.inactive()
--- -- au WinEnter,BufEnter,FileType NvimTree setlocal statusline=%!v:lua.Statusline.short()
+vim.api.nvim_create_autocmd({
+  "WinEnter",
+  "BufEnter",
+  "CursorMoved",
+  "InsertEnter",
+  "InsertLeave",
+  "LspProgress",
+  -- "DiagnosticChanged",
+  "ModeChanged",
+}, {
+  group = vim.api.nvim_create_augroup("j/statusline_update", { clear = true }),
+  callback = function()
+    vim.cmd("redrawstatus")
+  end,
+})
