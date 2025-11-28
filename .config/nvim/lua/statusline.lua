@@ -65,15 +65,15 @@ end
 
 local filetype = function()
   local devicons = require("nvim-web-devicons")
-  local icon, hl = devicons.get_icon(vim.bo.filetype, vim.fn.fnamemodify(vim.bo.filetype, ":e"), { default = true })
+  local icon, hl = devicons.get_icon(vim.bo.filetype, vim.fn.fnamemodify(vim.fn.expand("%"), ":e"), { default = true })
   local icon_hl = H.hl(hl, icon)
   local ft = H.hl("Type", vim.bo.filetype:upper())
   return string.format("%s %s", icon_hl, ft)
 end
 
 local function cwd()
-  local dir = string.format("󰘍 %s/", vim.fn.fnamemodify(vim.fn.getcwd(), ":p:h:t"))
-  return H.hl("Directory", dir:upper())
+  local dir = string.format(" 󰘍 %s/ ", vim.fn.fnamemodify(vim.fn.getcwd(), ":p:h:t"))
+  return H.hl("Visual", dir)
 end
 
 local function d()
@@ -145,7 +145,7 @@ vim.api.nvim_create_autocmd("LspProgress", {
       start_loading()
     elseif value.kind == "end" then
       lsp_progress_status = {
-        client_id = nil,
+        -- client_id = nil,
         kind = nil,
         title = nil,
         message = nil,
@@ -156,54 +156,41 @@ vim.api.nvim_create_autocmd("LspProgress", {
     end
   end,
 })
+
+local client_name = ""
 local function lsp_progress()
-  if lsp_progress_status.kind == nil then
-    return ""
+  local client = lsp_progress_status.client_id and vim.lsp.get_client_by_id(lsp_progress_status.client_id)
+  if client and client.name then
+    client_name = H.hl("Special", string.format("[%s]", client.name))
   end
-  local client = vim.lsp.get_client_by_id(lsp_progress_status.client_id)
-  local client_name = client and string.format("%s", client.name) or ""
   local indicator = lsp_progress_status.indicator and indicator_symbols[lsp_progress_status.indicator] or ""
-  return string.format(
-    "[%s] %s %s %s",
-    client_name or "UNKNOWN",
-    indicator,
-    lsp_progress_status.title or "",
-    lsp_progress_status.message or ""
-  )
+  local title = H.hl("Comment", lsp_progress_status.title or "")
+  return string.format("%s %s %s", client_name, indicator, title)
 end
 
-local git_info = vim.b.gitsigns_status_dict
--- {
---   added = 82,
---   changed = 8,
---   gitdir = "/Users/hoon/dotfiles/.git",
---   head = "master",
---   removed = 0,
---   root = "/Users/hoon/dotfiles"
--- }
 local function git()
+  local git_info = vim.b.gitsigns_status_dict
   if git_info == nil then
     return ""
   end
-  local branch = H.hl("GitSignsCurrent", string.format(" %s", git_info.head))
-  local added = H.hl("GitSignsAdd", string.format("+%s", git_info.added))
-  local changed = H.hl("GitSignsChange", string.format("~%s", git_info.changed))
-  local removed = H.hl("GitSignsDelete", string.format("-%s", git_info.removed))
-  return string.format(" %s %s %s %s", branch, added, changed, removed)
+  local branch = H.hl("Visual", string.format("  %s ", git_info.head))
+  local added = H.hl("GitSignsAdd", string.format(" %s", git_info.added))
+  local changed = H.hl("GitSignsChange", string.format(" %s", git_info.changed))
+  local removed = H.hl("GitSignsDelete", string.format(" %s", git_info.removed))
+  return string.format("%s %s %s %s", branch, added, changed, removed)
 end
 
 function Statusline.render()
   -- " %f %m %r %l:%c %p%%",
   return table.concat({
     mode(),
-    " ",
-    cwd(),
-    " ",
     git(),
     " ",
     lsp_progress(),
     "%=",
     d(),
+    " ",
+    cwd(),
     " ",
     filetype(),
   })
