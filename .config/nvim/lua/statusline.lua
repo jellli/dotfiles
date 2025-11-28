@@ -88,12 +88,12 @@ local function d()
 end
 
 local indicator_symbols = {
-  "◜",
-  "◠",
-  "◝",
-  "◞",
-  "◡",
-  "◟",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
 }
 local lsp_progress_status = {
   client_id = nil,
@@ -161,7 +161,7 @@ local client_name = ""
 local function lsp_progress()
   local client = lsp_progress_status.client_id and vim.lsp.get_client_by_id(lsp_progress_status.client_id)
   if client and client.name then
-    client_name = H.hl("Special", string.format("[%s]", client.name))
+    client_name = H.hl("ModeMsg", string.format("  %s", client.name))
   end
   local indicator = lsp_progress_status.indicator and indicator_symbols[lsp_progress_status.indicator] or ""
   local title = H.hl("Comment", lsp_progress_status.title or "")
@@ -173,7 +173,7 @@ local function git()
   if git_info == nil then
     return ""
   end
-  local branch = H.hl("Cursor", string.format("  %s ", git_info.head))
+  local branch = H.hl("Visual", string.format("  %s ", git_info.head))
   local added = H.hl("GitSignsAdd", string.format("+%s", git_info.added))
   local changed = H.hl("GitSignsChange", string.format("~%s", git_info.changed))
   local removed = H.hl("GitSignsDelete", string.format("-%s", git_info.removed))
@@ -184,10 +184,10 @@ function Statusline.render()
   -- " %f %m %r %l:%c %p%%",
   return table.concat({
     mode(),
-    lsp_progress(),
-    "%=",
     git(),
     " ",
+    lsp_progress(),
+    "%=",
     cwd(),
     " ",
     d(),
