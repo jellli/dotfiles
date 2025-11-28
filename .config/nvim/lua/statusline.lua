@@ -64,12 +64,16 @@ local function mode()
 end
 
 local filetype = function()
-  return vim.bo.filetype
+  local devicons = require("nvim-web-devicons")
+  local icon, hl = devicons.get_icon(vim.bo.filetype, vim.fn.fnamemodify(vim.bo.filetype, ":e"), { default = true })
+  local icon_hl = H.hl(hl, icon)
+  local ft = H.hl("Type", vim.bo.filetype:upper())
+  return string.format("%s %s", icon_hl, ft)
 end
 
 local function cwd()
   local dir = string.format("󰘍 %s/", vim.fn.fnamemodify(vim.fn.getcwd(), ":p:h:t"))
-  return H.hl("Directory", dir)
+  return H.hl("Directory", dir:upper())
 end
 
 local function d()
@@ -83,13 +87,49 @@ local function d()
   return string.format("%s %s", error_count, warning_count)
 end
 
+local indicator_symbols = {
+  "◜",
+  "◠",
+  "◝",
+  "◞",
+  "◡",
+  "◟",
+}
 local lsp_progress_status = {
   client_id = nil,
   kind = nil,
   title = nil,
   message = nil,
   percentage = nil,
+  indicator = nil,
 }
+local indicator_timer = nil
+
+local function start_loading()
+  if indicator_timer then
+    return
+  end
+  indicator_timer = vim.loop.new_timer()
+  local i = 1
+  indicator_timer:start(
+    0,
+    120,
+    vim.schedule_wrap(function()
+      lsp_progress_status.indicator = i
+      i = i % #indicator_symbols + 1
+      vim.cmd("redrawstatus")
+    end)
+  )
+end
+
+local function stop_loading()
+  if indicator_timer then
+    indicator_timer:stop()
+    indicator_timer:close()
+    indicator_timer = nil
+  end
+  lsp_progress_status.indicator = nil
+end
 
 local lsp_progress_group = vim.api.nvim_create_augroup("j/lsp_progress", {
   clear = true,
@@ -102,8 +142,17 @@ vim.api.nvim_create_autocmd("LspProgress", {
     if value.kind == "begin" then
       lsp_progress_status = value
       lsp_progress_status.client_id = ev.data.client_id
+      start_loading()
     elseif value.kind == "end" then
-      lsp_progress_status = { client_id = nil, kind = nil, title = nil, message = nil, percentage = nil }
+      lsp_progress_status = {
+        client_id = nil,
+        kind = nil,
+        title = nil,
+        message = nil,
+        percentage = nil,
+        indicator = nil,
+      }
+      stop_loading()
     end
   end,
 })
@@ -112,8 +161,35 @@ local function lsp_progress()
     return ""
   end
   local client = vim.lsp.get_client_by_id(lsp_progress_status.client_id)
-  local client_name = client and string.format("[%s]", client.name) or ""
-  return string.format("%s %s %s...", client_name, lsp_progress_status.title or "", lsp_progress_status.message or "")
+  local client_name = client and string.format("%s", client.name) or ""
+  local indicator = lsp_progress_status.indicator and indicator_symbols[lsp_progress_status.indicator] or ""
+  return string.format(
+    "[%s] %s %s %s",
+    client_name or "UNKNOWN",
+    indicator,
+    lsp_progress_status.title or "",
+    lsp_progress_status.message or ""
+  )
+end
+
+local git_info = vim.b.gitsigns_status_dict
+-- {
+--   added = 82,
+--   changed = 8,
+--   gitdir = "/Users/hoon/dotfiles/.git",
+--   head = "master",
+--   removed = 0,
+--   root = "/Users/hoon/dotfiles"
+-- }
+local function git()
+  if git_info == nil then
+    return ""
+  end
+  local branch = H.hl("GitSignsCurrent", string.format(" %s", git_info.head))
+  local added = H.hl("GitSignsAdd", string.format("+%s", git_info.added))
+  local changed = H.hl("GitSignsChange", string.format("~%s", git_info.changed))
+  local removed = H.hl("GitSignsDelete", string.format("-%s", git_info.removed))
+  return string.format(" %s %s %s %s", branch, added, changed, removed)
 end
 
 function Statusline.render()
@@ -122,6 +198,8 @@ function Statusline.render()
     mode(),
     " ",
     cwd(),
+    " ",
+    git(),
     " ",
     lsp_progress(),
     "%=",
@@ -133,19 +211,14 @@ end
 
 H.create_hl("ModeNormal", { fg = "#000000", bg = "#ffffff" })
 vim.o.statusline = "%!v:lua.Statusline.render()"
--- vim.o.laststatus = 3
+vim.o.laststatus = 3
 
+local update_group = vim.api.nvim_create_augroup("j/statusline_update", { clear = false })
 vim.api.nvim_create_autocmd({
-  "WinEnter",
-  "BufEnter",
-  "CursorMoved",
-  "InsertEnter",
-  "InsertLeave",
   "LspProgress",
-  -- "DiagnosticChanged",
   "ModeChanged",
 }, {
-  group = vim.api.nvim_create_augroup("j/statusline_update", { clear = true }),
+  group = update_group,
   callback = function()
     vim.cmd("redrawstatus")
   end,
