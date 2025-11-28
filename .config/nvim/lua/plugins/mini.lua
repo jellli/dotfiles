@@ -212,11 +212,25 @@ return {
         desc = "Search Files",
       },
       {
+        "<leader>sR",
+        function()
+          MiniPick.builtin.resume()
+        end,
+        desc = "Live Grep",
+      },
+      {
         "<leader>sg",
         function()
           MiniPick.builtin.grep_live()
         end,
         desc = "Live Grep",
+      },
+      {
+        "<leader>sb",
+        function()
+          MiniPick.builtin.buffers()
+        end,
+        desc = "Search buffers",
       },
       {
         "<leader>st",
@@ -245,6 +259,13 @@ return {
           MiniExtra.pickers.keymaps()
         end,
         desc = "Search commands",
+      },
+      {
+        "<leader>sh",
+        function()
+          MiniExtra.pickers.hl_groups()
+        end,
+        desc = "Search highlight group",
       },
     },
   },

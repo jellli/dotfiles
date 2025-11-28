@@ -173,10 +173,10 @@ local function git()
   if git_info == nil then
     return ""
   end
-  local branch = H.hl("Visual", string.format("  %s ", git_info.head))
-  local added = H.hl("GitSignsAdd", string.format(" %s", git_info.added))
-  local changed = H.hl("GitSignsChange", string.format(" %s", git_info.changed))
-  local removed = H.hl("GitSignsDelete", string.format(" %s", git_info.removed))
+  local branch = H.hl("Cursor", string.format("  %s ", git_info.head))
+  local added = H.hl("GitSignsAdd", string.format("+%s", git_info.added))
+  local changed = H.hl("GitSignsChange", string.format("~%s", git_info.changed))
+  local removed = H.hl("GitSignsDelete", string.format("-%s", git_info.removed))
   return string.format("%s %s %s %s", branch, added, changed, removed)
 end
 
@@ -184,13 +184,13 @@ function Statusline.render()
   -- " %f %m %r %l:%c %p%%",
   return table.concat({
     mode(),
-    git(),
-    " ",
     lsp_progress(),
     "%=",
-    d(),
+    git(),
     " ",
     cwd(),
+    " ",
+    d(),
     " ",
     filetype(),
   })
