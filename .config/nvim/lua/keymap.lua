@@ -24,7 +24,7 @@ map("<C-o>", "<esc>o", nil, "i")
 -- map("K", ":m '<-2<cr>gv=gv", nil, "v")
 
 -- Save file
-map("<C-s>", "<cmd>w<cr><esc>", { desc = "Save file" }, { "i", "x", "n", "s" })
+map("<C-s>", "<cmd>w!<cr><esc>", { desc = "Save file" }, { "i", "x", "n", "s" })
 
 -- Save file without auto-formatting
 map("<leader>sn", "<cmd>noautocmd w<cr>", { desc = "Save file without auto-formatting" })

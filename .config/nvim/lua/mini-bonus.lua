@@ -1,114 +1,170 @@
 local icons = require("icons")
+
 ---@diagnostic disable: deprecated
 
----@class FFFItem
----@field name string
----@field path string
----@field relative_path string
----@field size number
----@field modified number
----@field total_frecency_score number
----@field modification_frecency_score number
----@field access_frecency_score number
----@field git_status string
-
 local M = {}
+
+-- Private helper table
 local H = {}
-H.set_buflines = function(buf_id, lines)
+H.ns_id = vim.api.nvim_create_namespace("fff-minipick-ui")
+
+---Set buffer content safely
+---@param buf_id number
+---@param lines string[]
+function H.set_buflines(buf_id, lines)
   pcall(vim.api.nvim_buf_set_lines, buf_id, 0, -1, false, lines)
 end
 
--- FFF Picker
-M.fff = {}
-M.fff.ns_id = vim.api.nvim_create_namespace("fff-minipick")
-M.fff.format_file_display = function(item)
+---Format path display (split filename and directory)
+---@param item table
+---@return string filename
+---@return string dir_path
+function H.format_file_display(item)
   local filename = item.name
   local dir_path = item.directory or ""
 
+  -- If no explicit directory, try to deduce from relative_path
   if dir_path == "" and item.relative_path then
-    local parent_dir = vim.fn.fnamemodify(item.relative_path, ":h")
-    if parent_dir ~= "." and parent_dir ~= "" then
-      dir_path = parent_dir
+    local parent = vim.fn.fnamemodify(item.relative_path, ":h")
+    if parent ~= "." and parent ~= "" then
+      dir_path = parent
     end
-  end
-
-  if dir_path == "" then
-    return filename, ""
   end
 
   return filename, dir_path
 end
 
---- @param buf_id number
---- @param items FFFItem[]
---- @param query table
-function M.fff.picker_show(buf_id, items, query)
-  local icon_data = {}
-  local path_data = {}
-  local padded_lines = {}
-  for i, item in ipairs(items) do
-    local icon, icon_hl_group =
-      require("nvim-web-devicons").get_icon(item.name, vim.fn.fnamemodify(item.name, ":e"), { default = true })
-    icon_data[i] = {
-      icon,
-      icon_hl_group,
-    }
+---Get icon and highlight group
+---@param filename string
+---@return string icon
+---@return string hl_group
+function H.get_icon(filename)
+  local ext = vim.fn.fnamemodify(filename, ":e")
+  local icon, hl = require("nvim-web-devicons").get_icon(filename, ext, { default = true })
+  return icon or " ", hl
+end
 
-    local frecency = ""
-    local total_frecency = (item.total_frecency_score or 0)
+---Generic picker show function (core rendering logic)
+---@param buf_id number
+---@param items table[]
+---@param query table
+---@param get_suffix_fn function(item): string, table[]? -- Returns suffix text and extra highlight rules
+function H.generic_picker_show(buf_id, items, query, get_suffix_fn)
+  local lines = {}
+  local meta_data = {} -- Store metadata for each line for subsequent highlighting
 
-    if total_frecency > 0 then
-      frecency = string.format(" %s %d", "", total_frecency)
+  for _, item in ipairs(items) do
+    local filename, dir_path = H.format_file_display(item)
+    local icon, icon_hl = H.get_icon(filename)
+
+    -- Get specific suffix (Buffer diagnostics or FFF score)
+    local suffix_str, suffix_hls = "", nil
+    if get_suffix_fn then
+      suffix_str, suffix_hls = get_suffix_fn(item)
     end
 
-    local filename, dir_path = M.fff.format_file_display(item)
+    -- Construct line: "ICON Name Path Suffix"
+    local line = string.format("%s %s %s%s", icon, filename, dir_path, suffix_str)
+    table.insert(lines, line)
 
-    path_data[i] = { filename, dir_path }
-    local line = string.format("%s %s %s%s", icon, filename, dir_path, frecency)
-    table.insert(padded_lines, line)
-    -- padded_lines[i] = line
+    -- Calculate offsets for highlighting
+    local icon_width = #icon
+    local name_start = icon_width + 1 -- space
+    local name_end = name_start + #filename
+    local dir_start = name_end + 1 -- space
+    local dir_end = dir_start + #dir_path
+
+    table.insert(meta_data, {
+      icon = icon,
+      icon_hl = icon_hl,
+      name = filename,
+      dir = dir_path,
+      -- Offsets
+      name_start_byte = name_start,
+      dir_end_byte = dir_end,
+      suffix_hls = suffix_hls,
+    })
   end
 
-  H.set_buflines(buf_id, padded_lines)
+  H.set_buflines(buf_id, lines)
 
-  for i, line in ipairs(padded_lines) do
-    local icon, icon_hl_group = unpack(icon_data[i])
-    local filename, dir_path = unpack(path_data[i])
-    if icon_hl_group and vim.fn.strdisplaywidth(icon) > 0 then
-      vim.api.nvim_buf_add_highlight(buf_id, M.fff.ns_id, icon_hl_group, i - 1, 0, vim.fn.strdisplaywidth(icon))
+  -- Batch apply highlights
+  local query_str = table.concat(query)
+
+  for i, meta in ipairs(meta_data) do
+    local row = i - 1
+
+    -- 1. Highlight Icon
+    if meta.icon_hl and #meta.icon > 0 then
+      vim.api.nvim_buf_add_highlight(buf_id, H.ns_id, meta.icon_hl, row, 0, #meta.icon)
     end
 
-    local star_start, star_end = line:find(" %d+")
-
-    if star_start then
-      vim.api.nvim_buf_add_highlight(buf_id, M.fff.ns_id, "Special", i - 1, star_start - 1, star_end)
-    end
-
-    local icon_match = line:match("^%S+")
-    local len_of_icon_and_space = #icon_match + 1
-    if icon_match and #filename > 0 and #dir_path > 0 then
-      local prefix_len = len_of_icon_and_space + #filename + 1
-      vim.api.nvim_buf_add_highlight(buf_id, M.fff.ns_id, "Comment", i - 1, prefix_len, prefix_len + #dir_path)
-    end
-
-    local match_start, match_end =
-      -- do not highlight icon and score
-      string.find(
-        line:sub(len_of_icon_and_space, len_of_icon_and_space + #filename + 1 + #dir_path),
-        table.concat(query) or "",
-        1
-      )
-    if match_start and match_end then
+    -- 2. Highlight Directory (Comment)
+    if #meta.dir > 0 then
+      -- Directory starts after the name and the following space
       vim.api.nvim_buf_add_highlight(
         buf_id,
-        M.fff.ns_id,
-        "IncSearch",
-        i - 1,
-        len_of_icon_and_space + match_start - 2,
-        len_of_icon_and_space + match_end - 1
+        H.ns_id,
+        "Comment",
+        row,
+        meta.name_start_byte + #meta.name + 1,
+        meta.dir_end_byte
       )
     end
+
+    -- 3. Highlight Search Matches (only within filename and path)
+    if #query_str > 0 then
+      -- Construct substring for search (avoid matching icon or suffix)
+      -- Note: using simple string.find here; fuzzy match highlighting would be more complex
+      local search_text = meta.name .. " " .. meta.dir
+      local s_start, s_end = string.find(search_text, query_str, 1, true)
+      if s_start then
+        -- Convert back to whole line byte offset
+        local hl_start = meta.name_start_byte + s_start - 1
+        local hl_end = meta.name_start_byte + s_end
+        vim.api.nvim_buf_add_highlight(buf_id, H.ns_id, "IncSearch", row, hl_start, hl_end)
+      end
+    end
+
+    -- 4. Apply specific suffix highlights (Buffer diagnostics or FFF score)
+    if meta.suffix_hls then
+      for _, hl in ipairs(meta.suffix_hls) do
+        -- hl structure: { group, pattern_in_suffix } or absolute positions
+        if hl.group and hl.start_col and hl.end_col then
+          -- If absolute columns provided
+          vim.api.nvim_buf_add_highlight(buf_id, H.ns_id, hl.group, row, hl.start_col, hl.end_col)
+        elseif hl.group and hl.pattern then
+          -- Regex match (fallback)
+          local line_text = lines[i]
+          local s, e = string.find(line_text, hl.pattern)
+          if s then
+            vim.api.nvim_buf_add_highlight(buf_id, H.ns_id, hl.group, row, s - 1, e)
+          end
+        end
+      end
+    end
   end
+end
+
+-- ============================================================
+-- FFF (File Picker) Section
+-- ============================================================
+M.fff = {}
+
+---@param buf_id number
+---@param items FFFItem[]
+---@param query table
+function M.fff.picker_show(buf_id, items, query)
+  H.generic_picker_show(buf_id, items, query, function(item)
+    -- Handle Frecency suffix
+    local total_frecency = item.total_frecency_score or 0
+    if total_frecency > 0 then
+      local text = string.format(" %s %d", "", total_frecency)
+      -- Return text and highlight rules
+      return text, { { group = "Special", pattern = " %d+" } }
+    end
+    return "", nil
+  end)
 end
 
 ---@param query string[]|nil
@@ -122,6 +178,7 @@ function M.fff.match(query)
       return {}
     end
   end
+  -- Limit to 100 results
   return file_picker.search_files(table.concat(query), 100, 4, vim.fn.expand("%:."), false)
 end
 
@@ -130,6 +187,7 @@ function M.fff.run()
     source = {
       name = "FFFiles",
       items = M.fff.match,
+      -- Disable default match, as fff.match handles filtering
       match = function(_, _, query)
         MiniPick.set_picker_items(M.fff.match(query), { do_match = false })
       end,
@@ -138,10 +196,88 @@ function M.fff.run()
   })
 end
 
+-- ============================================================
+-- Buffer Picker Section
+-- ============================================================
+M.buffers = {}
+
+---Specific display logic for Buffer list
+function M.buffers.picker_show(buf_id, items, query)
+  H.generic_picker_show(buf_id, items, query, function(item)
+    -- Construct diagnostic info string
+    local parts = {}
+    local hls = {}
+
+    local severities = {
+      { idx = 1, icon = icons.diagnostics.ERROR, hl = "DiagnosticError" },
+      { idx = 2, icon = icons.diagnostics.WARN, hl = "DiagnosticWarn" },
+      { idx = 3, icon = icons.diagnostics.INFO, hl = "DiagnosticInfo" },
+      { idx = 4, icon = icons.diagnostics.HINT, hl = "DiagnosticHint" },
+    }
+
+    for _, sev in ipairs(severities) do
+      local count = item.diagnostics_counts[sev.idx] or 0
+      local str = string.format("%s %d", sev.icon, count)
+
+      table.insert(parts, str)
+
+      -- Must use pattern matching here as generic_show doesn't know the prefix length
+      -- Note: Assumes icons do not contain regex special characters
+      table.insert(hls, {
+        group = sev.hl,
+        pattern = vim.pesc(sev.icon) .. " %d+",
+      })
+    end
+
+    return " " .. table.concat(parts, " "), hls
+  end)
+end
+
+function M.buffers.run()
+  -- Use API to get Buffer list, more reliable than parsing nvim_exec
+  local items = {}
+  local bufs = vim.api.nvim_list_bufs()
+
+  for _, buf_id in ipairs(bufs) do
+    if vim.api.nvim_buf_is_valid(buf_id) and vim.bo[buf_id].buflisted then
+      local name = vim.api.nvim_buf_get_name(buf_id)
+      local diag_counts = { 0, 0, 0, 0 }
+
+      -- Get diagnostic statistics
+      local diagnostics = vim.diagnostic.get(buf_id)
+      for _, d in ipairs(diagnostics) do
+        if diag_counts[d.severity] then
+          diag_counts[d.severity] = diag_counts[d.severity] + 1
+        end
+      end
+
+      -- Construct Item
+      table.insert(items, {
+        name = vim.fn.fnamemodify(name, ":t"), -- Filename
+        directory = vim.fn.fnamemodify(name, ":~:h"), -- Directory
+        path = name, -- Full path
+        bufnr = buf_id,
+        diagnostics_counts = diag_counts,
+      })
+    end
+  end
+
+  MiniPick.start({
+    source = {
+      name = "Buffers",
+      items = items,
+      show = M.buffers.picker_show,
+    },
+  })
+end
+
+-- ============================================================
+-- LSP Picker Section
+-- ============================================================
+
 -- Open LSP picker for the given scope
 ---@param scope "declaration" | "definition" | "document_symbol" | "implementation" | "references" | "type_definition" | "workspace_symbol"
 function M.lsp_picker(scope)
-  ---@return string
   local function get_symbol_query()
     return vim.fn.input("Symbol: ")
   end
@@ -149,163 +285,32 @@ function M.lsp_picker(scope)
   ---@param opts vim.lsp.LocationOpts.OnList
   local function on_list(opts)
     vim.fn.setqflist({}, " ", opts)
-
     if #opts.items == 1 then
       vim.cmd.cfirst()
     else
-      require("mini.extra").pickers.list({ scope = "quickfix" }, { source = { name = opts.title } })
+      -- Try to use mini.extra list picker if installed
+      local has_extra, extra = pcall(require, "mini.extra")
+      if has_extra then
+        extra.pickers.list({ scope = "quickfix" }, { source = { name = opts.title } })
+      else
+        -- Fallback: Open Quickfix window
+        vim.cmd.copen()
+      end
     end
   end
 
   if scope == "references" then
     vim.lsp.buf.references(nil, { on_list = on_list })
-    return
-  end
-
-  if scope == "workspace_symbol" then
+  elseif scope == "workspace_symbol" then
     vim.lsp.buf.workspace_symbol(get_symbol_query(), { on_list = on_list })
-    return
-  end
-
-  vim.lsp.buf[scope]({ on_list = on_list })
-end
-
-M.b = {}
-M.b.ns = vim.api.nvim_create_namespace("mini-bonus")
-local function show(buf_id, items, query)
-  local icon_data = {}
-  local path_data = {}
-  local padded_lines = {}
-  for i, item in ipairs(items) do
-    local icon, icon_hl_group =
-      require("nvim-web-devicons").get_icon(item.name, vim.fn.fnamemodify(item.name, ":e"), { default = true })
-    icon_data[i] = {
-      icon,
-      icon_hl_group,
-    }
-    local filename, dir_path = M.fff.format_file_display(item)
-    path_data[i] = { filename, dir_path }
-    local error_count = string.format("%s %d", icons.diagnostics.ERROR, item.diagnostics_counts[1])
-    local warn_count = string.format("%s %d", icons.diagnostics.WARN, item.diagnostics_counts[2])
-    local info_count = string.format("%s %d", icons.diagnostics.INFO, item.diagnostics_counts[3])
-    local hint_count = string.format("%s %d", icons.diagnostics.HINT, item.diagnostics_counts[4])
-    local diasgnostic_count = table.concat({ error_count, warn_count, info_count, hint_count }, " ")
-    local line = string.format("%s %s %s %s", icon, filename, dir_path, diasgnostic_count)
-    table.insert(padded_lines, line)
-  end
-  H.set_buflines(buf_id, padded_lines)
-
-  for i, line in ipairs(padded_lines) do
-    local icon, icon_hl_group = unpack(icon_data[i])
-    local filename, dir_path = unpack(path_data[i])
-    if icon_hl_group and vim.fn.strdisplaywidth(icon) > 0 then
-      vim.api.nvim_buf_add_highlight(buf_id, M.b.ns, icon_hl_group, i - 1, 0, vim.fn.strdisplaywidth(icon))
-    end
-
-    local icon_match = line:match("^%S+")
-    local len_of_icon_and_space = #icon_match + 1
-    if icon_match and #filename > 0 and #dir_path > 0 then
-      local prefix_len = len_of_icon_and_space + #filename + 1
-      vim.api.nvim_buf_add_highlight(buf_id, M.b.ns, "Comment", i - 1, prefix_len, prefix_len + #dir_path)
-    end
-
-    local match_start, match_end =
-      -- do not highlight icon and score
-      string.find(
-        line:sub(len_of_icon_and_space, len_of_icon_and_space + #filename + 1 + #dir_path),
-        table.concat(query) or "",
-        1
-      )
-    if match_start and match_end then
-      vim.api.nvim_buf_add_highlight(
-        buf_id,
-        M.b.ns,
-        "IncSearch",
-        i - 1,
-        len_of_icon_and_space + match_start - 2,
-        len_of_icon_and_space + match_end - 1
-      )
-    end
-
-    local error_start, error_end =
-      string.find(line:sub(len_of_icon_and_space, -1), icons.diagnostics.ERROR .. " %d+", 1)
-    if error_start and error_end then
-      vim.api.nvim_buf_add_highlight(
-        buf_id,
-        M.b.ns,
-        "DiagnosticError",
-        i - 1,
-        len_of_icon_and_space + error_start - 2,
-        len_of_icon_and_space + error_end - 1
-      )
-
-      local warn_start, warn_end = string.find(line:sub(len_of_icon_and_space, -1), icons.diagnostics.WARN .. " %d+", 1)
-      if warn_start and warn_end then
-        vim.api.nvim_buf_add_highlight(
-          buf_id,
-          M.b.ns,
-          "DiagnosticWarn",
-          i - 1,
-          len_of_icon_and_space + warn_start - 2,
-          len_of_icon_and_space + warn_end - 1
-        )
-      end
-
-      local info_start, info_end = string.find(line:sub(len_of_icon_and_space, -1), icons.diagnostics.INFO .. " %d+", 1)
-      if info_start and info_end then
-        vim.api.nvim_buf_add_highlight(
-          buf_id,
-          M.b.ns,
-          "DiagnosticInfo",
-          i - 1,
-          len_of_icon_and_space + info_start - 2,
-          len_of_icon_and_space + info_end - 1
-        )
-      end
-
-      local hint_start, hint_end = string.find(line:sub(len_of_icon_and_space, -1), icons.diagnostics.HINT .. " %d+", 1)
-      if hint_start and hint_end then
-        vim.api.nvim_buf_add_highlight(
-          buf_id,
-          M.b.ns,
-          "DiagnosticHint",
-          i - 1,
-          len_of_icon_and_space + hint_start - 2,
-          len_of_icon_and_space + hint_end - 1
-        )
-      end
+  else
+    -- Dynamically call function, ensuring scope is safe
+    if vim.lsp.buf[scope] then
+      vim.lsp.buf[scope]({ on_list = on_list })
+    else
+      vim.notify("Unknown LSP scope: " .. scope, vim.log.levels.ERROR)
     end
   end
-end
-
-function M.buffers()
-  local buffers_output = vim.api.nvim_exec("buffers", true)
-  local items = {}
-  for _, l in ipairs(vim.split(buffers_output, "\n")) do
-    local buf_id, name = tonumber(l:match("^%s*%d+")), l:match('"(.*)"')
-    local diagnostics = vim.diagnostic.get(buf_id)
-    local diagnostics_counts = vim.iter(diagnostics):fold({ 0, 0, 0, 0 }, function(acc, v)
-      acc[v.severity] = acc[v.severity] + 1
-      return acc
-    end)
-
-    local item = {
-      name = vim.fn.fnamemodify(name, ":p:t"),
-      directory = vim.fn.fnamemodify(name, ":p:~:h"),
-      bufnr = buf_id,
-      diagnostics_counts = diagnostics_counts,
-    }
-
-    table.insert(items, item)
-  end
-
-  MiniPick.start({
-    source = {
-      name = "Buffers",
-      items = items,
-      show = show,
-    },
-  })
 end
 
 return M

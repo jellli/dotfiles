@@ -66,7 +66,7 @@ function M.close_other_buffers()
   local current_buffer = vim.api.nvim_get_current_buf()
   local buffers = vim.api.nvim_list_bufs()
   for _, buffer in ipairs(buffers) do
-    if buffer ~= current_buffer then
+    if buffer ~= current_buffer and vim.bo[buffer].buflisted then
       Snacks.bufdelete({
         buf = buffer,
         force = true,
