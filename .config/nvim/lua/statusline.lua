@@ -188,8 +188,6 @@ function Statusline.render()
     " ",
     lsp_progress(),
     "%=",
-    cwd(),
-    " ",
     d(),
     " ",
     filetype(),

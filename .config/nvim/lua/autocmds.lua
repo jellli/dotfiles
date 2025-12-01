@@ -66,3 +66,11 @@ vim.api.nvim_create_autocmd({ "InsertEnter", "WinLeave" }, {
     end
   end,
 })
+
+local uv = vim.uv
+
+vim.api.nvim_create_autocmd({ "VimEnter", "VimLeave" }, {
+  callback = function()
+    vim.system({ "tmux", "rename-window", vim.fn.fnamemodify(vim.fn.getcwd(), ":p:h:t") })
+  end,
+})
