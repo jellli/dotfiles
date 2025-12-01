@@ -229,6 +229,11 @@ function M.buffers.picker_show(buf_id, items, query)
       })
     end
 
+    if item.is_current_buf then
+      table.insert(parts, " [current]")
+      table.insert(hls, { group = "DiagnosticWarn", pattern = " %[current%]$" })
+    end
+
     return " " .. table.concat(parts, " "), hls
   end)
 end
@@ -254,9 +259,10 @@ function M.buffers.run()
       -- Construct Item
       table.insert(items, {
         name = vim.fn.fnamemodify(name, ":t"), -- Filename
-        directory = vim.fn.fnamemodify(name, ":~:h"), -- Directory
+        directory = vim.fn.fnamemodify(name, ":p:.:h"), -- Directory
         path = name, -- Full path
         bufnr = buf_id,
+        is_current_buf = buf_id == vim.api.nvim_get_current_buf(),
         diagnostics_counts = diag_counts,
       })
     end
