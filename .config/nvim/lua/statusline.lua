@@ -1,3 +1,4 @@
+local icons = require("icons")
 local mode_map = {
   ["n"] = "NORMAL",
   ["no"] = "OP-PENDING",
@@ -58,9 +59,8 @@ end
 
 local function mode()
   local prefix = H.hl("Cursor", " ")
-  local icon = "󰊠"
   local m = H.hl("", mode_map[vim.api.nvim_get_mode().mode])
-  return string.format("%s %s %s ", prefix, icon, m)
+  return string.format("%s %s %s ", prefix, icons.misc.ghost, m)
 end
 
 local filetype = function()
@@ -71,19 +71,14 @@ local filetype = function()
   return string.format("%s %s", icon_hl, ft)
 end
 
-local function cwd()
-  local dir = string.format(" 󰘍 %s/ ", vim.fn.fnamemodify(vim.fn.getcwd(), ":p:h:t"))
-  return H.hl("Visual", dir)
-end
-
 local function d()
   local diagnostics = vim.diagnostic.get(0)
   local counts = vim.iter(diagnostics):fold({ 0, 0, 0, 0 }, function(acc, v)
     acc[v.severity] = acc[v.severity] + 1
     return acc
   end)
-  local error_count = H.hl("DiagnosticError", string.format("󰃤 %d", counts[1]))
-  local warning_count = H.hl("DiagnosticWarn", string.format("󰮯 %d", counts[2]))
+  local error_count = H.hl("DiagnosticError", string.format("%s %d", icons.diagnostics.ERROR, counts[1]))
+  local warning_count = H.hl("DiagnosticWarn", string.format("%s %d", icons.diagnostics.WARN, counts[2]))
   return string.format("%s %s", error_count, warning_count)
 end
 
@@ -161,7 +156,7 @@ local client_name = ""
 local function lsp_progress()
   local client = lsp_progress_status.client_id and vim.lsp.get_client_by_id(lsp_progress_status.client_id)
   if client and client.name then
-    client_name = H.hl("ModeMsg", string.format("  %s", client.name))
+    client_name = H.hl("ModeMsg", string.format(" %s %s", icons.symbol_kinds.Event, client.name))
   end
   local indicator = lsp_progress_status.indicator and indicator_symbols[lsp_progress_status.indicator] or ""
   local title = H.hl("Comment", lsp_progress_status.title or "")
@@ -173,7 +168,7 @@ local function git()
   if git_info == nil then
     return ""
   end
-  local branch = H.hl("Visual", string.format("  %s ", git_info.head))
+  local branch = H.hl("Visual", string.format(" %s %s ", icons.misc.git, git_info.head))
   local added = H.hl("GitSignsAdd", string.format("+%s", git_info.added))
   local changed = H.hl("GitSignsChange", string.format("~%s", git_info.changed))
   local removed = H.hl("GitSignsDelete", string.format("-%s", git_info.removed))
