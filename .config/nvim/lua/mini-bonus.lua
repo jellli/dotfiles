@@ -230,8 +230,8 @@ function M.buffers.picker_show(buf_id, items, query)
     end
 
     if item.is_current_buf then
-      table.insert(parts, " [current]")
-      table.insert(hls, { group = "DiagnosticWarn", pattern = " %[current%]$" })
+      table.insert(parts, "[current]")
+      table.insert(hls, { group = "DiagnosticWarn", pattern = "%[current%]$" })
     end
 
     return " " .. table.concat(parts, " "), hls
