@@ -22,6 +22,7 @@ require("keymap")
 require("autocmds")
 require("lsp")
 require("statusline")
+require("winbar")
 require("lazy").setup(plugins, {
   ui = { border = vim.g.border },
   install = {
