@@ -1,7 +1,6 @@
 {
   "LuaSnip": { "branch": "master", "commit": "3732756842a2f7e0e76a7b0487e9692072857277" },
   "blink.cmp": { "branch": "main", "commit": "b19413d214068f316c78978b08264ed1c41830ec" },
-  "bufferline.nvim": { "branch": "main", "commit": "655133c3b4c3e5e05ec549b9f8cc2894ac6f51b3" },
   "codecompanion.nvim": { "branch": "main", "commit": "8ad65eef735b31bb47d76f59d878ee1bac4bdc85" },
   "conform.nvim": { "branch": "master", "commit": "4993e07fac6679d0a5005aa7499e0bad2bd39f19" },
   "copilot.vim": { "branch": "release", "commit": "f89e977c87180519ba3b942200e3d05b17b1e2fc" },
@@ -10,7 +9,6 @@
   "flash.nvim": { "branch": "main", "commit": "fcea7ff883235d9024dc41e638f164a450c14ca2" },
   "friendly-snippets": { "branch": "main", "commit": "572f5660cf05f8cd8834e096d7b4c921ba18e175" },
   "gitsigns.nvim": { "branch": "main", "commit": "5813e4878748805f1518cee7abb50fd7205a3a48" },
-  "grug-far.nvim": { "branch": "main", "commit": "b58b2d65863f4ebad88b10a1ddd519e5380466e0" },
   "im-select.nvim": { "branch": "master", "commit": "113a6905a1c95d2990269f96abcbad9718209557" },
   "kanso.nvim": { "branch": "main", "commit": "81041940f469fba3c9eb6efe32eb3174281806df" },
   "lazy.nvim": { "branch": "main", "commit": "85c7ff3711b730b4030d03144f6db6375044ae82" },

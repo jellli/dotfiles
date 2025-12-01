@@ -73,7 +73,11 @@ map("<", "<gv", nil, "v")
 map(">", ">gv", nil, "v")
 
 -- Special mappings with descriptions
-map("<leader>bo", "<C-w><C-o><cmd>:%bd|e#|bd#<cr>", { desc = "Close all buffers but the current one" })
+map(
+  "<leader>bo",
+  "<cmd>lua require('utils').close_other_buffers()<cr>",
+  { desc = "Close all buffers but the current one" }
+)
 map("<leader>lz", "<cmd>Lazy<cr>", { desc = "Lazy" })
 
 -- Quick navigation

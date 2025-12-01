@@ -62,4 +62,17 @@ function M.check_file_in_cwd(filename)
   return vim.fn.filereadable(filepath) == 1
 end
 
+function M.close_other_buffers()
+  local current_buffer = vim.api.nvim_get_current_buf()
+  local buffers = vim.api.nvim_list_bufs()
+  for _, buffer in ipairs(buffers) do
+    if buffer ~= current_buffer then
+      Snacks.bufdelete({
+        buf = buffer,
+        force = true,
+      })
+    end
+  end
+end
+
 return M
