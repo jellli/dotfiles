@@ -228,7 +228,8 @@ return {
       {
         "<leader>sb",
         function()
-          MiniPick.builtin.buffers()
+          -- MiniPick.builtin.buffers()
+          require("mini-bonus").buffers()
         end,
         desc = "Search buffers",
       },
