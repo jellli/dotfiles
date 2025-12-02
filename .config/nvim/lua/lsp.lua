@@ -184,8 +184,84 @@ vim.api.nvim_create_autocmd({ "BufReadPre", "BufNewFile" }, {
       end)
       :totable()
     servers = vim.tbl_filter(function(server)
-      return server ~= "tsgo"
+      return server ~= "vtsls"
     end, servers)
     vim.lsp.enable(servers)
   end,
 })
+
+function Check_capabilities(id)
+  local client = vim.lsp.get_client_by_id(id)
+  if not client then
+    return
+  end
+  local methods = {
+    "callHierarchy/incomingCalls",
+    "callHierarchy/outgoingCalls",
+    "codeAction/resolve",
+    "codeLens/resolve",
+    "completionItem/resolve",
+    "documentLink/resolve",
+    "initialize",
+    "inlayHint/resolve",
+    "shutdown",
+    "textDocument/codeAction",
+    "textDocument/codeLens",
+    "textDocument/colorPresentation",
+    "textDocument/completion",
+    "textDocument/declaration",
+    "textDocument/definition",
+    "textDocument/diagnostic",
+    "textDocument/documentColor",
+    "textDocument/documentHighlight",
+    "textDocument/documentLink",
+    "textDocument/documentSymbol",
+    "textDocument/foldingRange",
+    "textDocument/formatting",
+    "textDocument/hover",
+    "textDocument/implementation",
+    "textDocument/inlayHint",
+    "textDocument/inlineCompletion",
+    "textDocument/inlineValue",
+    "textDocument/linkedEditingRange",
+    "textDocument/moniker",
+    "textDocument/onTypeFormatting",
+    "textDocument/prepareCallHierarchy",
+    "textDocument/prepareRename",
+    "textDocument/prepareTypeHierarchy",
+    "textDocument/rangeFormatting",
+    "textDocument/rangesFormatting",
+    "textDocument/references",
+    "textDocument/rename",
+    "textDocument/selectionRange",
+    "textDocument/semanticTokens/full",
+    "textDocument/semanticTokens/full/delta",
+    "textDocument/semanticTokens/range",
+    "textDocument/signatureHelp",
+    "textDocument/typeDefinition",
+    "textDocument/willSaveWaitUntil",
+    "typeHierarchy/subtypes",
+    "typeHierarchy/supertypes",
+    "workspaceSymbol/resolve",
+    "workspace/diagnostic",
+    "workspace/executeCommand",
+    "workspace/symbol",
+    "workspace/textDocumentContent",
+    "workspace/willCreateFiles",
+    "workspace/willDeleteFiles",
+    "workspace/willRenameFiles",
+  }
+  local supported = {}
+  local unsupported = {}
+  for _, method in pairs(methods) do
+    if client:supports_method(method) then
+      table.insert(supported, method)
+    else
+      table.insert(unsupported, method)
+    end
+  end
+  print("Supported methods for " .. client.name .. ":")
+  print(vim.inspect(supported))
+  print("Unsupported methods for " .. client.name .. ":")
+  print(vim.inspect(unsupported))
+end
