@@ -20,6 +20,7 @@ vim.api.nvim_create_autocmd("FileType", {
     "fugitive",
     "git",
     "gitcommit",
+    "gitsigns-blame",
   },
   callback = function(event)
     if vim.bo.filetype == "git" or vim.bo.filetype == "gitcommit" then
