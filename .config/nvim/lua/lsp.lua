@@ -174,6 +174,9 @@ vim.api.nvim_create_autocmd({ "BufReadPre", "BufNewFile" }, {
         return vim.fn.fnamemodify(file, ":t:r")
       end)
       :totable()
+    servers = vim.tbl_filter(function(server)
+      return server ~= "tsgo"
+    end, servers)
     vim.lsp.enable(servers)
   end,
 })
