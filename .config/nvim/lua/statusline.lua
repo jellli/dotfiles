@@ -67,7 +67,7 @@ local filetype = function()
   local devicons = require("nvim-web-devicons")
   local icon, hl = devicons.get_icon(vim.bo.filetype, vim.fn.fnamemodify(vim.fn.expand("%"), ":e"), { default = true })
   local icon_hl = H.hl(hl, icon)
-  local ft = H.hl("Type", vim.bo.filetype:upper())
+  local ft = H.hl("Type", vim.bo.filetype)
   return string.format("%s %s", icon_hl, ft)
 end
 
@@ -163,7 +163,12 @@ local function lsp_progress()
   return string.format("%s %s %s", client_name, indicator, title)
 end
 
+local git_string = ""
 local function git()
+  local excludes = { "fugitive", "lazy", "minipick", "minifiles", "codecompanion", "OverseerList", "OverseerForm" }
+  if vim.tbl_contains(excludes, vim.bo.filetype) or not vim.bo.filetype then
+    return git_string
+  end
   local git_info = vim.b.gitsigns_status_dict
   if git_info == nil then
     return ""
@@ -172,7 +177,8 @@ local function git()
   local added = H.hl("GitSignsAdd", string.format("+%s", git_info.added))
   local changed = H.hl("GitSignsChange", string.format("~%s", git_info.changed))
   local removed = H.hl("GitSignsDelete", string.format("-%s", git_info.removed))
-  return string.format("%s %s %s %s", branch, added, changed, removed)
+  git_string = string.format("%s %s %s %s", branch, added, changed, removed)
+  return git_string
 end
 
 function Statusline.render()
