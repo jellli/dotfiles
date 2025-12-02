@@ -1,6 +1,3 @@
-local utils = require("utils")
-local mini_bonus = require("mini-bonus")
-
 local function setup_ai()
   local ai = require("mini.ai")
   ai.setup({
@@ -65,6 +62,52 @@ local function setup_pick()
       mini_pick.set_picker_query(char_table)
     end
   end
+
+  local sep = package.config:sub(1, 1)
+  local function truncate_path(path)
+    local parts = vim.split(path, sep)
+    if #parts > 3 then
+      parts = { parts[1], "…", parts[#parts - 1], parts[#parts] }
+    end
+    return table.concat(parts, sep)
+  end
+
+  local function map_gsub(items, pattern, replacement)
+    return vim.tbl_map(function(item)
+      item, _ = string.gsub(item, pattern, replacement)
+      return item
+    end, items)
+  end
+
+  local show_align_on_nul = function(buf_id, items, query, opts)
+    -- Shorten the pathname to keep the width of the picker window to something
+    -- a bit more reasonable for longer pathnames.
+    items = map_gsub(items, "^%Z+", truncate_path)
+
+    -- Because items is an array of blobs (contains a NUL byte), align_strings
+    -- will not work because it expects strings. So, convert the NUL bytes to a
+    -- unique (hopefully) separator, then align, and revert back.
+    items = map_gsub(items, "%z", "#|#")
+    items = require("mini.align").align_strings(items, {
+      justify_side = { "left", "right", "right" },
+      merge_delimiter = { "", " ", "", " ", "" },
+      split_pattern = "#|#",
+    })
+    items = map_gsub(items, "#|#", "\0")
+
+    -- Back to the regularly scheduled program :-)
+    MiniPick.default_show(buf_id, items, query, opts)
+  end
+
+  MiniPick.registry.grep_live_align = function()
+    MiniPick.builtin.grep_live({}, {
+      source = { show = show_align_on_nul },
+      window = { config = { width = math.floor(0.816 * vim.o.columns) } },
+    })
+  end
+
+  MiniPick.registry.fff_picker = require("mini-bonus").fff.run
+  MiniPick.registry.buffers_with_diagnostics = require("mini-bonus").buffers.run
 end
 
 local function settup_files()
@@ -205,10 +248,11 @@ return {
         end,
         desc = "File explorer",
       },
-
       {
         "<leader><leader>",
-        mini_bonus.fff.run,
+        function()
+          MiniPick.registry.fff_picker()
+        end,
         desc = "Search Files",
       },
       {
@@ -221,13 +265,15 @@ return {
       {
         "<leader>sg",
         function()
-          MiniPick.builtin.grep_live()
+          MiniPick.registry.grep_live_align()
         end,
         desc = "Live Grep",
       },
       {
         "<leader>sb",
-        require("mini-bonus").buffers.run,
+        function()
+          MiniPick.registry.buffers_with_diagnostics()
+        end,
         desc = "Search buffers",
       },
       {
