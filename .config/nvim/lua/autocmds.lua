@@ -72,7 +72,9 @@ local uv = vim.uv
 
 vim.api.nvim_create_autocmd({ "VimEnter", "VimLeave" }, {
   callback = function()
-    vim.system({ "tmux", "rename-window", vim.fn.fnamemodify(vim.fn.getcwd(), ":p:h:t") })
+    if vim.fn.executable("tmux") == 1 then
+      vim.system({ "tmux", "rename-window", vim.fn.fnamemodify(vim.fn.getcwd(), ":p:h:t") })
+    end
   end,
 })
 
