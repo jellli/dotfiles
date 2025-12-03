@@ -136,6 +136,14 @@ local function on_attact(client, bufnr)
         [vim.diagnostic.severity.HINT] = icons.diagnostics.HINT,
       },
     },
+    status = {
+      text = {
+        [vim.diagnostic.severity.ERROR] = icons.diagnostics.ERROR .. " ",
+        [vim.diagnostic.severity.WARN] = icons.diagnostics.WARN .. " ",
+        [vim.diagnostic.severity.INFO] = icons.diagnostics.INFO .. " ",
+        [vim.diagnostic.severity.HINT] = icons.diagnostics.HINT .. " ",
+      },
+    },
     virtual_text = {
       spacing = 2,
       source = true,

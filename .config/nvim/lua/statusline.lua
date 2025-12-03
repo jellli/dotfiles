@@ -75,17 +75,6 @@ local filetype = function()
   return string.format("%s %s", icon_hl, ft)
 end
 
-local function d()
-  local diagnostics = vim.diagnostic.get(0)
-  local counts = vim.iter(diagnostics):fold({ 0, 0, 0, 0 }, function(acc, v)
-    acc[v.severity] = acc[v.severity] + 1
-    return acc
-  end)
-  local error_count = H.hl("DiagnosticError", string.format("%s %d", icons.diagnostics.ERROR, counts[1]))
-  local warning_count = H.hl("DiagnosticWarn", string.format("%s %d", icons.diagnostics.WARN, counts[2]))
-  return string.format("%s %s", error_count, warning_count)
-end
-
 local indicator_symbols = {
   "",
   "",
@@ -193,7 +182,7 @@ function Statusline.render()
     " ",
     lsp_progress(),
     "%=",
-    d(),
+    vim.diagnostic.status(),
     " ",
     filetype(),
   })
