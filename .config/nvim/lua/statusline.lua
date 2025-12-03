@@ -64,9 +64,13 @@ local function mode()
 end
 
 local filetype = function()
-  local devicons = require("nvim-web-devicons")
-  local icon, hl = devicons.get_icon(vim.bo.filetype, vim.fn.fnamemodify(vim.fn.expand("%"), ":e"), { default = true })
-  local icon_hl = H.hl(hl, icon)
+  local success, devicons = pcall(require, "nvim-web-devicons")
+  local icon_hl = ""
+  if success then
+    local icon, hl =
+      devicons.get_icon(vim.bo.filetype, vim.fn.fnamemodify(vim.fn.expand("%"), ":e"), { default = true })
+    icon_hl = H.hl(hl, icon)
+  end
   local ft = H.hl("Type", vim.bo.filetype)
   return string.format("%s %s", icon_hl, ft)
 end

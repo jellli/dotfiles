@@ -9,8 +9,12 @@ Winbar.render = function(bufnr)
   local filepath = vim.api.nvim_buf_get_name(bufnr)
   local filename = vim.fn.fnamemodify(filepath, ":t")
   local ext = vim.fn.fnamemodify(filepath, ":e")
-  local icon, hl = require("nvim-web-devicons").get_icon(filename, ext, { default = true })
-  local icon_hl = H.hl(hl, icon)
+  local success, devicons = pcall(require, "nvim-web-devicons")
+  local icon_hl = ""
+  if success then
+    local icon, hl = devicons.get_icon(filename, ext, { default = true })
+    icon_hl = H.hl(hl, icon)
+  end
   local modified = vim.bo[bufnr].modified
   local filename_hl = H.hl(modified and "Added" or "Title", filename .. (modified and "*" or ""))
   return table.concat({
