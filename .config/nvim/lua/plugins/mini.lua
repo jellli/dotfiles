@@ -210,6 +210,7 @@ end
 return {
   {
     "dmtrKovalenko/fff.nvim",
+    lazy = true,
     build = function()
       require("fff.download").download_or_build_binary()
     end,
@@ -218,6 +219,7 @@ return {
     "nvim-mini/mini.nvim",
     dependencies = "dmtrKovalenko/fff.nvim",
     version = false,
+    lazy = true,
     config = function()
       setup_ai()
       setup_pairs()
