@@ -217,6 +217,8 @@ end
 return {
   {
     "olimorris/codecompanion.nvim",
+    event = "VeryLazy",
+    version = "17.33.0",
     dependencies = {
       "nvim-lua/plenary.nvim",
       -- "echasnovski/mini.diff",
