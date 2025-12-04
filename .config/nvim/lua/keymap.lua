@@ -119,3 +119,5 @@ end, { desc = "Quickfix List" })
 
 map("[q", vim.cmd.cprev, { desc = "Previous Quickfix" })
 map("]q", vim.cmd.cnext, { desc = "Next Quickfix" })
+
+map("<leader>ms", "<cmd>messages<cr>", { desc = "Messages history" })

@@ -10,7 +10,7 @@ return {
     input = {},
     indent = require("plugins.snacks.indent"),
     dashboard = require("plugins.snacks.dashboard"),
-    notifier = require("plugins.snacks.notifier"),
+    -- notifier = require("plugins.snacks.notifier"),
     lazygit = {
       theme = {
         inactiveBorderColor = { fg = "Comment" },
@@ -42,13 +42,6 @@ return {
         Snacks.lazygit()
       end,
       desc = "Lazygit",
-    },
-    {
-      "<leader>nh",
-      function()
-        Snacks.notifier.show_history()
-      end,
-      desc = "Notification History",
     },
   },
 }
