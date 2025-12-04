@@ -11,8 +11,8 @@ return {
       gh = true,
       on_attach = function(bufnr)
         local gs = package.loaded.gitsigns
-        map("[g", gs.prev_hunk, { desc = "Previous hunk" })
-        map("]g", gs.next_hunk, { desc = "Next hunk" })
+        map("[h", gs.prev_hunk, { desc = "Previous hunk" })
+        map("]h", gs.next_hunk, { desc = "Next hunk" })
       end,
     },
     keys = {
@@ -33,17 +33,17 @@ return {
       },
 
       {
-        "<leader>ghp",
+        "<leader>hp",
         "<cmd>Gitsign preview_hunk_inline<cr>",
         desc = "Preview hunk",
       },
       {
-        "<leader>ghs",
+        "<leader>hs",
         "<cmd>Gitsign stage_hunk<cr>",
         desc = "Stage hunk",
       },
       {
-        "<leader>ghr",
+        "<leader>hr",
         "<cmd>Gitsign reset_hunk<cr>",
         desc = "Reset hunk",
       },
@@ -51,22 +51,17 @@ return {
   },
   {
     "tpope/vim-fugitive",
-    cmd = { "Git" },
+    cmd = {
+      "Git",
+    },
     keys = {
-      -- { "<leader>gf", ":Git ", desc = "Fugitive" },
       { "<leader>gs", "<cmd>Git<cr>", desc = "Git status" },
-      { "<leader>ga", "<cmd>Git add %:p<cr><cr>", desc = "Git add current file" },
+      { "<leader>ga", "<cmd>Gwrite<cr>", desc = "Git add current file" },
+      { "<leader>gr", "<cmd>Gread<cr>", desc = "Git read" },
       { "<leader>gc", "<cmd>Git commit -v -q<cr>", desc = "Git commit" },
       { "<leader>gt", "<cmd>Git commit -v -q %:p<cr>", desc = "Git commit current file" },
-      { "<leader>gd", "<cmd>Gdiff<cr>", desc = "Git diff" },
-      -- { "<leader>ge", "<cmd>Gedit<cr>", desc = "Git edit" },
-      -- { "<leader>gr", "<cmd>Gread<cr>", desc = "Git read" },
-      -- { "<leader>gw", "<cmd>Gwrite<cr><cr>", desc = "Git write" },
-      { "<leader>gl", "<cmd>silent! Glog<cr>:bot copen<cr>", desc = "Git log" },
-      { "<leader>gp", ":Ggrep ", desc = "Git grep" },
-      { "<leader>gm", ":Gmove ", desc = "Git move" },
-      -- { "<leader>gb", ":Git branch ", desc = "Git branch" },
-      -- { "<leader>go", ":Git checkout ", desc = "Git checkout" },
+      { "<leader>gd", "<cmd>:Gvdiffsplit<cr>", desc = "Git diff" },
+      { "<leader>gl", "<cmd>vert Git --paginate log<cr>", desc = "Git log" },
       { "<leader>gP", "<cmd>Git push<cr>", desc = "Git push" },
       { "<leader>gp", "<cmd>Git pull<cr>", desc = "Git pull" },
     },
