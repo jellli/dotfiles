@@ -190,7 +190,6 @@ end
 
 H.create_hl("ModeNormal", { fg = "#000000", bg = "#ffffff" })
 vim.o.statusline = "%!v:lua.Statusline.render()"
-vim.o.laststatus = 3
 
 local update_group = vim.api.nvim_create_augroup("j/statusline_update", { clear = false })
 vim.api.nvim_create_autocmd({

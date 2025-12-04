@@ -65,6 +65,10 @@ vim.o.virtualedit   = 'block' -- Allow going past end of line in blockwise mode
 
 vim.o.iskeyword = '@,48-57,_,192-255,-' -- Treat dash as `word` textobject part
 
+-- statusline
+vim.o.laststatus = 3
+vim.o.cmdheight = 0
+
 -- Pattern for a start of numbered list (used in `gw`). This reads as
 -- "Start of list item is: at least one special character (digit, -, +, *)
 -- possibly followed by punctuation (. or `)`) followed by at least one space".
