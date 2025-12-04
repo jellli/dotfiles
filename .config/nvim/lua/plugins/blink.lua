@@ -110,5 +110,9 @@ return {
         delete_check_events = "TextChanged",
       }
     end,
+    keys = function()
+      -- Disable default tab keybinding in LuaSnip
+      return {}
+    end,
   },
 }
