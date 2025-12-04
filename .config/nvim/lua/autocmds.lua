@@ -114,7 +114,7 @@ local function get_switch_cmd()
   end
   return cmd
 end
-vim.api.nvim_create_autocmd({ "InsertLeave", "CmdlineLeave" }, {
+vim.api.nvim_create_autocmd({ "InsertLeave", "CmdlineLeave", "FocusGained" }, {
   group = vim.api.nvim_create_augroup("auto_switch_input_method", { clear = true }),
   callback = function()
     local cmd = get_switch_cmd()
