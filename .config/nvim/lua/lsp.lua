@@ -127,48 +127,64 @@ local function on_attact(client, bufnr)
     end, { desc = "Toggle Inlay Hints" })
   end
 
-  vim.diagnostic.config({
-    signs = {
-      text = {
-        [vim.diagnostic.severity.ERROR] = icons.diagnostics.ERROR,
-        [vim.diagnostic.severity.WARN] = icons.diagnostics.WARN,
-        [vim.diagnostic.severity.INFO] = icons.diagnostics.INFO,
-        [vim.diagnostic.severity.HINT] = icons.diagnostics.HINT,
+  -- NOTE: Idk why vim.schedule is needed, but without it, there would be a error sometimes
+  -- OUTPUT:
+  -- vim.schedule callback: .../vim/diagnostic.lua:659: Invalid 'id': Expected Lua number
+  -- stack traceback:
+  --         [C]: in function 'nvim_buf_get_extmark_by_id'
+  --         .../vim/diagnostic.lua:659: in function 'get_logical_pos'
+  --         .../vim/diagnostic.lua:683: in function 'diagnostic_lines'
+  --         .../vim/diagnostic.lua:1855: in function 'fn'
+  --         .../vim/diagnostic.lua:1655: in function 'fn'
+  --         .../vim/diagnostic.lua:1276: in function 'once_buf_loaded'
+  --         .../vim/diagnostic.lua:1652: in function 'show_once_loaded'
+  --         .../vim/diagnostic.lua:1829: in function 'show'
+  --         .../vim/diagnostic.lua:2324: in function 'show'
+  --         .../vim/lsp/client.lua:1085>
+  vim.schedule(function()
+    vim.diagnostic.config({
+      signs = {
+        text = {
+          [vim.diagnostic.severity.ERROR] = icons.diagnostics.ERROR,
+          [vim.diagnostic.severity.WARN] = icons.diagnostics.WARN,
+          [vim.diagnostic.severity.INFO] = icons.diagnostics.INFO,
+          [vim.diagnostic.severity.HINT] = icons.diagnostics.HINT,
+        },
       },
-    },
-    status = {
-      text = {
-        [vim.diagnostic.severity.ERROR] = icons.diagnostics.ERROR .. " ",
-        [vim.diagnostic.severity.WARN] = icons.diagnostics.WARN .. " ",
-        [vim.diagnostic.severity.INFO] = icons.diagnostics.INFO .. " ",
-        [vim.diagnostic.severity.HINT] = icons.diagnostics.HINT .. " ",
+      status = {
+        text = {
+          [vim.diagnostic.severity.ERROR] = icons.diagnostics.ERROR .. " ",
+          [vim.diagnostic.severity.WARN] = icons.diagnostics.WARN .. " ",
+          [vim.diagnostic.severity.INFO] = icons.diagnostics.INFO .. " ",
+          [vim.diagnostic.severity.HINT] = icons.diagnostics.HINT .. " ",
+        },
       },
-    },
-    virtual_text = {
-      spacing = 2,
-      source = true,
-      prefix = "󰊠",
-    },
-    float = {
-      spacing = 2,
-      source = true,
-    },
-  })
+      virtual_text = {
+        spacing = 2,
+        -- source = true,
+        prefix = "󰊠",
+      },
+      float = {
+        spacing = 2,
+        source = true,
+      },
+    })
 
-  local origin_virtual_text_handler = vim.diagnostic.handlers.virtual_text
-  vim.diagnostic.handlers.virtual_text = {
-    show = function(ns, buf, diagnostics, opts)
-      table.sort(diagnostics, function(a, b)
-        return a.severity > b.severity
-      end)
-      if type(origin_virtual_text_handler.show) ~= "function" then
-        vim.notify("No origin virtual text handler", vim.log.levels.WARN)
-        return
-      end
-      return origin_virtual_text_handler.show(ns, buf, diagnostics, opts)
-    end,
-    hide = origin_virtual_text_handler.hide,
-  }
+    local origin_virtual_text_handler = vim.diagnostic.handlers.virtual_text
+    vim.diagnostic.handlers.virtual_text = {
+      show = function(ns, buf, diagnostics, opts)
+        table.sort(diagnostics, function(a, b)
+          return a.severity > b.severity
+        end)
+        if type(origin_virtual_text_handler.show) ~= "function" then
+          vim.notify("No origin virtual text handler", vim.log.levels.WARN)
+          return
+        end
+        return origin_virtual_text_handler.show(ns, buf, diagnostics, opts)
+      end,
+      hide = origin_virtual_text_handler.hide,
+    }
+  end)
 end
 
 vim.api.nvim_create_autocmd("LspAttach", {
