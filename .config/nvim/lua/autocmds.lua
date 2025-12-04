@@ -24,13 +24,13 @@ vim.api.nvim_create_autocmd("FileType", {
   },
   callback = function(event)
     if vim.bo.filetype == "git" or vim.bo.filetype == "gitcommit" then
-      vim.keymap.set("n", "q", ":q<cr>", { silent = true, desc = "Quit buffer" })
+      vim.keymap.set("n", "q", ":q<cr>", { silent = true, desc = "Quit buffer", buffer = event.buf })
       return
     end
     if vim.bo.buftype == "codecompanion" then
       vim.keymap.set("n", "q", function()
         require("codecompanion").toggle()
-      end, { silent = true, desc = "Quit buffer" })
+      end, { silent = true, desc = "Quit buffer", buffer = event.buf })
       return
     end
 
@@ -133,8 +133,5 @@ vim.api.nvim_create_autocmd({ "InsertLeave", "CmdlineLeave", "FocusGained" }, {
         vim.notify("Input method switch failed (process exited with non-zero code).", vim.log.levels.WARN)
       end
     end)
-    if not handle then
-      vim.notify("Failed to start input method switch process.", vim.log.levels.WARN)
-    end
   end,
 })
