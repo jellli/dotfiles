@@ -42,15 +42,29 @@ Statusline = {}
 Statusline.ns = vim.api.nvim_create_namespace("statusline")
 Statusline.hls = {}
 
+-- Internal state
+Statusline.lsp_progress_status = {
+  client_id = nil,
+  kind = nil,
+  title = nil,
+  message = nil,
+  percentage = nil,
+  indicator = nil,
+}
+Statusline.indicator_timer = nil
+Statusline.git_string = ""
+Statusline.client_name = ""
+
 local H = {}
 
 ---@param name string
 ---@param opts vim.api.keyset.highlight
 function H.create_hl(name, opts)
-  if vim.tbl_contains(Statusline.hls, name) then
+  if Statusline.hls[name] then
     return
   end
   vim.api.nvim_set_hl(0, name, opts)
+  Statusline.hls[name] = true
 end
 
 function H.hl(hl_name, text)
@@ -83,27 +97,18 @@ local indicator_symbols = {
   "",
   "",
 }
-local lsp_progress_status = {
-  client_id = nil,
-  kind = nil,
-  title = nil,
-  message = nil,
-  percentage = nil,
-  indicator = nil,
-}
-local indicator_timer = nil
 
 local function start_loading()
-  if indicator_timer then
+  if Statusline.indicator_timer then
     return
   end
-  indicator_timer = vim.loop.new_timer()
+  Statusline.indicator_timer = vim.uv.new_timer()
   local i = 1
-  indicator_timer:start(
+  Statusline.indicator_timer:start(
     0,
     120,
     vim.schedule_wrap(function()
-      lsp_progress_status.indicator = i
+      Statusline.lsp_progress_status.indicator = i
       i = i % #indicator_symbols + 1
       vim.cmd("redrawstatus")
     end)
@@ -111,12 +116,12 @@ local function start_loading()
 end
 
 local function stop_loading()
-  if indicator_timer then
-    indicator_timer:stop()
-    indicator_timer:close()
-    indicator_timer = nil
+  if Statusline.indicator_timer then
+    Statusline.indicator_timer:stop()
+    Statusline.indicator_timer:close()
+    Statusline.indicator_timer = nil
   end
-  lsp_progress_status.indicator = nil
+  Statusline.lsp_progress_status.indicator = nil
 end
 
 local lsp_progress_group = vim.api.nvim_create_augroup("j/lsp_progress", {
@@ -128,12 +133,12 @@ vim.api.nvim_create_autocmd("LspProgress", {
   callback = function(ev)
     local value = ev.data.params.value
     if value.kind == "begin" then
-      lsp_progress_status = value
-      lsp_progress_status.client_id = ev.data.client_id
+      Statusline.lsp_progress_status = value
+      Statusline.lsp_progress_status.client_id = ev.data.client_id
       start_loading()
     elseif value.kind == "end" then
-      lsp_progress_status = {
-        -- client_id = nil,
+      Statusline.lsp_progress_status = {
+        client_id = nil,
         kind = nil,
         title = nil,
         message = nil,
@@ -145,22 +150,23 @@ vim.api.nvim_create_autocmd("LspProgress", {
   end,
 })
 
-local client_name = ""
 local function lsp_progress()
-  local client = lsp_progress_status.client_id and vim.lsp.get_client_by_id(lsp_progress_status.client_id)
-  if client and client.name then
-    client_name = H.hl("ModeMsg", string.format(" %s %s", icons.symbol_kinds.Event, client.name))
+  local client = Statusline.lsp_progress_status.client_id
+    and vim.lsp.get_client_by_id(Statusline.lsp_progress_status.client_id)
+  if client and client.name and Statusline.client_name == "" then
+    Statusline.client_name = H.hl("ModeMsg", string.format(" %s %s", icons.symbol_kinds.Event, client.name))
   end
-  local indicator = lsp_progress_status.indicator and indicator_symbols[lsp_progress_status.indicator] or ""
-  local title = H.hl("Comment", lsp_progress_status.title or "")
-  return string.format("%s %s %s", client_name, indicator, title)
+  local indicator = Statusline.lsp_progress_status.indicator
+      and indicator_symbols[Statusline.lsp_progress_status.indicator]
+    or ""
+  local title = H.hl("Comment", Statusline.lsp_progress_status.title or "")
+  return string.format("%s %s %s", Statusline.client_name, indicator, title)
 end
 
-local git_string = ""
 local function git()
   local excludes = { "fugitive", "lazy", "minipick", "minifiles", "codecompanion", "OverseerList", "OverseerForm" }
   if vim.tbl_contains(excludes, vim.bo.filetype) or not vim.bo.filetype then
-    return git_string
+    return Statusline.git_string
   end
   local git_info = vim.b.gitsigns_status_dict
   if git_info == nil then
@@ -170,8 +176,8 @@ local function git()
   local added = H.hl("GitSignsAdd", string.format("+%s", git_info.added))
   local changed = H.hl("GitSignsChange", string.format("~%s", git_info.changed))
   local removed = H.hl("GitSignsDelete", string.format("-%s", git_info.removed))
-  git_string = string.format("%s %s %s %s", branch, added, changed, removed)
-  return git_string
+  Statusline.git_string = string.format("%s %s %s %s", branch, added, changed, removed)
+  return Statusline.git_string
 end
 
 function Statusline.render()
