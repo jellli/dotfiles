@@ -14,3 +14,9 @@ macos-option-as-alt = true
 
 adjust-underline-position = 40%
 adjust-underline-thickness = -60%
+
+window-theme = ghostty
+mouse-hide-while-typing = true
+macos-titlebar-style = hidden
+maximize = true
+
