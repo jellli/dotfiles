@@ -55,6 +55,7 @@ return {
       "Git",
     },
     keys = {
+      { "<leader>ge", "<cmd>Gedit<cr>", desc = "Git edit" },
       { "<leader>gs", "<cmd>Git<cr>", desc = "Git status" },
       { "<leader>ga", "<cmd>Git add %<cr>", desc = "Git add current file" },
       { "<leader>gw", "<cmd>Gwrite<cr>", desc = "Git write" },
