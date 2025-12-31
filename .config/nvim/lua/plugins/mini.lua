@@ -210,6 +210,7 @@ end
 return {
   {
     "dmtrKovalenko/fff.nvim",
+    commit = "d88922e6c74b357cfd029128ce5ecd813b6eb747",
     build = function()
       require("fff.download").download_or_build_binary()
     end,
