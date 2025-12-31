@@ -26,8 +26,17 @@ Winbar.render = function(bufnr)
   })
 end
 
-local excludes =
-  { "fugitive", "lazy", "minipick", "minifiles", "codecompanion", "OverseerList", "OverseerForm", "snacks_input" }
+local excludes = {
+  "fugitive",
+  "lazy",
+  "minipick",
+  "minifiles",
+  "codecompanion",
+  "OverseerList",
+  "OverseerForm",
+  "snacks_input",
+  "markdown",
+}
 
 vim.api.nvim_create_autocmd({ "BufEnter", "BufModifiedSet" }, {
   group = vim.api.nvim_create_augroup("j/winbar", { clear = true }),

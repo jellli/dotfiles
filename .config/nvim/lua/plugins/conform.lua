@@ -38,6 +38,7 @@ return {
         ["javascriptreact"] = webdev_opts,
         ["typescript"] = webdev_opts,
         ["typescriptreact"] = webdev_opts,
+        astro = webdev_opts,
       },
       format_on_save = {
         enabled = true,

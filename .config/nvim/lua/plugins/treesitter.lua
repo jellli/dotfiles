@@ -14,6 +14,7 @@ return {
         },
       })
       require("nvim-treesitter").install({
+        "astro",
         "python",
         "javascript",
         "typescript",
