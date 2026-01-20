@@ -1,6 +1,12 @@
 return {
   {
     "saghen/blink.cmp",
+    dependencies = {
+      {
+        "xzbdmw/colorful-menu.nvim",
+        config = true,
+      },
+    },
     event = { "InsertEnter", "CmdlineEnter" },
     opts_extend = { "sources.default", "cmdline.sources", "term.sources" },
     version = "*",
@@ -72,12 +78,19 @@ return {
             treesitter = { "lsp" },
             columns = {
               { "kind_icon" },
-              -- { "label", "label_description", gap = 1 },
               { "label", gap = 1 },
               { "kind" },
               { "source_name" },
             },
             components = {
+              label = {
+                text = function(ctx)
+                  return require("colorful-menu").blink_components_text(ctx)
+                end,
+                highlight = function(ctx)
+                  return require("colorful-menu").blink_components_highlight(ctx)
+                end,
+              },
               source_name = {
                 text = function(ctx)
                   return "[" .. ctx.source_name .. "]"
