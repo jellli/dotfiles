@@ -179,7 +179,7 @@ function M.fff.match(query)
     end
   end
   -- Limit to 100 results
-  return file_picker.search_files(table.concat(query), 100, 4, vim.fn.expand("%:."), false)
+  return file_picker.search_files(table.concat(query), vim.fn.expand("%:."), 35, 4)
 end
 
 function M.fff.run()
