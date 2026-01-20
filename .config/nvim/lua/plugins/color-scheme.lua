@@ -1,5 +1,4 @@
 return {
-  -- sainnhe/gruvbox-material
   {
     "sainnhe/gruvbox-material",
     lazy = false,
@@ -26,6 +25,17 @@ return {
         vim.g[k] = v
       end
       vim.cmd("colorscheme gruvbox-material")
+      local overide = {
+        CursorLineNr = { link = "Red" },
+        Visual = { bg = "#393b44" },
+        BlinkCmpMenu = { link = "FloatBorder" },
+        BlinkCmpMenuBorder = { link = "FloatBorder" },
+        BlinkCmpMenuSelection = { link = "Visual" },
+        BlinkCmpSource = { link = "FloatBorder" },
+      }
+      for k, v in pairs(overide) do
+        vim.api.nvim_set_hl(0, k, v)
+      end
     end,
   },
   {
