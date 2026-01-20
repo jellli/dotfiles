@@ -10,7 +10,7 @@ return {
         gruvbox_material_disable_italic_comment = 1,
         gruvbox_material_enable_bold = 1,
         -- gruvbox_material_enable_italic = 0,
-        gruvbox_material_transparent_background = 0,
+        gruvbox_material_transparent_background = 1,
         gruvbox_material_dim_inactive_windows = 0,
         gruvbox_material_visual = "reverse",
         gruvbox_material_float_style = "blend",
@@ -28,10 +28,13 @@ return {
       local overide = {
         CursorLineNr = { link = "Red" },
         Visual = { bg = "#393b44" },
-        BlinkCmpMenu = { link = "FloatBorder" },
+        BlinkCmpMenu = { link = "StdoutMsg" },
         BlinkCmpMenuBorder = { link = "FloatBorder" },
         BlinkCmpMenuSelection = { link = "Visual" },
         BlinkCmpSource = { link = "FloatBorder" },
+        BlinkCmpLabelMatch = { link = "FloatTitle" },
+        BlinkCmpDocBorder = { link = "FloatBorder" },
+        BlinkCmpSignatureHelpBorder = { link = "FloatBorder" },
       }
       for k, v in pairs(overide) do
         vim.api.nvim_set_hl(0, k, v)
