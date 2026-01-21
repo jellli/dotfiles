@@ -5,34 +5,43 @@ return {
     priority = 1000,
     config = function()
       local theme_opts = {
-        gruvbox_material_background = "hard",
-        gruvbox_material_foreground = "material",
-        gruvbox_material_disable_italic_comment = 1,
-        gruvbox_material_enable_bold = 1,
-        -- gruvbox_material_enable_italic = 0,
-        gruvbox_material_transparent_background = 1,
-        gruvbox_material_dim_inactive_windows = 0,
-        gruvbox_material_visual = "reverse",
-        gruvbox_material_float_style = "blend",
-        gruvbox_material_cursor = "orange",
-        gruvbox_material_diagnostic_text_highlight = 1,
-        gruvbox_material_diagnostic_line_highlight = 1,
-        gruvbox_material_diagnostic_virtual_text = "colored",
-        gruvbox_material_inlay_hints_background = "dim",
-        gruvbox_material_better_performance = 1,
+        background = "hard",
+        foreground = "material",
+        disable_italic_comment = 1,
+        enable_bold = 1,
+        -- enable_italic = 0,
+        transparent_background = 1,
+        dim_inactive_windows = 0,
+        visual = "reverse",
+        float_style = "blend",
+        cursor = "orange",
+        diagnostic_text_highlight = 1,
+        diagnostic_line_highlight = 1,
+        diagnostic_virtual_text = "colored",
+        inlay_hints_background = "dim",
+        better_performance = 1,
       }
       for k, v in pairs(theme_opts) do
-        vim.g[k] = v
+        vim.g["gruvbox_material_" .. k] = v
       end
       vim.cmd("colorscheme gruvbox-material")
       local overide = {
-        CursorLineNr = { link = "Red" },
         Visual = { bg = "#433e39" },
+
+        FloatBorder = { link = "Winseparator" },
+        CursorLineNr = { link = "Red" },
+
+        FlashMatch = { link = "DiagnosticWarn" },
+        FlashCurrent = { link = "DiagnosticInfo" },
+        FlashLabel = { link = "Cursor" },
+
         BlinkCmpMenu = { link = "StdoutMsg" },
-        BlinkCmpMenuBorder = { link = "FloatBorder" },
         BlinkCmpMenuSelection = { link = "Visual" },
-        BlinkCmpSource = { link = "FloatBorder" },
+
+        BlinkCmpSource = { link = "Comment" },
         BlinkCmpLabelMatch = { link = "FloatTitle" },
+
+        BlinkCmpMenuBorder = { link = "FloatBorder" },
         BlinkCmpDocBorder = { link = "FloatBorder" },
         BlinkCmpSignatureHelpBorder = { link = "FloatBorder" },
       }
