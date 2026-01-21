@@ -4,7 +4,7 @@ return {
   event = { "BufWritePre" },
   cmd = { "ConformInfo" },
   opts = function()
-    local webdev_opts = function()
+    local function get_web_formatter()
       local config_files = {
         ".prettierrc",
         ".prettierrc.json",
@@ -15,31 +15,18 @@ return {
       }
       for _, config_file in ipairs(config_files) do
         if utils.check_file_in_cwd(config_file) then
-          print("Using prettier")
-          return {
-            "prettier",
-          }
+          return "prettier"
         end
       end
-
-      return {
-        "biome",
-      }
+      return "biome"
     end
-    return {
+
+    local web_formatter = get_web_formatter()
+
+    local opts = {
       formatters_by_ft = {
         lua = { "stylua" },
         rust = { "rustfmt" },
-        css = webdev_opts,
-        html = webdev_opts,
-        scss = webdev_opts,
-        markdown = webdev_opts,
-
-        ["javascript"] = webdev_opts,
-        ["javascriptreact"] = webdev_opts,
-        ["typescript"] = webdev_opts,
-        ["typescriptreact"] = webdev_opts,
-        astro = webdev_opts,
       },
       format_on_save = {
         enabled = true,
@@ -47,5 +34,23 @@ return {
         async = false,
       },
     }
+
+    local webdev_langs = {
+      "css",
+      "html",
+      "scss",
+      "markdown",
+      "javascript",
+      "javascriptreact",
+      "typescript",
+      "typescriptreact",
+      "astro",
+    }
+
+    for _, lang in ipairs(webdev_langs) do
+      opts.formatters_by_ft[lang] = { web_formatter }
+    end
+
+    return opts
   end,
 }
