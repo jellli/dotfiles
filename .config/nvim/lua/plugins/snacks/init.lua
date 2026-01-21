@@ -13,7 +13,8 @@ return {
     -- notifier = require("plugins.snacks.notifier"),
     lazygit = {
       theme = {
-        inactiveBorderColor = { fg = "Comment" },
+        activeBorderColor = { fg = "Title", bold = true },
+        inactiveBorderColor = { fg = "FloatBorder" },
       },
     },
     styles = {

@@ -27,7 +27,7 @@ return {
       vim.cmd("colorscheme gruvbox-material")
       local overide = {
         CursorLineNr = { link = "Red" },
-        Visual = { bg = "#393b44" },
+        Visual = { bg = "#433e39" },
         BlinkCmpMenu = { link = "StdoutMsg" },
         BlinkCmpMenuBorder = { link = "FloatBorder" },
         BlinkCmpMenuSelection = { link = "Visual" },
