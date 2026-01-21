@@ -207,6 +207,8 @@ local function settup_files()
   })
 end
 
+local last_buf_name
+
 return {
   {
     "dmtrKovalenko/fff.nvim",
@@ -244,7 +246,16 @@ return {
 
           -- Noop if the buffer isn't valid.
           if path and vim.uv.fs_stat(path) then
+            last_buf_name = bufname
             require("mini.files").open(bufname, false)
+          else
+            if last_buf_name then
+              require("mini.files").open(last_buf_name, false)
+            else
+              local cwd = vim.fn.getcwd()
+              last_buf_name = cwd
+              require("mini.files").open(cwd, false)
+            end
           end
         end,
         desc = "File explorer",
