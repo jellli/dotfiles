@@ -73,11 +73,10 @@ return {
               role = "user",
               content = function()
                 return string.format(
-                  [[I want you to use the @{cmd_runner} tool to create a commit using a concise commit message that follows the conventional commit format. Make sure to:
+                  [[I want you to create a commit using a concise commit message that follows the conventional commit format. Make sure to:
 1. Use only a header (no detailed description).
 2. Choose the correct scope based on the changes.
 3. Ensure the message is clear, relevant, and properly formatted.
-4. DO NOT run git add, as all the changes is provided and already staged.
 
 Here is the diff:
 
