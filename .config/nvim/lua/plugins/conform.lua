@@ -14,7 +14,8 @@ return {
         ".prettierrc.yml",
       }
       for _, config_file in ipairs(config_files) do
-        if utils.check_file_in_cwd(config_file) == 1 then
+        if utils.check_file_in_cwd(config_file) then
+          print("Using prettier")
           return {
             "prettier",
           }
