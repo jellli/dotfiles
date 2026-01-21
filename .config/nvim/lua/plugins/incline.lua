@@ -1,6 +1,6 @@
 return {
   "b0o/incline.nvim",
-  lazy = false,
+  event = "VeryLazy",
   config = function()
     local helpers = require("incline.helpers")
     local devicons = require("nvim-web-devicons")
@@ -21,16 +21,19 @@ return {
             " ",
             ft_icon,
             " ",
+            {
+              " ",
+              filename,
+              modified and "*" or "",
+              " ",
+              guifg = ft_color,
+              guibg = helpers.contrast_color(ft_color),
+              gui = "bold",
+            },
             guibg = ft_color,
             guifg = helpers.contrast_color(ft_color),
           } or "",
           " ",
-          {
-            { filename, modified and "*" or "" },
-            group = modified and "Added" or "StdoutMsg",
-          },
-          " ",
-          group = "Visual",
         }
       end,
     })
