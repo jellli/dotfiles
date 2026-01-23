@@ -39,6 +39,7 @@ return {
       "css",
       "html",
       "scss",
+      "less",
       "markdown",
       "javascript",
       "javascriptreact",
