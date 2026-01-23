@@ -25,6 +25,7 @@ return {
         vim.g["gruvbox_material_" .. k] = v
       end
       vim.cmd("colorscheme gruvbox-material")
+
       local overide = {
         Visual = { bg = "#433e39" },
 
@@ -44,6 +45,8 @@ return {
         BlinkCmpMenuBorder = { link = "FloatBorder" },
         BlinkCmpDocBorder = { link = "FloatBorder" },
         BlinkCmpSignatureHelpBorder = { link = "FloatBorder" },
+
+        CodeCompanionChatInfoBanner = { link = "Substitute" },
       }
       for k, v in pairs(overide) do
         vim.api.nvim_set_hl(0, k, v)
