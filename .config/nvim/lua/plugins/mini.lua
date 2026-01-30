@@ -106,7 +106,7 @@ local function setup_pick()
     })
   end
 
-  MiniPick.registry.fff_picker = require("mini-bonus").fff.run
+  MiniPick.registry.fff_picker = require("picker.fff").fff_picker
   MiniPick.registry.buffers_with_diagnostics = require("mini-bonus").buffers.run
 end
 

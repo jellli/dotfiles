@@ -306,7 +306,8 @@ function M.lsp_picker(scope)
   end
 
   if scope == "references" then
-    vim.lsp.buf.references(nil, { on_list = on_list })
+    -- vim.lsp.buf.references(nil, { on_list = on_list })
+    require("mini-test").get()
   elseif scope == "workspace_symbol" then
     vim.lsp.buf.workspace_symbol(get_symbol_query(), { on_list = on_list })
   else

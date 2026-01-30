@@ -39,11 +39,17 @@ local function on_attact(client, bufnr)
     })
   end
 
-  local lsp_picker = require("mini-bonus").lsp_picker
+  local lsp_picker = require("lua.picker.lsp").lsp_picker
   if client:supports_method("textDocument/definition") then
     map("gd", function()
       lsp_picker("definition")
     end, { desc = "Goto Definition" })
+  end
+
+  if client:supports_method("textDocument/declaration") then
+    map("gD", function()
+      lsp_picker("declaration")
+    end, { desc = "Goto Declaration" })
   end
 
   if client:supports_method("textDocument/references") then
