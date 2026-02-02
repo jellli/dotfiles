@@ -53,7 +53,7 @@ end
 ---@field lang? string
 
 ---createShowFn
----@param render? function
+---@param render function
 ---@return function
 function M.createShowFn(render)
   return function(bufnr, items, query)
@@ -67,24 +67,7 @@ function M.createShowFn(render)
       if type(render) == "function" then
         chunks = render(item)
       else
-        local hl_helper = require("picker.utils.highlights")
-        local filename = item.filename
-        chunks = {
-          { M.get_icon(filename) },
-          { " " },
-          { M.truncate_path(vim.fn.fnamemodify(filename, ":~:.:h")) .. "/", "Comment" },
-          { vim.fn.fnamemodify(filename, ":t") },
-          { ":" .. (item.lnum or 0), "Directory" },
-          { " " },
-          {
-            item.text or "",
-            hl_helper.get_highlights({
-              code = item.text,
-              ft = item.ft,
-              lang = item.lang,
-            })[1],
-          },
-        }
+        vim.notify("render should be a function", vim.log.levels.WARN)
       end
 
       local text, hls = H.build_line(chunks)
