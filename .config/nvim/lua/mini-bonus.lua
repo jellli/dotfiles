@@ -147,56 +147,6 @@ function H.generic_picker_show(buf_id, items, query, get_suffix_fn)
 end
 
 -- ============================================================
--- FFF (File Picker) Section
--- ============================================================
-M.fff = {}
-
----@param buf_id number
----@param items FFFItem[]
----@param query table
-function M.fff.picker_show(buf_id, items, query)
-  H.generic_picker_show(buf_id, items, query, function(item)
-    -- Handle Frecency suffix
-    local total_frecency = item.total_frecency_score or 0
-    if total_frecency > 0 then
-      local text = string.format(" %s %d", "", total_frecency)
-      -- Return text and highlight rules
-      return text, { { group = "Special", pattern = " %d+" } }
-    end
-    return "", nil
-  end)
-end
-
----@param query string[]|nil
----@return FFFItem[]
-function M.fff.match(query)
-  query = query or {}
-  local file_picker = require("fff.file_picker")
-  if not file_picker.is_initialized() then
-    if not file_picker.setup() then
-      vim.notify("Could not setup fff.nvim", vim.log.levels.ERROR)
-      return {}
-    end
-  end
-  -- Limit to 100 results
-  return file_picker.search_files(table.concat(query), vim.fn.expand("%:."), 35, 4)
-end
-
-function M.fff.run()
-  MiniPick.start({
-    source = {
-      name = "FFFiles",
-      items = M.fff.match,
-      -- Disable default match, as fff.match handles filtering
-      match = function(_, _, query)
-        MiniPick.set_picker_items(M.fff.match(query), { do_match = false })
-      end,
-      show = M.fff.picker_show,
-    },
-  })
-end
-
--- ============================================================
 -- Buffer Picker Section
 -- ============================================================
 M.buffers = {}
@@ -275,49 +225,6 @@ function M.buffers.run()
       show = M.buffers.picker_show,
     },
   })
-end
-
--- ============================================================
--- LSP Picker Section
--- ============================================================
-
--- Open LSP picker for the given scope
----@param scope "declaration" | "definition" | "document_symbol" | "implementation" | "references" | "type_definition" | "workspace_symbol"
-function M.lsp_picker(scope)
-  local function get_symbol_query()
-    return vim.fn.input("Symbol: ")
-  end
-
-  ---@param opts vim.lsp.LocationOpts.OnList
-  local function on_list(opts)
-    vim.fn.setqflist({}, " ", opts)
-    if #opts.items == 1 then
-      vim.cmd.cfirst()
-    else
-      -- Try to use mini.extra list picker if installed
-      local has_extra, extra = pcall(require, "mini.extra")
-      if has_extra then
-        extra.pickers.list({ scope = "quickfix" }, { source = { name = opts.title } })
-      else
-        -- Fallback: Open Quickfix window
-        vim.cmd.copen()
-      end
-    end
-  end
-
-  if scope == "references" then
-    -- vim.lsp.buf.references(nil, { on_list = on_list })
-    require("mini-test").get()
-  elseif scope == "workspace_symbol" then
-    vim.lsp.buf.workspace_symbol(get_symbol_query(), { on_list = on_list })
-  else
-    -- Dynamically call function, ensuring scope is safe
-    if vim.lsp.buf[scope] then
-      vim.lsp.buf[scope]({ on_list = on_list })
-    else
-      vim.notify("Unknown LSP scope: " .. scope, vim.log.levels.ERROR)
-    end
-  end
 end
 
 return M

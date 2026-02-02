@@ -2,6 +2,15 @@ local M = {}
 local H = {}
 H.nsid = vim.api.nvim_create_namespace("_minipick_show")
 
+function M.truncate_path(path)
+  local sep = package.config:sub(1, 1)
+  local parts = vim.split(path, sep)
+  if #parts > 3 then
+    parts = { parts[1], "…", parts[#parts - 1], parts[#parts] }
+  end
+  return table.concat(parts, sep)
+end
+
 ---Get icon and highlight group
 ---@param filename string
 ---@return string icon
@@ -63,7 +72,7 @@ function M.createShowFn(render)
         chunks = {
           { M.get_icon(filename) },
           { " " },
-          { vim.fn.fnamemodify(filename, ":~:.:h") .. "/", "Comment" },
+          { M.truncate_path(vim.fn.fnamemodify(filename, ":~:.:h")) .. "/", "Comment" },
           { vim.fn.fnamemodify(filename, ":t") },
           { ":" .. (item.lnum or 0), "Directory" },
           { " " },
@@ -98,7 +107,7 @@ function M.createShowFn(render)
           })
         end
         if type(hl.group) == "table" then
-          for i, h in ipairs(hl.group) do
+          for _, h in ipairs(hl.group) do
             vim.hl.range(bufnr, ns, h.hl_group, { row, hl.start_col + h.col }, { row, hl.end_col + h.end_col }, {
               priority = 100,
             })

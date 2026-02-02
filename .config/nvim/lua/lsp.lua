@@ -39,7 +39,7 @@ local function on_attact(client, bufnr)
     })
   end
 
-  local lsp_picker = require("lua.picker.lsp").lsp_picker
+  local lsp_picker = require("picker.lsp").lsp_picker
   if client:supports_method("textDocument/definition") then
     map("gd", function()
       lsp_picker("definition")

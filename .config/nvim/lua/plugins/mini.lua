@@ -55,8 +55,9 @@ local function setup_pick()
     else
       local reg_contents = vim.fn.getreg("+"):gsub("[\n\t]", " ")
       local char_table = {}
-      for i = 1, #reg_contents do
-        table.insert(char_table, string.sub(reg_contents, i, i))
+      local len = vim.fn.strchars(reg_contents)
+      for i = 1, len - 1 do
+        table.insert(char_table, vim.fn.strcharpart(reg_contents, i, 1))
       end
       vim.fn.strchars(reg_contents)
       mini_pick.set_picker_query(char_table)
@@ -277,7 +278,8 @@ return {
       {
         "<leader>sg",
         function()
-          MiniPick.registry.grep_live_align()
+          -- MiniPick.registry.grep_live_align()
+          MiniPick.builtin.grep_live()
         end,
         desc = "Live Grep",
       },

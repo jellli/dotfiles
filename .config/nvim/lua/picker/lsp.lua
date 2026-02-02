@@ -13,6 +13,11 @@ function M.lsp_picker(scope)
         items = items,
         show = M.show,
       },
+      window = {
+        config = {
+          width = math.floor(vim.o.columns * 0.65),
+        },
+      },
     })
   end)
 end
@@ -40,7 +45,7 @@ function M.get_locations(scope, cb)
     vim.notify(string.format("client %s don not support %s", client.name, method))
   end
   local result = {}
-  client:request(method, params, function(err, request_result, context, config)
+  client:request(method, params, function(err, request_result, _, _)
     if not request_result or err then
       vim.notify("No " .. scope .. " found")
       return

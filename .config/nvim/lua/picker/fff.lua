@@ -1,6 +1,4 @@
 local M = {}
--- local H = {}
--- H.ns_id = vim.api.nvim_create_namespace("fff-minipick-ui")
 M._file_picker = nil
 
 ---@param query string[]|nil
@@ -38,17 +36,26 @@ function M.fff_picker()
   local utils = require("picker.utils")
   local show = utils.createShowFn(function(item)
     local filename = item.name
+    local dir = vim.fn.fnamemodify(item.path, ":~:.:h")
+    if dir == "." then
+      dir = ""
+    end
     return {
       {
         string.format("%s %02d ", "", item.total_frecency_score),
         item.total_frecency_score > 0 and "Special" or "Comment",
       },
       { utils.get_icon(filename) },
-      { " " .. vim.fn.fnamemodify(item.path, ":~:.:h") .. "/", "Comment" },
-      { filename },
+      { " " .. filename },
+      { " " .. dir, "Comment" },
     }
   end)
   MiniPick.start({
+    window = {
+      config = {
+        width = 80,
+      },
+    },
     source = {
       name = "FFFiles",
       items = M.match,
