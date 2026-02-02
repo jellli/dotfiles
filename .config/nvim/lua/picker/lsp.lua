@@ -109,11 +109,36 @@ M.show = require("picker.utils").createShowFn(function(item)
   local hl_helper = require("picker.utils.highlights")
 
   local uri = item.user_data.uri or item.user_data.targetUri
-  -- local range = item.range or item.targetSelectionRange
+  local range = item.user_data.range or item.user_data.targetSelectionRange
   local ft = vim.filetype.match({ filename = item.filename })
   local has_lang, lang = pcall(vim.treesitter.language.get_lang, ft)
 
   local path = string.format(" %s/", utils.truncate_path(vim.fn.fnamemodify(item.filename, ":~:.:h")))
+
+  local code_hl = has_lang
+      and lang
+      and ft
+      and hl_helper.get_highlights({
+        code = item.text,
+        ft = ft,
+        lang = lang,
+      })[1]
+    or {}
+
+  --         {
+  --   col = 17,
+  --   end_col = 33,
+  --   hl_group = "Visual",
+  --   priority = 100
+  -- }
+  table.insert(code_hl, {
+    -- col = range["start"].character,
+    -- end_col = range["end"].character,
+    col = item.col,
+    end_col = item.end_col,
+    hl_group = "IncSearch",
+    priority = 100,
+  })
 
   return {
     {
@@ -125,11 +150,7 @@ M.show = require("picker.utils").createShowFn(function(item)
     { " " },
     {
       item.text or "",
-      has_lang and lang and ft and hl_helper.get_highlights({
-        code = item.text,
-        ft = ft,
-        lang = lang,
-      })[1] or nil,
+      code_hl,
     },
   }
 end)
