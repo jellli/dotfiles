@@ -91,9 +91,14 @@ function M.createShowFn(render)
         end
         if type(hl.group) == "table" then
           for _, h in ipairs(hl.group) do
-            vim.hl.range(bufnr, ns, h.hl_group, { row, hl.start_col + h.col }, { row, hl.end_col + h.end_col }, {
-              priority = 100,
-            })
+            vim.hl.range(
+              bufnr,
+              ns,
+              h.hl_group,
+              { row, hl.start_col + h.col },
+              { row, hl.start_col + h.end_col },
+              { priority = h.priority }
+            )
           end
         end
       end

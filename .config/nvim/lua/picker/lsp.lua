@@ -83,7 +83,7 @@ function M.get_locations(scope, cb)
       },
     })
     return params
-  end, function(results, context, config)
+  end, function(results, _, _)
     local all_items = {}
     for cilent_id, res in pairs(results) do
       local err, request_result = res.err, res.result
@@ -109,7 +109,7 @@ M.show = require("picker.utils").createShowFn(function(item)
   local hl_helper = require("picker.utils.highlights")
 
   local uri = item.user_data.uri or item.user_data.targetUri
-  local range = item.user_data.range or item.user_data.targetSelectionRange
+  -- local range = item.user_data.range or item.user_data.targetSelectionRange
   local ft = vim.filetype.match({ filename = item.filename })
   local has_lang, lang = pcall(vim.treesitter.language.get_lang, ft)
 
@@ -125,19 +125,11 @@ M.show = require("picker.utils").createShowFn(function(item)
       })[1]
     or {}
 
-  --         {
-  --   col = 17,
-  --   end_col = 33,
-  --   hl_group = "Visual",
-  --   priority = 100
-  -- }
   table.insert(code_hl, {
-    -- col = range["start"].character,
-    -- end_col = range["end"].character,
-    col = item.col,
-    end_col = item.end_col,
-    hl_group = "IncSearch",
-    priority = 100,
+    col = item.col - 1,
+    end_col = item.end_col - 1,
+    hl_group = "Visual",
+    priority = 999,
   })
 
   return {
