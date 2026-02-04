@@ -1,3 +1,7 @@
+local function get_lazy_path(plugin)
+  local lazypath = vim.fn.stdpath("data") .. "/lazy/"
+  return lazypath .. plugin .. "/lua/"
+end
 ---@type vim.lsp.Config
 return {
   cmd = { "lua-language-server" },
@@ -29,6 +33,13 @@ return {
         library = {
           vim.env.VIMRUNTIME,
           "${3rd}/luv/library",
+          get_lazy_path("blink.cmp"),
+          get_lazy_path("mini.ai"),
+          get_lazy_path("mini.extra"),
+          get_lazy_path("mini.files"),
+          get_lazy_path("mini.move"),
+          get_lazy_path("mini.pairs"),
+          get_lazy_path("mini.pick"),
         },
       },
     },

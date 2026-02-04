@@ -7,11 +7,9 @@ return {
   opts = {
     quickfile = {},
     bigfile = {},
-    input = {},
+    -- input = {},
     indent = require("plugins.snacks.indent"),
     dashboard = require("plugins.snacks.dashboard"),
-    picker = {},
-    -- notifier = require("plugins.snacks.notifier"),
     lazygit = {
       theme = {
         activeBorderColor = { fg = "Title", bold = true },

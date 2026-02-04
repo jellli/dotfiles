@@ -28,9 +28,11 @@ return {
 
       local overide = {
         Visual = { bg = "#433e39" },
+        Directory = { link = "Special" },
 
         FloatBorder = { link = "Winseparator" },
         CursorLineNr = { link = "Red" },
+        CurrentWord = { link = "Visual" },
 
         FlashMatch = { link = "DiagnosticWarn" },
         FlashCurrent = { link = "DiagnosticInfo" },
