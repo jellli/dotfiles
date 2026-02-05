@@ -103,6 +103,7 @@ export LC_ALL=zh_CN.UTF-8
 
 eval "$(zoxide init zsh)"
 # export PATH=$HOME/bin:~/local/nvim/bin/:$PATH
+export XDG_DATA_HOME="$HOME/.local/share"
 source ~/.jili_env
 
 # bun completions
