@@ -34,21 +34,21 @@ return {
       {
         "<leader><leader>",
         function()
-          MiniPick.registry.fff_picker()
+          require("mini.pick").registry.fff_picker()
         end,
         desc = "Search Files",
       },
       {
         "<leader>sR",
         function()
-          MiniPick.builtin.resume()
+          require("mini.pick").builtin.resume()
         end,
         desc = "Live Grep",
       },
       {
         "<leader>sg",
         function()
-          MiniPick.builtin.grep_live()
+          require("mini.pick").builtin.grep_live()
         end,
         desc = "Live Grep",
       },

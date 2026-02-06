@@ -1,10 +1,8 @@
 return {
   {
     "olimorris/codecompanion.nvim",
-    event = "VeryLazy",
     dependencies = {
       "nvim-lua/plenary.nvim",
-      -- "echasnovski/mini.diff",
       "github/copilot.vim",
     },
     cmd = { "CodeCompanion", "CodeCompanionChat" },
