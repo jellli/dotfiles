@@ -34,6 +34,7 @@ end
 
 function M.fff_picker()
   local utils = require("picker.utils")
+  local minipick = require("mini.pick")
   local show = utils.createShowFn(function(item)
     local filename = item.name
     local dir = vim.fn.fnamemodify(item.path, ":~:.:h")
@@ -50,7 +51,7 @@ function M.fff_picker()
       { " " .. dir, "Comment" },
     }
   end)
-  MiniPick.start({
+  minipick.start({
     window = {
       config = {
         width = 80,
@@ -60,7 +61,7 @@ function M.fff_picker()
       name = "FFFiles",
       items = M.match,
       match = function(_, _, query)
-        MiniPick.set_picker_items(M.match(query), { do_match = false })
+        minipick.set_picker_items(M.match(query), { do_match = false })
       end,
       show = show,
     },

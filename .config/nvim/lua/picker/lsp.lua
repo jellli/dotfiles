@@ -49,7 +49,8 @@ function M.lsp_picker(scope)
       return
     end
 
-    MiniPick.start({
+    local minipick = require("mini.pick")
+    minipick.start({
       name = "ok",
       source = {
         name = scope,
@@ -57,7 +58,7 @@ function M.lsp_picker(scope)
         show = M.show,
         choose = function(item)
           item.path = item.filename
-          MiniPick.default_choose(item)
+          minipick.default_choose(item)
         end,
       },
       window = {

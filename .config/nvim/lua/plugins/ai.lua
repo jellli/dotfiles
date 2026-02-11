@@ -56,6 +56,34 @@ return {
         -- },
       },
       prompt_library = {
+        ["Translate"] = {
+          interaction = "chat",
+          description = "Translate text.",
+          opts = {
+            alias = "translate",
+            auto_submit = true,
+            adapter = {
+              name = "copilot",
+            },
+          },
+          prompts = {
+            {
+              role = "user",
+              content = function()
+                return string.format(
+                  [[Translate the following text into %s:
+
+%s]],
+                  vim.fn.input("Language: "),
+                  vim.fn.getreg('"')
+                )
+              end,
+              opts = {
+                contains_code = true,
+              },
+            },
+          },
+        },
         ["Commit concise"] = {
           interaction = "chat",
           description = "Generate a conventional commit message without long description.",
