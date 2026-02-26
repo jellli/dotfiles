@@ -1,11 +1,15 @@
 local utils = require("utils")
+local M = {}
+
+M.installed = {}
+
 return {
   {
     "nvim-treesitter/nvim-treesitter",
     build = ":TSUpdate",
     branch = "main",
     version = false,
-    event = { "VeryLazy" },
+    lazy = false,
     config = function()
       require("nvim-treesitter").setup({
         highlight = { enable = true },
@@ -14,25 +18,37 @@ return {
         },
       })
       require("nvim-treesitter").install({
-        "astro",
-        "python",
-        "javascript",
-        "typescript",
-        "toml",
-        "json",
-        "gitignore",
-        "yaml",
         "bash",
-        "tsx",
+        "c",
         "css",
+        "go",
         "html",
+        "javascript",
+        "json",
         "lua",
+        "toml",
+        "tsx",
+        "typescript",
+        "vim",
+        "vimdoc",
+        "yaml",
         "zig",
       })
+
+      for _, lang in ipairs(require("nvim-treesitter").get_installed()) do
+        M.installed[lang] = true
+      end
+
       vim.api.nvim_create_autocmd("FileType", {
         group = utils.creat_group("treesitter"),
-        callback = function()
-          pcall(vim.treesitter.start)
+        callback = function(ev)
+          if M.installed[vim.treesitter.language.get_lang(ev.match)] then
+            print("installed")
+            pcall(vim.treesitter.start)
+            vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+            vim.wo[0][0].foldexpr = "v:lua.vim.treesitter.foldexpr()"
+            vim.wo[0][0].foldmethod = "expr"
+          end
         end,
       })
     end,

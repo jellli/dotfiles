@@ -19,8 +19,8 @@
       "$XDG_DATA_HOME/nvim/lazy/mini.move/lua",
       "$XDG_DATA_HOME/nvim/lazy/mini.pairs/lua",
       "$XDG_DATA_HOME/nvim/lazy/mini.pick/lua",
-      "$XDG_DATA_HOME/nvim/lazy/nvim-dap/lua",
-      "$XDG_DATA_HOME/nvim/lazy/nvim-dap-view/lua"
+      "$XDG_DATA_HOME/nvim/lazy/nvim-treesitter/lua",
+      "$XDG_DATA_HOME/nvim/lazy/obsidian.nvim/lua"
     ]
   }
 }
