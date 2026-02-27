@@ -24,14 +24,6 @@ return {
           "<leader>g",
           group = "Git",
         },
-        {
-          "<leader>o",
-          group = "Overseer",
-        },
-        {
-          "<leader>ob",
-          group = "Obsidian",
-        },
       },
     },
     keys = {
