@@ -4,6 +4,8 @@ return {
   opts = {
     show_label = false,
     filetypes = {
+      c = false,
+      md = false,
       zig = false,
     },
   },
