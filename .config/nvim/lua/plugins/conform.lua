@@ -27,7 +27,11 @@ return {
       formatters_by_ft = {
         lua = { "stylua" },
         rust = { "rustfmt" },
-        -- c = { name = "clangd", timeout_ms = 500, lsp_format = "prefer" },
+        c = {
+          name = "clangd",
+          timeout_ms = 500,
+          lsp_format = "prefer",
+        },
       },
       format_on_save = {
         enabled = true,
