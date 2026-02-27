@@ -1,4 +1,33 @@
 local last_buf_name
+
+local git_ignore_cache = {}
+
+local function get_git_ignores(path)
+  local root = vim.fs.root(path, ".git")
+  if not root then
+    return nil
+  end
+
+  local gitignore_path = root .. "/.gitignore"
+  if git_ignore_cache[gitignore_path] then
+    return git_ignore_cache[gitignore_path]
+  end
+
+  local ignores = { ".git", ".DS_Store" }
+  local f = io.open(gitignore_path, "r")
+  if f then
+    for line in f:lines() do
+      if line ~= "" and not line:match("^#") then
+        local pattern = line:gsub("%.", "%%."):gsub("%*", ".*"):gsub("/", "")
+        table.insert(ignores, pattern)
+      end
+    end
+    f:close()
+  end
+  git_ignore_cache[gitignore_path] = ignores
+  return ignores
+end
+
 return {
   "nvim-mini/mini.files",
   config = function()
@@ -6,6 +35,17 @@ return {
       mappings = {
         go_in_plus = "<cr>",
         synchronize = "<c-s>",
+      },
+      content = {
+        filter = function(entry, _)
+          local ignores = get_git_ignores(entry.path) or { ".DS_Store", ".git" }
+          for _, pattern in ipairs(ignores) do
+            if entry.name:match(pattern) then
+              return false
+            end
+          end
+          return true
+        end,
       },
     })
     local map_split = function(buf_id, lhs, direction)
