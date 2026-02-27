@@ -43,7 +43,6 @@ return {
         group = utils.creat_group("treesitter"),
         callback = function(ev)
           if M.installed[vim.treesitter.language.get_lang(ev.match)] then
-            print("installed")
             pcall(vim.treesitter.start)
             vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
             vim.wo[0][0].foldexpr = "v:lua.vim.treesitter.foldexpr()"
@@ -108,7 +107,10 @@ return {
     },
     dependencies = { "nvim-treesitter/nvim-treesitter" },
     config = function()
-      require("treesj").setup({})
+      require("treesj").setup({
+        use_default_keymaps = false,
+        max_join_length = 200,
+      })
     end,
   },
 }
