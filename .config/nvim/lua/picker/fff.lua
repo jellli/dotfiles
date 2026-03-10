@@ -14,6 +14,10 @@ function M.match(query)
       return {}
     end
   end
+  if not vim.is_callable(file_picker.search_files) then
+    print("FFF is NOT callable")
+    return {}
+  end
   local ok, items = pcall(file_picker.search_files, table.concat(query), vim.fn.expand("%:."), 35, 4)
   if not ok then
     vim.ui.select({
@@ -35,6 +39,7 @@ end
 function M.fff_picker()
   local utils = require("picker.utils")
   local minipick = require("mini.pick")
+
   local show = utils.createShowFn(function(item)
     local filename = item.name
     local dir = vim.fn.fnamemodify(item.path, ":~:.:h")
@@ -43,7 +48,7 @@ function M.fff_picker()
     end
     return {
       {
-        string.format("%s %02d ", "", item.total_frecency_score),
+        item.total_frecency_score > 0 and string.format("%s %02d ", "", item.total_frecency_score) or " -- ",
         item.total_frecency_score > 0 and "Special" or "Comment",
       },
       { utils.get_icon(filename) },
