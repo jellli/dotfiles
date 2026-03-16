@@ -5,7 +5,7 @@ return {
     show_label = false,
     filetypes = {
       c = false,
-      md = false,
+      markdown = false,
       zig = false,
     },
   },

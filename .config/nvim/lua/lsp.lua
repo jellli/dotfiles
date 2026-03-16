@@ -3,7 +3,7 @@ local icons = require("icons")
 
 ---@param client vim.lsp.Client
 ---@param bufnr integer
-local function on_attact(client, bufnr)
+local function on_attach(client, bufnr)
   local map = require("utils").map
 
   -- Disable default keybinds
@@ -184,7 +184,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
       vim.notify("No client found", vim.log.levels.WARN)
       return
     end
-    on_attact(client, event.buf)
+    on_attach(client, event.buf)
   end,
 })
 

@@ -1,4 +1,5 @@
 local icons = require("icons")
+local picker_utils = require("picker.utils")
 
 ---@diagnostic disable: deprecated
 
@@ -34,16 +35,6 @@ function H.format_file_display(item)
   return filename, dir_path
 end
 
----Get icon and highlight group
----@param filename string
----@return string icon
----@return string hl_group
-function H.get_icon(filename)
-  local ext = vim.fn.fnamemodify(filename, ":e")
-  local icon, hl = require("nvim-web-devicons").get_icon(filename, ext, { default = true })
-  return icon or " ", hl
-end
-
 ---Generic picker show function (core rendering logic)
 ---@param buf_id number
 ---@param items table[]
@@ -55,7 +46,7 @@ function H.generic_picker_show(buf_id, items, query, get_suffix_fn)
 
   for _, item in ipairs(items) do
     local filename, dir_path = H.format_file_display(item)
-    local icon, icon_hl = H.get_icon(filename)
+    local icon, icon_hl = picker_utils.get_icon(filename)
 
     -- Get specific suffix (Buffer diagnostics or FFF score)
     local suffix_str, suffix_hls = "", nil

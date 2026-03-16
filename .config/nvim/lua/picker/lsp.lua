@@ -86,7 +86,7 @@ function M.get_locations(scope, cb)
     return params
   end, function(results, _, _)
     local all_items = {}
-    for cilent_id, res in pairs(results) do
+    for client_id, res in pairs(results) do
       local err, request_result = res.err, res.result
       local result = (request_result == nil or vim.tbl_isempty(request_result)) and {}
         or vim.islist(request_result) and request_result
@@ -95,7 +95,7 @@ function M.get_locations(scope, cb)
       if err then
         vim.notify(err.message, vim.log.levels.WARN)
       else
-        local client = assert(vim.lsp.get_client_by_id(cilent_id))
+        local client = assert(vim.lsp.get_client_by_id(client_id))
         local items = vim.lsp.util.locations_to_items(result or {}, client.offset_encoding)
         vim.list_extend(all_items, items)
       end

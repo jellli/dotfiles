@@ -68,6 +68,14 @@ return {
           request_status.spinner_index = 1
           start_spinner()
           vim.cmd("redrawstatus")
+          vim.api.nvim_echo({ { "[AI] Started", "Normal" } }, true, {})
+        end,
+      })
+      vim.api.nvim_create_autocmd({ "User" }, {
+        group = status_group,
+        pattern = "CodeCompanionRequestStreaming",
+        callback = function()
+          vim.api.nvim_echo({ { "[AI] Streaming...", "Normal" } }, true, {})
         end,
       })
       vim.api.nvim_create_autocmd({ "User" }, {
@@ -77,6 +85,7 @@ return {
           request_status.processing = false
           stop_spinner()
           vim.cmd("redrawstatus")
+          vim.api.nvim_echo({ { "[AI] Done", "Normal" } }, true, {})
         end,
       })
 
@@ -137,15 +146,15 @@ return {
       interactions = {
         cmd = {
           adapter = "bailian",
-          model = "MiniMax-M2.5",
+          model = "minimax-m2.5",
         },
         inline = {
           adapter = "bailian",
-          model = "MiniMax-M2.5",
+          model = "minimax-m2.5",
         },
         chat = {
           adapter = "bailian",
-          model = "MiniMax-M2.5",
+          model = "kimi-k2.5",
         },
       },
       opts = {
@@ -158,7 +167,6 @@ return {
               formatted_name = "Kimi",
               env = {
                 api_key = "KIMI_CODE_KEY",
-                endpoint = "https://api.moonshot.cn",
                 url = "https://api.moonshot.cn",
               },
               schema = {
@@ -168,12 +176,37 @@ return {
               },
             })
           end,
+          volcengine_coding = function()
+            return require("codecompanion.adapters").extend("openai_compatible", {
+              formatted_name = "Volcengine Coding",
+              env = {
+                api_key = "VOLCENGINE_API_KEY",
+                url = "https://ark.cn-beijing.volces.com/api/coding",
+                chat_url = "/v3/chat/completions",
+                models_endpoint = "/v3/models",
+              },
+              schema = {
+                model = {
+                  default = "kimi-k2.5",
+                  choices = {
+                    "doubao-seed-code",
+                    "kimi-k2.5",
+                    "glm-4.7",
+                    "deepseek-v3.2",
+                    "doubao-seed-2.0-code",
+                    "doubao-seed-2.0-pro",
+                    "doubao-seed-2.0-lite",
+                    "minimax-m2.5",
+                  },
+                },
+              },
+            })
+          end,
           bailian = function()
             return require("codecompanion.adapters").extend("openai_compatible", {
               formatted_name = "Bailian",
               env = {
                 api_key = "BAILIAN_API_KEY",
-                endpoint = "https://dashscope.aliyuncs.com/compatible-mode",
                 url = "https://dashscope.aliyuncs.com/compatible-mode",
               },
               schema = {
@@ -184,40 +217,8 @@ return {
             })
           end,
         },
-        -- opts = {
-        -- allow_insecure = true,
-        -- proxy = "socks5://127.0.0.1:7890",
-        -- },
       },
       prompt_library = {
-        ["Translate"] = {
-          interaction = "chat",
-          description = "Translate text.",
-          opts = {
-            alias = "translate",
-            auto_submit = true,
-            adapter = {
-              name = "copilot",
-            },
-          },
-          prompts = {
-            {
-              role = "user",
-              content = function()
-                return string.format(
-                  [[Translate the following text into %s:
-
-%s]],
-                  vim.fn.input("Language: "),
-                  vim.fn.getreg('"')
-                )
-              end,
-              opts = {
-                contains_code = true,
-              },
-            },
-          },
-        },
         ["Commit concise"] = {
           interaction = "chat",
           description = "Generate a conventional commit message without long description.",

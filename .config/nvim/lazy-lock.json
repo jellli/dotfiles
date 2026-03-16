@@ -1,8 +1,8 @@
 {
   "LuaSnip": { "branch": "master", "commit": "dae4f5aaa3574bd0c2b9dd20fb9542a02c10471c" },
   "blink.cmp": { "branch": "main", "commit": "4b18c32adef2898f95cdef6192cbd5796c1a332d" },
-  "codecompanion.nvim": { "branch": "main", "commit": "0752af8ed083a4657d551b6bc4ce644d48dbd236" },
-  "codediff.nvim": { "branch": "main", "commit": "8dc25e4aae6c2570d764ca3877f617d36fb5a73d" },
+  "codecompanion.nvim": { "branch": "main", "commit": "5ace714f80eca3e391a9629d0cab1dcadcb16131" },
+  "codediff.nvim": { "branch": "main", "commit": "5e6915233e71503795d365d5ce6aec651461a434" },
   "colorful-menu.nvim": { "branch": "master", "commit": "b51a659459df8d078201aefc995db8175ed55e84" },
   "conform.nvim": { "branch": "master", "commit": "40dcec5555f960b0a04340d76eabdf4efe78599d" },
   "copilot.vim": { "branch": "release", "commit": "a12fd5672110c8aa7e3c8419e28c96943ca179be" },
@@ -23,7 +23,6 @@
   "mini.pairs": { "branch": "main", "commit": "b7fde3719340946feb75017ef9d75edebdeb0566" },
   "mini.pick": { "branch": "main", "commit": "8521fe21df86e08d9e4b3c3f3a7d50e47954e1af" },
   "neocodeium": { "branch": "main", "commit": "bfe790d78e66adaa95cb50a8c75c64a752336e9c" },
-  "nui.nvim": { "branch": "main", "commit": "de740991c12411b663994b2860f1a4fd0937c130" },
   "nvim-surround": { "branch": "main", "commit": "1098d7b3c34adcfa7feb3289ee434529abd4afd1" },
   "nvim-treesitter": { "branch": "main", "commit": "cb2cb74f3c3cbbcc17e79cada2060165d616d849" },
   "nvim-treesitter-textobjects": { "branch": "main", "commit": "a0e182ae21fda68c59d1f36c9ed45600aef50311" },
