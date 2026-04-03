@@ -8,12 +8,7 @@ font-size = 15
 font-thicken = true
 
 cursor-style = block
-mouse-hide-while-typing = true
 macos-option-as-alt = true
-
-
-adjust-underline-position = 40%
-adjust-underline-thickness = -60%
 
 window-theme = ghostty
 mouse-hide-while-typing = true
