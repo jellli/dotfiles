@@ -1,171 +1,59 @@
-local utils = require("utils")
--- vim.api.nvim_create_autocmd("TextYankPost", {
---   callback = function()
---     vim.highlight.on_yank()
---   end,
---   group = utils.creat_group("YankHighlight"),
---   pattern = "*",
--- })
+local autocmd = Jili.autocmd
 
-vim.api.nvim_create_autocmd("FileType", {
-  group = utils.creat_group("CloseWithQ"),
-  pattern = {
-    "checkhealth",
-    "grug-far",
-    "help",
-    "lspinfo",
-    "qf",
-    "DiffviewFiles",
-    "codecompanion",
-    "fugitive",
-    "git",
-    "gitcommit",
-    "gitsigns-blame",
-  },
-  callback = function(event)
-    if vim.bo.filetype == "git" or vim.bo.filetype == "gitcommit" then
-      vim.keymap.set("n", "q", ":q<cr>", { silent = true, desc = "Quit buffer", buffer = event.buf })
-      return
-    end
-    if vim.bo.buftype == "codecompanion" then
-      vim.keymap.set("n", "q", function()
-        require("codecompanion").toggle()
-      end, { silent = true, desc = "Quit buffer", buffer = event.buf })
-      return
-    end
+local os = vim.fn.has("wsl") == 1 and "WSL"
+	or ({ ["OSX"] = "macOS", ["Windows"] = "Windows" })[require("jit").os]
+	or "Linux"
 
-    vim.bo[event.buf].buflisted = false
-    vim.schedule(function()
-      vim.keymap.set("n", "q", function()
-        vim.cmd("close")
-        pcall(vim.api.nvim_buf_delete, event.buf, { force = true })
-      end, { buffer = event.buf, silent = true, desc = "Quit buffer" })
-    end)
-  end,
+local im_cmd = ({
+	macOS = { "macism", "com.apple.keylayout.ABC" },
+	Windows = { "im-select.exe", "1033" },
+	WSL = { "im-select.exe", "1033" },
+	Linux = vim.fn.executable("fcitx5-remote") == 1 and { "fcitx5-remote", "-s", "keyboard-us" } or nil,
+})[os]
+
+autocmd("FileType", {
+	pattern = "*",
+	callback = function(ev)
+		-- Disable auto-commenting (c, r, o) and enable smart joining (j)
+		vim.opt_local.formatoptions:remove({ "c", "r", "o" })
+		vim.opt_local.formatoptions:append({ "j" })
+
+		-- Restore cursor position from last exit
+		if vim.bo[ev.buf].filetype ~= "gitcommit" then
+			vim.cmd('silent! normal! g`"zz')
+		end
+
+		-- Close with q
+		local q_ft = { "checkhealth", "help", "lspinfo", "qf", "fugitive", "git", "gitsigns-blame" }
+		if vim.tbl_contains(q_ft, vim.bo[ev.buf].filetype) then
+			vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = ev.buf, silent = true, nowait = true })
+		end
+	end,
 })
 
-vim.api.nvim_create_autocmd("FileType", {
-  callback = function()
-    vim.cmd("setlocal formatoptions-=c formatoptions-=o")
-  end,
+autocmd({ "VimEnter", "VimLeave" }, {
+	callback = function()
+		if vim.fn.executable("tmux") == 1 then
+			vim.system({ "tmux", "rename-window", vim.fn.fnamemodify(vim.fn.getcwd(), ":t") })
+		end
+	end,
 })
 
--- show cursor line only in active window
-vim.api.nvim_create_autocmd({ "InsertLeave", "WinEnter" }, {
-  callback = function()
-    if vim.w.auto_cursorline then
-      vim.wo.cursorline = true
-      vim.w.auto_cursorline = nil
-    end
-  end,
-})
-vim.api.nvim_create_autocmd({ "InsertEnter", "WinLeave" }, {
-  callback = function()
-    if vim.wo.cursorline then
-      vim.w.auto_cursorline = true
-      vim.wo.cursorline = false
-    end
-  end,
-})
-
-local uv = vim.uv
-
-vim.api.nvim_create_autocmd({ "VimEnter", "VimLeave" }, {
-  callback = function()
-    if vim.fn.executable("tmux") == 1 then
-      vim.system({ "tmux", "rename-window", vim.fn.fnamemodify(vim.fn.getcwd(), ":p:h:t") })
-    end
-  end,
-})
-
-local function get_os()
-  if vim.fn.has("macunix") == 1 then
-    return "macOS"
-  elseif vim.fn.has("win32") == 1 then
-    return "Windows"
-  elseif vim.fn.has("wsl") == 1 then
-    return "WSL"
-  else
-    return "Linux"
-  end
+if im_cmd then
+	autocmd({ "InsertLeave", "CmdlineLeave", "FocusGained" }, {
+		callback = function()
+			vim.system(im_cmd)
+		end,
+	})
 end
 
-local function get_switch_cmd()
-  local os = get_os()
-  local cmd = {
-    lhs = {},
-    rhs = {},
-  }
-
-  if os == "macOS" then
-    table.insert(cmd.lhs, "macism")
-    table.insert(cmd.rhs, "com.apple.keylayout.ABC")
-  elseif os == "Windows" or os == "WSL" then
-    table.insert(cmd.lhs, "im-select.exe")
-    table.insert(cmd.rhs, "1033")
-  else
-    if vim.fn.executable("fcitx5-remote") then
-      table.insert(cmd.lhs, "fcitx5-remote")
-      table.insert(cmd.rhs, "-s")
-      table.insert(cmd.rhs, "keyboard-us")
-    else
-      return
-    end
-  end
-  return cmd
-end
-vim.api.nvim_create_autocmd({ "InsertLeave", "CmdlineLeave", "FocusGained" }, {
-  group = vim.api.nvim_create_augroup("auto_switch_input_method", { clear = true }),
-  callback = function()
-    local cmd = get_switch_cmd()
-    if not cmd then
-      vim.notify("No supported input method executable found for your OS.", vim.log.levels.WARN)
-      return
-    end
-
-    local handle
-    ---@diagnostic disable-next-line: missing-fields
-    handle = uv.spawn(cmd.lhs[1], { args = cmd.rhs }, function(code)
-      if handle and not handle:is_closing() then
-        handle:close()
-      end
-      if code ~= 0 then
-        vim.notify("Input method switch failed (process exited with non-zero code).", vim.log.levels.WARN)
-      end
-    end)
-  end,
-})
-
-vim.api.nvim_create_autocmd("BufReadPost", {
-  callback = function(args)
-    if vim.bo[args.buf].filetype == "gitcommit" then
-      return
-    end
-    local mark = vim.api.nvim_buf_get_mark(0, '"')
-    local lcount = vim.api.nvim_buf_line_count(0)
-    if mark[1] > 0 and mark[1] <= lcount then
-      pcall(vim.api.nvim_win_set_cursor, 0, mark)
-    end
-  end,
-})
-
-vim.api.nvim_create_autocmd("LspProgress", {
-  callback = function(ev)
-    local value = ev.data.params.value or {}
-    local msg = value.message or "done"
-
-    -- rust analyszer in particular has really long LSP messages so truncate them
-    if #msg > 40 then
-      msg = msg:sub(1, 37) .. "..."
-    end
-
-    -- :h LspProgress
-    vim.api.nvim_echo({ { msg } }, false, {
-      id = "lsp",
-      kind = "progress",
-      title = value.title,
-      status = value.kind ~= "end" and "running" or "success",
-      percent = value.percentage,
-    })
-  end,
+autocmd("UIEnter", {
+	once = true,
+	callback = function()
+		require("vim._core.ui2").enable({
+			msg = {
+				targets = "msg",
+			},
+		})
+	end,
 })
