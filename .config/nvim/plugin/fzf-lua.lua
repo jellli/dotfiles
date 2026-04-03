@@ -62,6 +62,15 @@ local function load()
 			opts.prompt = ""
 			return opts
 		end,
+		complete_path = {
+			file_icons = true,
+			winopts = {
+				title = "Insert Path",
+				relative = "cursor",
+				height = 0.5,
+				width = 0.4,
+			},
+		},
 	})
 
 	local keymap = Jili.keymap
@@ -70,7 +79,7 @@ local function load()
 	keymap("n", "<leader>so", "<cmd>FzfLua oldfiles<cr>")
 	keymap("n", "<leader>sh", "<cmd>FzfLua helptags<cr>")
 	keymap("n", "<leader>sg", "<cmd>FzfLua live_grep_native<cr>")
-	keymap("i", "<c-x><c-f>", "<cmd>FzfLua complete_path<cr>")
+	keymap("i", "<c-x>p", "<cmd>FzfLua complete_path<cr>")
 end
 
 vim.schedule(load)
