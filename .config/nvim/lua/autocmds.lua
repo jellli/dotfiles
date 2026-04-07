@@ -46,14 +46,3 @@ if im_cmd then
 		end,
 	})
 end
-
-autocmd("UIEnter", {
-	once = true,
-	callback = function()
-		require("vim._core.ui2").enable({
-			msg = {
-				targets = "msg",
-			},
-		})
-	end,
-})

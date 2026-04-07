@@ -36,3 +36,9 @@ vim.lsp.enable({
 	"cssmodules_ls",
 	"emmet_ls",
 })
+
+require("vim._core.ui2").enable({
+	msg = {
+		targets = "msg",
+	},
+})
