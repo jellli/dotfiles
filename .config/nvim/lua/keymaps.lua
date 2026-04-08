@@ -114,6 +114,9 @@ keymap("n", "]q", vim.cmd.cnext, "Next quickfix")
 -- Escape: clear search highlight
 keymap({ "i", "n", "s" }, "<esc>", function()
 	vim.cmd("noh")
+	vim.schedule(function()
+		vim.cmd("redrawstatus!")
+	end)
 	return "<esc>"
 end, { expr = true, desc = "Escape and clear hlsearch" })
 
