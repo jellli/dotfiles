@@ -124,21 +124,6 @@ local function on_attach(client, bufnr)
 			vim.g.inlay_hint = not vim.g.inlay_hint
 			vim.lsp.inlay_hint.enable(vim.g.inlay_hint, { bufnr })
 		end, "Toggle Inlay Hints")
-
-		autocmd("LspProgress", {
-			buffer = bufnr,
-			callback = function(ev)
-				local value = ev.data.params.value
-				vim.api.nvim_echo({ { value.message or "done" } }, false, {
-					id = "lsp." .. ev.data.client_id,
-					kind = "progress",
-					source = "vim.lsp",
-					title = value.title,
-					status = value.kind ~= "end" and "running" or "success",
-					percent = value.percentage,
-				})
-			end,
-		})
 	end
 end
 

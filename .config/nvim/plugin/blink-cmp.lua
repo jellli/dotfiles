@@ -33,8 +33,8 @@ local function load()
 			completion = { menu = { auto_show = true } },
 		},
 	})
-	require("tabout").setup({})
 	require("codecompanion.providers.completion.blink.setup")
+	require("tabout").setup({})
 end
 
 Jili.autocmd({ "InsertEnter", "CmdlineEnter" }, { callback = load, once = true })
