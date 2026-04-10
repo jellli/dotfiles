@@ -6,6 +6,11 @@ local function load()
 	local fzf = require("fzf-lua")
 
 	fzf.setup({
+		keymap = {
+			fzf = {
+				["ctrl-a"] = "toggle-all",
+			},
+		},
 		fzf_colors = {
 			border = { "fg", "FloatBorder" },
 			prompt = { "fg", "Comment" },
