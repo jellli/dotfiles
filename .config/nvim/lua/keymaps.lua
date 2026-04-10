@@ -146,5 +146,5 @@ keymap("n", "<leader>ms", "<cmd>messages<cr>", "Messages history")
 keymap("n", "<leader>R", "<cmd>restart<cr>", "Restart Neovim")
 
 keymap("n", "<leader>lg", function()
-	Jili.lazygit()
+	vim.system({ "tmux", "display-popup", "-w 90%", "-h 90%", "-E", '"lazygit"' })
 end, "LazyGit")
