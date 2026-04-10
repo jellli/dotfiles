@@ -11,4 +11,3 @@ vim.keymap.set({ "x", "o" }, "R", function()
 end)
 
 require("leap.user").set_backdrop_highlight("Comment")
-require("leap").opts.preview = false

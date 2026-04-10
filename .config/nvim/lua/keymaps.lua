@@ -146,6 +146,6 @@ keymap("n", "<leader>ms", "<cmd>messages<cr>", "Messages history")
 keymap("n", "<leader>R", "<cmd>restart<cr>", "Restart Neovim")
 
 keymap("n", "<leader>lg", function()
-	local current_dir = vim.fn.expand("%:p:h")
+	local current_dir = vim.fs.root(0, ".git") or "."
 	vim.system({ "tmux", "display-popup", "-w 90%", "-h 90%", "-E", "lazygit", "-p", current_dir })
 end, "LazyGit")
