@@ -131,6 +131,35 @@ Here is the diff:
 	end, "Toggle Code Companion Chat")
 
 	keymap("v", "ga", "<cmd>CodeCompanionChat Add<cr>", "Add to Chat")
+
+	Jili.autocmd("FileType", {
+		pattern = "codecompanion",
+		callback = function(event)
+			local buf = event.buf
+			_G.CodeCompanionStatusline = function()
+				local meta = _G.codecompanion_chat_metadata and _G.codecompanion_chat_metadata[buf]
+				if not meta then
+					return ""
+				end
+				return table.concat({
+					"%#StatuslineAI#",
+					" 󰧑 ",
+					"%#StatuslineNC#",
+					meta.adapter.formatted_name or meta.adapter.name,
+					":",
+					"%#StatuslineAI#",
+					meta.adapter.model,
+					"%*",
+					"%=",
+					"%#StatuslineNC#",
+					meta.tokens,
+					" tokens",
+					"%*",
+				})
+			end
+			vim.wo.statusline = "%{%v:lua.CodeCompanionStatusline()%}"
+		end,
+	})
 end
 
 local function load_neocodeium()
