@@ -79,6 +79,10 @@ local function load()
 	keymap("n", "<leader>so", "<cmd>FzfLua oldfiles<cr>")
 	keymap("n", "<leader>sh", "<cmd>FzfLua helptags<cr>")
 	keymap("n", "<leader>sg", "<cmd>FzfLua live_grep_native<cr>")
+	keymap("n", "<leader>sR", "<cmd>FzfLua resume<cr>")
+	keymap("n", "<leader>sB", "<cmd>FzfLua buffers<cr>")
+	keymap("n", "<leader>sb", "<cmd>FzfLua blines<cr>")
+	keymap("n", "<leader>sk", "<cmd>FzfLua keymaps<cr>")
 	keymap("i", "<c-x>p", "<cmd>FzfLua complete_path<cr>")
 end
 

@@ -35,6 +35,7 @@ vim.lsp.enable({
 	"cssls",
 	"cssmodules_ls",
 	"emmet_ls",
+	"vimdoc_ls",
 })
 
 require("vim._core.ui2").enable({

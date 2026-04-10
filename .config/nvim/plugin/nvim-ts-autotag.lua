@@ -12,12 +12,7 @@ local function load()
 	})
 end
 
-Jili.autocmd(
-	"FileType",
-	{ pattern = {
-		"typescript",
-		"typescriptreact",
-		"javascript",
-		"javascriptreact",
-	}, callback = load }
-)
+Jili.autocmd("FileType", {
+	pattern = { "typescript", "typescriptreact", "javascript", "javascriptreact" },
+	callback = load,
+})

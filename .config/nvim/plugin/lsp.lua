@@ -18,6 +18,9 @@ vim.diagnostic.config({
 		spacing = 2,
 		source = true,
 	},
+	jump = {
+		on_jump = vim.diagnostic.open_float,
+	},
 })
 
 ---@param client vim.lsp.Client
