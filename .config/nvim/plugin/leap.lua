@@ -9,5 +9,3 @@ vim.keymap.set({ "x", "o" }, "R", function()
 		opts = require("leap.user").with_traversal_keys("R", "r"),
 	})
 end)
-
-require("leap.user").set_backdrop_highlight("Comment")
