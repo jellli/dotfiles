@@ -143,7 +143,11 @@ keymap("n", "<leader>lw", "<cmd>set wrap!<cr>", "Toggle line wrap")
 keymap("n", "<leader>ms", "<cmd>messages<cr>", "Messages history")
 
 -- Restart
-keymap("n", "<leader>R", "<cmd>restart<cr>", "Restart Neovim")
+keymap("n", "<leader>R", function()
+	local session = vim.fn.stdpath("state") .. "/restart_session.vim"
+	vim.cmd("mksession! " .. vim.fn.fnameescape(session))
+	vim.cmd("restart source " .. vim.fn.fnameescape(session))
+end, "Restart Neovim")
 
 keymap("n", "<leader>lg", function()
 	local current_dir = vim.fs.root(0, ".git") or "."
