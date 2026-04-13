@@ -55,6 +55,7 @@ o.confirm = true
 -- 13
 o.undolevels = 100
 o.undofile = true
+o.nrformats = "unsigned"
 
 -- 14
 o.tabstop = 2

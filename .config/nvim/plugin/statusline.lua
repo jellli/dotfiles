@@ -152,9 +152,8 @@ Statusline.setup_hl = function()
 	set_default_hl("StatuslineModeReplace", { link = "DiffDelete", bold = true })
 	set_default_hl("StatuslineModeCommand", { link = "DiffText", bold = true })
 	set_default_hl("StatuslineModeOther", { link = "IncSearch", bold = true })
-	set_default_hl("StatuslineGit", { link = "Visual" })
+	set_default_hl("StatuslineGit", { link = "PmenuSel" })
 	set_default_hl("StatuslineSearch", { link = "Search" })
-	set_default_hl("StatuslineAI", { link = "Special", bold = true })
 end
 
 Statusline.setup_hl()
