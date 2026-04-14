@@ -33,7 +33,7 @@ local function load()
 			completion = { menu = { auto_show = true } },
 		},
 	})
-	require("codecompanion.providers.completion.blink.setup")
+	pcall(require, "codecompanion.providers.completion.blink.setup")
 	require("tabout").setup({})
 end
 

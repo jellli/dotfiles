@@ -52,6 +52,5 @@ vim.g.gruvbox_material_cursor = "orange"
 vim.g.gruvbox_material_diagnostic_text_highlight = 1
 vim.g.gruvbox_material_diagnostic_line_highlight = 1
 vim.g.gruvbox_material_diagnostic_virtual_text = "colored"
-vim.g.gruvbox_material_inlay_hints_background = "dim"
 vim.g.gruvbox_material_better_performance = 1
 vim.cmd("colorscheme gruvbox-material")
