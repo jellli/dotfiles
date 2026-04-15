@@ -184,4 +184,11 @@ autocmd("LspAttach", {
 	end,
 })
 
-return M
+vim.lsp.enable({
+	"emmylua_ls",
+	"tsgo",
+	"cssls",
+	"cssmodules_ls",
+	"emmet_ls",
+	"vimdoc_ls",
+})
