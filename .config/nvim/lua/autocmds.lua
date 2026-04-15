@@ -1,3 +1,4 @@
+local keymap = Jili.keymap
 local autocmd = Jili.autocmd
 
 local os = vim.fn.has("wsl") == 1 and "WSL"
@@ -26,7 +27,7 @@ autocmd("FileType", {
 		-- Close with q
 		local q_ft = { "checkhealth", "help", "lspinfo", "qf", "fugitive", "git", "gitsigns-blame", "gitcommit" }
 		if vim.tbl_contains(q_ft, vim.bo[ev.buf].filetype) then
-			vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = ev.buf, silent = true, nowait = true })
+			keymap("n", "q", "<cmd>close<cr>", { buffer = ev.buf, silent = true, nowait = true })
 		end
 	end,
 })

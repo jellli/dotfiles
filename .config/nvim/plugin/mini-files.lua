@@ -1,6 +1,7 @@
 vim.pack.add({
 	"https://github.com/nvim-mini/mini.files",
 })
+local keymap = Jili.keymap
 
 require("mini.files").setup({
 	mappings = {
@@ -30,7 +31,7 @@ local map_split = function(buf_id, lhs, direction)
 
 	-- Adding `desc` will result into `show_help` entries
 	local desc = "Split " .. direction
-	vim.keymap.set("n", lhs, rhs, { buffer = buf_id, desc = desc })
+	keymap("n", lhs, rhs, { buffer = buf_id, desc = desc })
 end
 
 vim.api.nvim_create_autocmd("User", {
@@ -62,9 +63,9 @@ vim.api.nvim_create_autocmd("User", {
 	pattern = "MiniFilesBufferCreate",
 	callback = function(args)
 		local b = args.data.buf_id
-		vim.keymap.set("n", "gx", ui_open, { buffer = b, desc = "OS open" })
-		vim.keymap.set("n", "gy", yank_path, { buffer = b, desc = "Yank path" })
-		vim.keymap.set("i", "<c-s>", "<esc><cmd>lua MiniFiles.synchronize()<cr>", { buffer = b, desc = "Yank path" })
+		keymap("n", "gx", ui_open, { buffer = b, desc = "OS open" })
+		keymap("n", "gy", yank_path, { buffer = b, desc = "Yank path" })
+		keymap("i", "<c-s>", "<esc><cmd>lua MiniFiles.synchronize()<cr>", { buffer = b, desc = "Yank path" })
 	end,
 })
 
@@ -100,7 +101,7 @@ vim.api.nvim_create_autocmd("User", {
 })
 
 local last_buf_name
-vim.keymap.set("n", "<leader>e", function()
+keymap("n", "<leader>e", function()
 	local bufname = vim.api.nvim_buf_get_name(0)
 	local path = vim.fn.fnamemodify(bufname, ":p")
 

@@ -95,8 +95,8 @@ local function on_attach(client, bufnr)
 					vim.cmd("stopinsert")
 				end
 
-				vim.keymap.set({ "n", "i" }, "<CR>", function()
-					local new_name = vim.trim(vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1])
+				keymap({ "n", "i" }, "<CR>", function()
+					local new_name = vim.trim(vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] or "")
 					vim.schedule(function()
 						cleanup()
 						if new_name ~= "" and new_name ~= curr_name then
@@ -105,10 +105,10 @@ local function on_attach(client, bufnr)
 					end)
 				end, { buffer = buf })
 
-				vim.keymap.set("n", "q", cleanup, { buffer = buf })
-				vim.keymap.set("n", "<Esc>", cleanup, { buffer = buf })
+				keymap("n", "q", cleanup, { buffer = buf })
+				keymap("n", "<Esc>", cleanup, { buffer = buf })
 
-				Jili.autocmd("WinLeave", {
+				autocmd("WinLeave", {
 					buffer = buf,
 					once = true,
 					callback = cleanup,
@@ -140,7 +140,7 @@ local function on_attach(client, bufnr)
 	end
 
 	if client:supports_method("textDocument/inlayHint") then
-		vim.lsp.inlay_hint.enable(vim.g.inlay_hint, { bufnr })
+		vim.lsp.inlay_hint.enable(vim.g.inlay_hint, { bufnr = bufnr })
 
 		-- dont clear because more than one lsp will attach
 		local inlayHintAugroup = vim.api.nvim_create_augroup("LspInlayHint", { clear = false })
@@ -150,7 +150,7 @@ local function on_attach(client, bufnr)
 			buffer = bufnr,
 			callback = function()
 				if vim.lsp.inlay_hint.is_enabled() then
-					vim.lsp.inlay_hint.enable(false, { bufnr })
+					vim.lsp.inlay_hint.enable(false, { bufnr = bufnr })
 				end
 			end,
 		})
@@ -161,14 +161,14 @@ local function on_attach(client, bufnr)
 			buffer = bufnr,
 			callback = function()
 				if vim.g.inlay_hint and not vim.lsp.inlay_hint.is_enabled() then
-					vim.lsp.inlay_hint.enable(true, { bufnr })
+					vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
 				end
 			end,
 		})
 
 		keymap("n", "<leader>th", function()
 			vim.g.inlay_hint = not vim.g.inlay_hint
-			vim.lsp.inlay_hint.enable(vim.g.inlay_hint, { bufnr })
+			vim.lsp.inlay_hint.enable(vim.g.inlay_hint, { bufnr = bufnr })
 		end, "Toggle Inlay Hints")
 	end
 end
