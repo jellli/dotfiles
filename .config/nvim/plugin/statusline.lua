@@ -152,9 +152,17 @@ Statusline.setup_hl = function()
 	set_default_hl("StatuslineModeReplace", { link = "DiffDelete", bold = true })
 	set_default_hl("StatuslineModeCommand", { link = "DiffText", bold = true })
 	set_default_hl("StatuslineModeOther", { link = "IncSearch", bold = true })
-	set_default_hl("StatuslineGit", { link = "PmenuSel" })
+	set_default_hl("StatuslineGit", { link = "Visual" })
 	set_default_hl("StatuslineSearch", { link = "Search" })
 end
+
+Jili.autocmd({
+	"LspProgress",
+}, {
+	callback = function()
+		vim.cmd("redrawstatus")
+	end,
+})
 
 Statusline.setup_hl()
 
