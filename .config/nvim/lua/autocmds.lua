@@ -25,8 +25,8 @@ autocmd("FileType", {
 		end
 
 		-- Close with q
-		local q_ft = { "checkhealth", "help", "lspinfo", "qf", "fugitive", "git", "gitsigns-blame", "gitcommit" }
-		if vim.tbl_contains(q_ft, vim.bo[ev.buf].filetype) then
+		local q_ft = { "checkhealth", "help", "lspinfo", "qf", "fugitive", "fugitiveblame", "git", "gitsigns-blame", "gitcommit" }
+		if vim.tbl_contains(q_ft, ev.match) then
 			keymap("n", "q", "<cmd>close<cr>", { buffer = ev.buf, silent = true, nowait = true })
 		end
 	end,
