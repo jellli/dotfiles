@@ -191,4 +191,5 @@ vim.lsp.enable({
 	"cssmodules_ls",
 	"emmet_ls",
 	"vimdoc_ls",
+	"zls",
 })
