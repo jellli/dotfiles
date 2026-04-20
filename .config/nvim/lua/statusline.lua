@@ -1,19 +1,7 @@
-vim.g.qf_disable_statusline = 1
-local H = {}
-_G.Statusline = {}
+local M = {}
+local h = require("utils").hl
 
-H.hl = function(t)
-	local parts = vim.tbl_map(function(item)
-		if type(item) == "string" then
-			return item
-		else
-			return string.format("%%#%s#%s%%*", item.hl, item.string)
-		end
-	end, t)
-	return table.concat(parts, "")
-end
-
-H.modes = setmetatable({
+M.modes = setmetatable({
 	["n"] = { long = "Normal", short = "N", hl = "StatuslineModeNormal" },
 	["v"] = { long = "Visual", short = "V", hl = "StatuslineModeVisual" },
 	["V"] = { long = "V-Line", short = "V", hl = "StatuslineModeVisual" },
@@ -30,9 +18,10 @@ H.modes = setmetatable({
 		return { long = "Unknown", short = "U", hl = "StatuslineModeOther" }
 	end,
 })
-H.mode_component = function()
-	local mode = H.modes[vim.fn.mode()]
-	return H.hl({
+
+M.mode_component = function()
+	local mode = M.modes[vim.fn.mode()]
+	return h({
 		{
 			hl = mode.hl,
 			string = string.format(" 󰊠 %s ", mode.short),
@@ -40,12 +29,12 @@ H.mode_component = function()
 	})
 end
 
-H.git_component = function()
+M.git_component = function()
 	if not vim.b.gitsigns_head then
 		return ""
 	end
 
-	return H.hl({
+	return h({
 		{
 			hl = "StatuslineGit",
 			string = string.format(" %s ", vim.b.gitsigns_head),
@@ -53,12 +42,11 @@ H.git_component = function()
 	})
 end
 
-H.filename_component = function()
+M.filename_component = function()
 	local bufname = vim.api.nvim_buf_get_name(0)
 	if bufname == "" then
 		return ""
 	end
-
 	local dirname = vim.fn.fnamemodify(bufname, ":.:h")
 	local filename = vim.fn.fnamemodify(bufname, ":t")
 	local ext = vim.fn.fnamemodify(bufname, ":e")
@@ -74,7 +62,7 @@ H.filename_component = function()
 		icon, icon_hl = devicons.get_icon(filename, ext, { default = true })
 	end
 
-	local path_str = H.hl({
+	local path_str = h({
 		{ hl = "StatuslineNC", string = dirname .. "/" },
 		{ hl = "ModeMsg", string = filename },
 		{
@@ -83,7 +71,7 @@ H.filename_component = function()
 		},
 	})
 
-	return H.hl({
+	return h({
 		" ",
 		{ hl = icon_hl, string = icon },
 		" ",
@@ -91,7 +79,7 @@ H.filename_component = function()
 	})
 end
 
-H.search_count_component = function()
+M.search_count_component = function()
 	if vim.v.hlsearch == 0 then
 		return ""
 	end
@@ -99,7 +87,7 @@ H.search_count_component = function()
 	if not result or result.total == 0 then
 		return ""
 	end
-	return H.hl({
+	return h({
 		{
 			hl = "StatuslineSearch",
 			string = string.format(" %d/%d ", result.current, result.total),
@@ -107,8 +95,8 @@ H.search_count_component = function()
 	})
 end
 
-H.lsp_component = function()
-	return H.hl({
+M.lsp_component = function()
+	return h({
 		{
 			hl = "StatuslineNC",
 			string = vim.lsp.status(),
@@ -116,22 +104,22 @@ H.lsp_component = function()
 	})
 end
 
-Statusline.render = function()
-	return H.hl({
-		H.mode_component(),
-		H.git_component(),
+M.render = function()
+	return h({
+		M.mode_component(),
+		M.git_component(),
 		"%<",
-		H.filename_component(),
+		M.filename_component(),
 		"%=",
-		H.lsp_component(),
-		H.search_count_component(),
+		M.lsp_component(),
+		M.search_count_component(),
 		vim.diagnostic.status(),
 		" %p󱉸",
 		" %L",
 	})
 end
 
-Statusline.setup_hl = function()
+M.setup_hl = vim.schedule_wrap(function()
 	local set_default_hl = function(name, data)
 		if data.link then
 			local hl = vim.api.nvim_get_hl(0, { name = data.link })
@@ -154,16 +142,22 @@ Statusline.setup_hl = function()
 	set_default_hl("StatuslineModeOther", { link = "IncSearch", bold = true })
 	set_default_hl("StatuslineGit", { link = "Visual" })
 	set_default_hl("StatuslineSearch", { link = "Search" })
-end
+end)
 
-Jili.autocmd({
+local autocmd = Jili.autocmd
+autocmd({
 	"LspProgress",
 }, {
 	callback = function()
 		vim.cmd("redrawstatus")
 	end,
 })
+autocmd("ColorScheme", {
+	callback = M.setup_hl,
+})
 
-Statusline.setup_hl()
+vim.g.qf_disable_statusline = 1
+vim.o.laststatus = 3
+vim.o.statusline = "%{%v:lua.require('statusline').render()%}"
 
-vim.o.statusline = "%{%v:lua.Statusline.render()%}"
+return M

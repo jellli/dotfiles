@@ -29,6 +29,7 @@ end
 require("options")
 require("keymaps")
 require("autocmds")
+require("statusline")
 
 require("vim._core.ui2").enable({
 	msg = {
