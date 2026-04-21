@@ -157,7 +157,7 @@ Here is the diff:
 					"%*",
 				})
 			end
-			vim.wo.statusline = "%{%v:lua.CodeCompanionStatusline()%}"
+			vim.wo.winbar = "%{%v:lua.CodeCompanionStatusline()%}"
 		end,
 	})
 end

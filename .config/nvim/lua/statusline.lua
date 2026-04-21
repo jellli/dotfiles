@@ -42,43 +42,6 @@ M.git_component = function()
 	})
 end
 
-M.filename_component = function()
-	local bufname = vim.api.nvim_buf_get_name(0)
-	if bufname == "" then
-		return ""
-	end
-	local dirname = vim.fn.fnamemodify(bufname, ":.:h")
-	local filename = vim.fn.fnamemodify(bufname, ":t")
-	local ext = vim.fn.fnamemodify(bufname, ":e")
-
-	local dirs = vim.split(dirname, "/")
-	if #dirs > 3 then
-		dirname = dirs[1] .. "/.../" .. dirs[#dirs]
-	end
-
-	local icon, icon_hl = "", ""
-	local ok, devicons = pcall(require, "nvim-web-devicons")
-	if ok then
-		icon, icon_hl = devicons.get_icon(filename, ext, { default = true })
-	end
-
-	local path_str = h({
-		{ hl = "StatuslineNC", string = dirname .. "/" },
-		{ hl = "ModeMsg", string = filename },
-		{
-			hl = "WarningMsg",
-			string = "%m",
-		},
-	})
-
-	return h({
-		" ",
-		{ hl = icon_hl, string = icon },
-		" ",
-		path_str,
-	})
-end
-
 M.search_count_component = function()
 	if vim.v.hlsearch == 0 then
 		return ""
@@ -90,7 +53,7 @@ M.search_count_component = function()
 	return h({
 		{
 			hl = "StatuslineSearch",
-			string = string.format(" %d/%d ", result.current, result.total),
+			string = string.format("  %d/%d ", result.current, result.total),
 		},
 	})
 end
@@ -104,18 +67,28 @@ M.lsp_component = function()
 	})
 end
 
+M.macro_recording_component = function()
+	local recording_register = vim.fn.reg_recording()
+	if recording_register == "" then
+		return ""
+	else
+		return h({
+			{
+				hl = "WarningMsg",
+				string = " @" .. recording_register,
+			},
+		})
+	end
+end
+
 M.render = function()
 	return h({
 		M.mode_component(),
 		M.git_component(),
-		"%<",
-		M.filename_component(),
 		"%=",
 		M.lsp_component(),
 		M.search_count_component(),
-		vim.diagnostic.status(),
-		" %p󱉸",
-		" %L",
+		M.macro_recording_component(),
 	})
 end
 
@@ -158,6 +131,6 @@ autocmd("ColorScheme", {
 
 vim.g.qf_disable_statusline = 1
 vim.o.laststatus = 3
-vim.o.statusline = "%{%v:lua.require('statusline').render()%}"
+vim.o.statusline = "%!v:lua.require'statusline'.render()"
 
 return M
