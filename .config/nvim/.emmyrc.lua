@@ -1,3 +1,6 @@
+local data = os.getenv("XDG_DATA_HOME") or (os.getenv("HOME") .. "/.local/share")
+local opt = data .. "/nvim/site/pack/core/opt"
+
 return {
 	runtime = {
 		version = "LuaJIT",
@@ -5,14 +8,32 @@ return {
 	workspace = {
 		library = {
 			"$VIMRUNTIME",
-			"$XDG_DATA_HOME/nvim/site/pack/core/opt",
-			"$XDG_DATA_HOME/nvim/site/pack/core/opt/blink.cmp",
-			"$XDG_DATA_HOME/nvim/site/pack/core/opt/conform.nvim",
-			"$XDG_DATA_HOME/nvim/site/pack/core/opt/fzf-lua",
-			"$XDG_DATA_HOME/nvim/site/pack/core/opt/nvim-surround",
-			"$XDG_DATA_HOME/nvim/site/pack/core/opt/nvim-ts-autotag",
-			"$XDG_DATA_HOME/nvim/site/pack/core/opt/smart-splits.nvim",
-			"$XDG_DATA_HOME/nvim/site/pack/core/opt/yanky.nvim",
+			opt .. "/blink.cmp",
+			opt .. "/codecompanion.nvim",
+			opt .. "/codediff.nvim",
+			opt .. "/conform.nvim",
+			opt .. "/friendly-snippets",
+			opt .. "/fzf-lua",
+			opt .. "/gitsigns.nvim",
+			opt .. "/gruvbox-material",
+			opt .. "/leap.nvim",
+			opt .. "/mason.nvim",
+			opt .. "/mini.ai",
+			opt .. "/mini.files",
+			opt .. "/mini.pairs",
+			opt .. "/neocodeium",
+			opt .. "/nvim-surround",
+			opt .. "/nvim-treesitter",
+			opt .. "/nvim-ts-autotag",
+			opt .. "/nvim-web-devicons",
+			opt .. "/plenary.nvim",
+			opt .. "/quicker.nvim",
+			opt .. "/smart-splits.nvim",
+			opt .. "/tabout.nvim",
+			opt .. "/tiny-cmdline.nvim",
+			opt .. "/treesj",
+			opt .. "/vim-fugitive",
+			opt .. "/yanky.nvim",
 		},
 	},
 }
