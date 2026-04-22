@@ -1,3 +1,4 @@
+_G.CodeCompanionWinbar = nil
 local function load_codecompanion()
 	vim.pack.add({
 		"https://github.com/nvim-lua/plenary.nvim",
@@ -136,7 +137,12 @@ Here is the diff:
 		pattern = "codecompanion",
 		callback = function(event)
 			local buf = event.buf
-			_G.CodeCompanionStatusline = function()
+			local opt = vim.opt_local
+			opt.number = false
+			opt.relativenumber = false
+			opt.signcolumn = "no"
+
+			_G.CodeCompanionWinbar = function()
 				local meta = _G.codecompanion_chat_metadata and _G.codecompanion_chat_metadata[buf]
 				if not meta then
 					return ""
@@ -157,7 +163,7 @@ Here is the diff:
 					"%*",
 				})
 			end
-			vim.wo.winbar = "%{%v:lua.CodeCompanionStatusline()%}"
+			vim.wo.winbar = "%{%v:lua.CodeCompanionWinbar()%}"
 		end,
 	})
 end
