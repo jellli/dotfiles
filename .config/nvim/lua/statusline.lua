@@ -53,7 +53,7 @@ M.search_count_component = function()
 	return h({
 		{
 			hl = "StatuslineSearch",
-			string = string.format("  %d/%d ", result.current, result.total),
+			string = string.format("  %d/%d ", result.current or 0, result.total or 0),
 		},
 	})
 end

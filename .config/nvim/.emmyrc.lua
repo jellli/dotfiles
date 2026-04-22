@@ -36,4 +36,9 @@ return {
 			opt .. "/yanky.nvim",
 		},
 	},
+	diagnostics = {
+		disable = {
+			"unnecessary-if",
+		},
+	},
 }

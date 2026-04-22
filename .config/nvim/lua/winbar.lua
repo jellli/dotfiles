@@ -54,7 +54,9 @@ end
 Jili.autocmd("BufWinEnter", {
 	callback = function(args)
 		if
-			vim.bo[args.buf].buftype == "" -- Normal buffer
+			vim.api.nvim_win_get_config(0).relative == "" -- For non-floating windows, `relative` is empty.
+			and vim.bo[args.buf].buftype == "" -- Normal buffer
+			and vim.api.nvim_buf_get_name(args.buf) ~= "" -- Has a file name
 		then
 			vim.wo.winbar = "%{%v:lua.require'winbar'.render()%}"
 		end
