@@ -21,6 +21,7 @@ return {
 			opt .. "/mini.ai",
 			opt .. "/mini.files",
 			opt .. "/mini.pairs",
+			opt .. "miniharp.nvim",
 			opt .. "/neocodeium",
 			opt .. "/nvim-surround",
 			opt .. "/nvim-treesitter",

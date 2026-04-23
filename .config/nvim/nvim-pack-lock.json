@@ -53,6 +53,10 @@
       "rev": "42387c7fe68fc0b6e95eaf37f1bb76e7bffaa0d9",
       "src": "https://github.com/nvim-mini/mini.pairs"
     },
+    "miniharp.nvim": {
+      "rev": "a0f4b3e38b7c02535833a705c149700b53654740",
+      "src": "https://github.com/vieitesss/miniharp.nvim"
+    },
     "neocodeium": {
       "rev": "bfe790d78e66adaa95cb50a8c75c64a752336e9c",
       "src": "https://github.com/monkoose/neocodeium"
