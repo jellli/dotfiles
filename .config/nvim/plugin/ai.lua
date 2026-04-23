@@ -29,7 +29,7 @@ local function load_codecompanion()
 					return require("codecompanion.adapters").extend("openai_compatible", {
 						formatted_name = "Kimi",
 						env = {
-							api_key = "KIMI_CODE_KEY",
+							api_key = "cmd:op read op://apikey/KIMI_CODE_KEY/credential --no-newline",
 							url = "https://api.moonshot.cn",
 						},
 						schema = {
@@ -39,37 +39,11 @@ local function load_codecompanion()
 						},
 					})
 				end,
-				volcengine_coding = function()
-					return require("codecompanion.adapters").extend("openai_compatible", {
-						formatted_name = "Volcengine Coding",
-						env = {
-							api_key = "VOLCENGINE_API_KEY",
-							url = "https://ark.cn-beijing.volces.com/api/coding",
-							chat_url = "/v3/chat/completions",
-							models_endpoint = "/v3/models",
-						},
-						schema = {
-							model = {
-								default = "kimi-k2.5",
-								choices = {
-									"doubao-seed-code",
-									"kimi-k2.5",
-									"glm-4.7",
-									"deepseek-v3.2",
-									"doubao-seed-2.0-code",
-									"doubao-seed-2.0-pro",
-									"doubao-seed-2.0-lite",
-									"minimax-m2.5",
-								},
-							},
-						},
-					})
-				end,
 				bailian = function()
 					return require("codecompanion.adapters").extend("openai_compatible", {
 						formatted_name = "Bailian",
 						env = {
-							api_key = "BAILIAN_API_KEY",
+							api_key = "cmd:op read op://apikey/BAILIAN_API_KEY/credential --no-newline",
 							url = "https://dashscope.aliyuncs.com/compatible-mode",
 						},
 						schema = {
@@ -79,42 +53,6 @@ local function load_codecompanion()
 						},
 					})
 				end,
-			},
-		},
-		prompt_library = {
-			["Commit concise"] = {
-				interaction = "chat",
-				description = "Generate a conventional commit message without long description.",
-				opts = {
-					alias = "commit-concise",
-					auto_submit = true,
-					adapter = {
-						name = "copilot",
-					},
-				},
-				prompts = {
-					{
-						role = "user",
-						content = function()
-							return string.format(
-								[[I want you to create a commit using a concise commit message that follows the conventional commit format. Make sure to:
-1. Use only a header (no detailed description).
-2. Choose the correct scope based on the changes.
-3. Ensure the message is clear, relevant, and properly formatted.
-
-Here is the diff:
-
-```diff
-%s
-```]],
-								vim.fn.system("git diff --no-ext-diff --staged")
-							)
-						end,
-						opts = {
-							contains_code = true,
-						},
-					},
-				},
 			},
 		},
 	}
