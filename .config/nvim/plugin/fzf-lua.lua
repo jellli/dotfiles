@@ -14,9 +14,10 @@ local function load()
 		fzf_colors = {
 			border = { "fg", "FloatBorder" },
 			prompt = { "fg", "Comment" },
+			info = { "fg", "Special" },
 		},
 		fzf_opts = {
-			["--no-info"] = true,
+			-- ["--no-info"] = true,
 		},
 		defaults = {
 			cwd_prompt = false,
@@ -42,6 +43,7 @@ local function load()
 		},
 		lsp = {
 			includeDeclaration = false,
+			---@diagnostic disable-next-line: missing-fields
 			code_actions = {
 				previewer = false,
 				prompt = false,
@@ -59,7 +61,7 @@ local function load()
 			},
 		},
 		ui_select = function(opts)
-			opts.winopts = { width = 0.4, height = 0.5 }
+			opts.winopts = { width = 0.5, height = 0.5 }
 			opts.winopts.title = opts.prompt
 			if not opts.winopts.title then
 				opts.winopts.title = opts.prompt or "Select"
