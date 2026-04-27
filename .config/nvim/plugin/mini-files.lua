@@ -64,7 +64,12 @@ vim.api.nvim_create_autocmd("User", {
 	callback = function(args)
 		local b = args.data.buf_id
 		keymap("n", "gx", ui_open, { buffer = b, desc = "OS open" })
-		keymap("n", "gy", yank_path, { buffer = b, desc = "Yank path" })
+		keymap("n", "gy", function()
+			yank_path(":.")
+		end, { buffer = b, desc = "Yank path" })
+		keymap("n", "gY", function()
+			yank_path(":p")
+		end, { buffer = b, desc = "Yank path" })
 		keymap("i", "<c-s>", "<esc><cmd>lua MiniFiles.synchronize()<cr>", { buffer = b, desc = "Yank path" })
 	end,
 })

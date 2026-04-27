@@ -40,14 +40,14 @@ end
 
 M.render = function()
 	return h({
-		h({ {
-			hl = "Comment",
-			string = "%p%% of %L ",
-		} }),
 		vim.diagnostic.status(),
 		"%=",
 		"%<",
 		M.filename_component(),
+		h({ {
+			hl = "Comment",
+			string = " %L lines",
+		} }),
 	})
 end
 
