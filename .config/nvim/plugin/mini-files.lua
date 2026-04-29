@@ -46,12 +46,12 @@ vim.api.nvim_create_autocmd("User", {
 })
 
 -- Yank in register full path of entry under cursor
-local yank_path = function()
+local yank_path = function(modifiers)
 	local path = (MiniFiles.get_fs_entry() or {}).path
 	if path == nil then
 		return vim.notify("Cursor is not on valid entry")
 	end
-	vim.fn.setreg(vim.v.register, vim.fn.fnamemodify(path, ":."))
+	vim.fn.setreg(vim.v.register, vim.fn.fnamemodify(path, modifiers))
 end
 
 -- Open path with system default handler (useful for non-text files)
