@@ -9,15 +9,12 @@ local function load_codecompanion()
 		interactions = {
 			cmd = {
 				adapter = "bailian",
-				model = "minimax-m2.5",
 			},
 			inline = {
 				adapter = "bailian",
-				model = "minimax-m2.5",
 			},
 			chat = {
-				adapter = "bailian",
-				model = "kimi-k2.5",
+				adapter = "deepseek",
 			},
 		},
 		opts = {
@@ -25,6 +22,20 @@ local function load_codecompanion()
 		},
 		adapters = {
 			http = {
+				deepseek = function()
+					return require("codecompanion.adapters").extend("openai_compatible", {
+						formatted_name = "DeepSeek",
+						env = {
+							api_key = "cmd:op read op://apikey/DEEPSEEK_API_KEY/credential --no-newline",
+							url = "https://api.deepseek.com",
+						},
+						schema = {
+							model = {
+								default = "deepseek-v4-pro",
+							},
+						},
+					})
+				end,
 				kimi = function()
 					return require("codecompanion.adapters").extend("openai_compatible", {
 						formatted_name = "Kimi",
