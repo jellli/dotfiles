@@ -12,19 +12,19 @@ end
 
 local keymap = Jili.keymap
 
-keymap("n", "<C-H>", function()
+keymap("n", "<M-h>", function()
 	load()
 	require("smart-splits").resize_left()
 end)
-keymap("n", "<C-J>", function()
+keymap("n", "<M-j>", function()
 	load()
 	require("smart-splits").resize_down()
 end)
-keymap("n", "<C-K>", function()
+keymap("n", "<M-k>", function()
 	load()
 	require("smart-splits").resize_up()
 end)
-keymap("n", "<C-L>", function()
+keymap("n", "<M-l>", function()
 	load()
 	require("smart-splits").resize_right()
 end)
