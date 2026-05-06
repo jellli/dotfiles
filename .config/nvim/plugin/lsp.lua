@@ -41,7 +41,7 @@ vim.diagnostic.config({
 ---@param client vim.lsp.Client
 ---@param bufnr integer
 local function on_attach(client, bufnr)
-	for _, key in ipairs({ "gra", "gri", "grn", "grr", "grt", 'grx' }) do
+	for _, key in ipairs({ "gra", "gri", "grn", "grr", "grt", "grx" }) do
 		pcall(vim.keymap.del, "n", key)
 	end
 
