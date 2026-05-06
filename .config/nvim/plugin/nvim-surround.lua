@@ -1,5 +1,8 @@
-vim.pack.add({
-	"https://github.com/kylechui/nvim-surround",
+require("pack").add({
+	{
+		src = "https://github.com/kylechui/nvim-surround",
+		after = function()
+			require("nvim-surround").setup({})
+		end,
+	},
 })
-
-require("nvim-surround").setup({})

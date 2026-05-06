@@ -1,8 +1,8 @@
-vim.pack.add({
-	"https://github.com/mason-org/mason.nvim",
-})
-
-require("mason").setup({})
+-- vim.pack.add({
+-- 	"https://github.com/mason-org/mason.nvim",
+-- })
+--
+-- require("mason").setup()
 
 vim.g.inlay_hint = true
 local keymap = Jili.keymap
@@ -10,23 +10,38 @@ local autocmd = Jili.autocmd
 
 vim.diagnostic.config({
 	severity_sort = true,
+	signs = false,
 	virtual_text = {
+		current_line = false,
 		spacing = 2,
 		prefix = "󰊠",
 	},
+	-- virtual_lines = {
+	--   current_line = true
+	-- },
 	float = {
 		spacing = 2,
 		source = true,
 	},
+	status = {},
 	jump = {
-		on_jump = vim.diagnostic.open_float,
+		on_jump = function(diagnostic, bufnr)
+			if not diagnostic then
+				return
+			end
+
+			vim.diagnostic.open_float({
+				namespace = diagnostic.namespace,
+				bufnr = bufnr,
+			})
+		end,
 	},
 })
 
 ---@param client vim.lsp.Client
 ---@param bufnr integer
 local function on_attach(client, bufnr)
-	for _, key in ipairs({ "gra", "gri", "grn", "grr", "grt" }) do
+	for _, key in ipairs({ "gra", "gri", "grn", "grr", "grt", 'grx' }) do
 		pcall(vim.keymap.del, "n", key)
 	end
 

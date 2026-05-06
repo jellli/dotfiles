@@ -1,1 +1,6 @@
-vim.pack.add({ "https://github.com/rachartier/tiny-cmdline.nvim" })
+require("pack").add({
+	{
+		src = "https://github.com/rachartier/tiny-cmdline.nvim",
+		sync = true,
+	},
+})

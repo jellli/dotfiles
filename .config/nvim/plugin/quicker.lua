@@ -1,4 +1,8 @@
-vim.pack.add({
-	"https://github.com/stevearc/quicker.nvim",
+require("pack").add({
+	{
+		src = "https://github.com/stevearc/quicker.nvim",
+		after = function()
+			require("quicker").setup()
+		end,
+	},
 })
-require("quicker").setup()

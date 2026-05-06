@@ -37,3 +37,5 @@ require("vim._core.ui2").enable({
 		targets = "msg",
 	},
 })
+
+require("pack").create_autocmd()
