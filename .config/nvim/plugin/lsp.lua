@@ -8,36 +8,6 @@ vim.g.inlay_hint = true
 local keymap = Jili.keymap
 local autocmd = Jili.autocmd
 
-vim.diagnostic.config({
-	severity_sort = true,
-	signs = false,
-	virtual_text = {
-		current_line = false,
-		spacing = 2,
-		prefix = "󰊠",
-	},
-	-- virtual_lines = {
-	--   current_line = true
-	-- },
-	float = {
-		spacing = 2,
-		source = true,
-	},
-	status = {},
-	jump = {
-		on_jump = function(diagnostic, bufnr)
-			if not diagnostic then
-				return
-			end
-
-			vim.diagnostic.open_float({
-				namespace = diagnostic.namespace,
-				bufnr = bufnr,
-			})
-		end,
-	},
-})
-
 ---@param client vim.lsp.Client
 ---@param bufnr integer
 local function on_attach(client, bufnr)
@@ -199,12 +169,44 @@ autocmd("LspAttach", {
 	end,
 })
 
-vim.lsp.enable({
-	"emmylua_ls",
-	"tsgo",
-	"cssls",
-	"cssmodules_ls",
-	"emmet_ls",
-	"vimdoc_ls",
-	"zls",
+autocmd({ "BufReadPost", "BufNewFile" }, {
+	once = true,
+	callback = function()
+		vim.diagnostic.config({
+			severity_sort = true,
+			signs = false,
+			virtual_text = {
+				current_line = false,
+				spacing = 2,
+				prefix = "󰊠",
+			},
+			float = {
+				spacing = 2,
+				source = true,
+			},
+			status = {},
+			jump = {
+				on_jump = function(diagnostic, bufnr)
+					if not diagnostic then
+						return
+					end
+
+					vim.diagnostic.open_float({
+						namespace = diagnostic.namespace,
+						bufnr = bufnr,
+					})
+				end,
+			},
+		})
+
+		vim.lsp.enable({
+			"emmylua_ls",
+			"tsgo",
+			"cssls",
+			"cssmodules_ls",
+			"emmet_ls",
+			"vimdoc_ls",
+			"zls",
+		})
+	end,
 })

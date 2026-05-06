@@ -57,6 +57,7 @@ end
 
 function M.create_autocmd()
 	Jili.autocmd("VimEnter", {
+    once = true,
 		callback = function()
 			local q = queue
 			queue = {}
