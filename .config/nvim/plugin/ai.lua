@@ -3,6 +3,13 @@ local keymap = Jili.keymap
 require("pack").add({
 	{
 		src = { "https://github.com/nvim-lua/plenary.nvim", "https://github.com/olimorris/codecompanion.nvim" },
+		cmd = {
+			"CodeCompanion",
+			"CodeCompanionChat",
+			"CodeCompanionCLI",
+			"CodeCompanionCmd",
+			"CodeCompanionActions",
+		},
 		after = function()
 			require("codecompanion").setup({
 				extensions = {},
@@ -68,10 +75,6 @@ require("pack").add({
 				},
 			})
 
-			keymap({ "n", "v" }, "<leader>ac", function() require("codecompanion").actions({}) end, "Code Companion Actions")
-			keymap({ "n", "v" }, "<leader>aa", function() require("codecompanion").toggle() end, "Toggle Code Companion Chat")
-			keymap("v", "ga", "<cmd>CodeCompanionChat Add<cr>", "Add to Chat")
-
 			Jili.autocmd("FileType", {
 				pattern = "codecompanion",
 				callback = function(event)
@@ -110,6 +113,7 @@ require("pack").add({
 
 	{
 		src = "https://github.com/monkoose/neocodeium",
+		event = "InsertEnter",
 		after = function()
 			require("neocodeium").setup({
 				show_label = false,
@@ -121,10 +125,22 @@ require("pack").add({
 				},
 			})
 
-			keymap("i", "<C-f>", function() require("neocodeium").accept() end, "Accept suggestion")
-			keymap("i", "<A-w>", function() require("neocodeium").accept_word() end, "Accept word")
-			keymap("i", "<A-l>", function() require("neocodeium").accept_line() end, "Accept line")
-			keymap({ "n", "i" }, "<A-c>", function() require("neocodeium").clear() end, "Clear suggestion")
+			keymap("i", "<C-f>", function()
+				require("neocodeium").accept()
+			end, "Accept suggestion")
+			keymap("i", "<A-w>", function()
+				require("neocodeium").accept_word()
+			end, "Accept word")
+			keymap("i", "<A-l>", function()
+				require("neocodeium").accept_line()
+			end, "Accept line")
+			keymap({ "n", "i" }, "<A-c>", function()
+				require("neocodeium").clear()
+			end, "Clear suggestion")
 		end,
 	},
 })
+
+keymap({ "n", "v" }, "<leader>ac", "<cmd>CodeCompanionActions<cr>", "Code Companion Actions")
+keymap({ "n", "v" }, "<leader>aa", "<cmd>CodeCompanionChat Toggle<cr>", "Toggle Code Companion Chat")
+keymap("v", "ga", "<cmd>CodeCompanionChat Add<cr>", "Add to Chat")

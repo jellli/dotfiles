@@ -1,8 +1,12 @@
--- vim.pack.add({
--- 	"https://github.com/mason-org/mason.nvim",
--- })
---
--- require("mason").setup()
+require("pack").add({
+	{
+		src = "https://github.com/mason-org/mason.nvim",
+		cmd = "Mason",
+		after = function()
+			require("mason").setup()
+		end,
+	},
+})
 
 vim.g.inlay_hint = true
 local keymap = Jili.keymap

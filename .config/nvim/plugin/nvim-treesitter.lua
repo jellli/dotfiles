@@ -3,7 +3,6 @@ require("pack").add({
 	{
 		src = {
 			{ src = "https://github.com/nvim-treesitter/nvim-treesitter", version = "main" },
-			"https://github.com/wansmer/treesj",
 		},
 		sync = true,
 		on_pack_changed = function(args)
@@ -53,12 +52,6 @@ require("pack").add({
 						require("nvim-treesitter").install(to_install)
 						vim.notify("Installing " .. table.concat(to_install))
 					end
-
-					require("treesj").setup({
-						use_default_keymaps = false,
-						max_join_length = 200,
-					})
-					Jili.keymap("n", "<leader>sj", "<cmd>TSJToggle<cr>", "Toggle split/join")
 				end,
 				desc = "Treesitter lazy init",
 			})
@@ -75,4 +68,14 @@ require("pack").add({
 			})
 		end,
 	},
+	{
+		src = "https://github.com/wansmer/treesj",
+		after = function()
+			require("treesj").setup({
+				use_default_keymaps = false,
+				max_join_length = 200,
+			})
+		end,
+	},
 })
+Jili.keymap("n", "<leader>sj", "<cmd>TSJToggle<cr>", "Toggle split/join")

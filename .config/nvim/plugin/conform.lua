@@ -1,6 +1,7 @@
 require("pack").add({
 	{
 		src = "https://github.com/stevearc/conform.nvim",
+		event = "BufReadPost",
 		after = function()
 			require("conform").setup({
 				format_on_save = {

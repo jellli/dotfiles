@@ -78,7 +78,6 @@ require("pack").add({
 					},
 				},
 			})
-
 			local keymap = Jili.keymap
 
 			keymap("n", "<leader><leader>", "<cmd>FzfLua files<cr>")

@@ -5,6 +5,7 @@ require("pack").add({
 			{ src = "https://github.com/saghen/blink.cmp", version = vim.version.range("^1") },
 			"https://github.com/abecodes/tabout.nvim",
 		},
+		event = { "InsertEnter", "CmdlineEnter" },
 		on_pack_changed = function(args)
 			if (args.kind == "install" or args.kind == "update") and args.path == "blink.cmp" then
 				vim.system({ "cargo +nightly build --release" }, { cwd = args.path })

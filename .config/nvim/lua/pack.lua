@@ -4,11 +4,21 @@
 ---@field after? function
 ---@field sync? boolean
 ---@field on_pack_changed? function
+---@field event? vim.api.keyset.events|vim.api.keyset.events[]
+---@field cmd? string|string[]
+
+---@class Loader
+---@field try_load function
+---@field on_cleanup function
 
 local M = {}
-local queue = {}
+local H = {}
 
-local function call_or_skip(f)
+local load_pack_group = vim.api.nvim_create_augroup("LoadPack", { clear = false })
+local pack_changed_group = vim.api.nvim_create_augroup("PackChanged", { clear = false })
+H.queue = {}
+
+function H.call_or_skip(f)
 	if type(f) == "function" then
 		local ok, err = pcall(f)
 		if not ok then
@@ -17,13 +27,67 @@ local function call_or_skip(f)
 	end
 end
 
-local function as_list(v)
+function H.as_list(v)
 	return type(v) == "string" and { v } or v
 end
 
-local pack_changed_group = vim.api.nvim_create_augroup("PackChanged", { clear = false })
---- @param spec PackSpec
-local function load_spec(spec)
+---@param spec PackSpec
+function H.make_loader(spec)
+	local loaded = false
+	local cleanups = {}
+	return {
+		try_load = function()
+			if loaded then
+				return
+			end
+			loaded = true
+			for _, fn in ipairs(cleanups) do
+				fn()
+			end
+			cleanups = {}
+			H.load_spec(spec)
+		end,
+		on_cleanup = function(fn)
+			cleanups[#cleanups + 1] = fn
+		end,
+	}
+end
+
+---@param spec PackSpec
+---@param loader Loader
+function H.register_event(spec, loader)
+	if not spec.event then
+		return
+	end
+	local au_id = vim.api.nvim_create_autocmd(spec.event, {
+		group = load_pack_group,
+		once = true,
+		callback = loader.try_load,
+	})
+	loader.on_cleanup(function()
+		pcall(vim.api.nvim_del_autocmd, au_id)
+	end)
+end
+
+---@param spec PackSpec
+---@param loader Loader
+function H.register_cmd(spec, loader)
+	if not spec.cmd then
+		return
+	end
+	for _, c in ipairs(H.as_list(spec.cmd)) do
+		vim.api.nvim_create_user_command(c, function(args)
+			loader.try_load()
+			vim.api.nvim_cmd({ cmd = c, args = args.fargs, bang = args.bang }, {})
+		end, { nargs = "*", bang = true })
+		loader.on_cleanup(function()
+			pcall(vim.api.nvim_del_user_command, c)
+		end)
+	end
+end
+
+---@param spec PackSpec
+function H.register_pack_changed(spec)
 	if type(spec.on_pack_changed) == "function" then
 		vim.api.nvim_create_autocmd("PackChanged", {
 			group = pack_changed_group,
@@ -36,34 +100,43 @@ local function load_spec(spec)
 			end,
 		})
 	end
-	call_or_skip(spec.before)
+end
+
+--- @param spec PackSpec
+function H.load_spec(spec)
+	H.call_or_skip(spec.before)
+	H.register_pack_changed(spec)
 	vim.pack.add(spec.src)
-	call_or_skip(spec.after)
+	H.call_or_skip(spec.after)
 end
 
 --- Add a new item to the collection
 --- @param spec_list PackSpec[]
 function M.add(spec_list)
 	for _, spec in ipairs(spec_list) do
-		spec.src = as_list(spec.src)
+		spec.src = H.as_list(spec.src)
 		-- sync or past VimEnter → load immediately, else defer to VimEnter
 		if spec.sync or vim.v.vim_did_enter == 1 then
-			load_spec(spec)
+			H.load_spec(spec)
+		elseif spec.event or spec.cmd then
+			local loader = H.make_loader(spec)
+			H.register_event(spec, loader)
+			H.register_cmd(spec, loader)
 		else
-			table.insert(queue, spec)
+			table.insert(H.queue, spec)
 		end
 	end
 end
 
 function M.create_autocmd()
 	Jili.autocmd("VimEnter", {
-    once = true,
+		once = true,
 		callback = function()
-			local q = queue
-			queue = {}
+			local q = H.queue
+			H.queue = {}
 			vim.schedule(function()
 				for _, spec in ipairs(q) do
-					load_spec(spec)
+					H.load_spec(spec)
 				end
 			end)
 		end,
