@@ -62,7 +62,9 @@ require("pack").add({
 					vim.wo.foldexpr = "v:lua.vim.treesitter.foldexpr()"
 					vim.wo.foldmethod = "expr"
 					vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
-					vim.treesitter.start(ev.buf)
+					vim.schedule(function()
+						pcall(vim.treesitter.start, ev.buf)
+					end)
 				end,
 				desc = "Treesitter start",
 			})
@@ -70,6 +72,7 @@ require("pack").add({
 	},
 	{
 		src = "https://github.com/wansmer/treesj",
+		cmd = "TSJToggle",
 		after = function()
 			require("treesj").setup({
 				use_default_keymaps = false,
