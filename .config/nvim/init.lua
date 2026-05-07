@@ -31,11 +31,12 @@ require("keymaps")
 require("autocmds")
 require("statusline")
 require("winbar")
+require("pack").create_autocmd()
+require("command")
 
 require("vim._core.ui2").enable({
 	msg = {
 		targets = "msg",
 	},
 })
-
-require("pack").create_autocmd()
+vim.cmd("colorscheme ex-gruvbox-material")
