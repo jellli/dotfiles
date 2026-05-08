@@ -1,6 +1,13 @@
 require("pack").add({
 	{
 		src = "https://github.com/windwp/nvim-ts-autotag",
+		filetype = {
+			"html",
+			"xml",
+			"javascript",
+			"javascriptreact",
+			"typescriptreact",
+		},
 		after = function()
 			require("nvim-ts-autotag").setup({
 				opts = {

@@ -1,6 +1,8 @@
 require("pack").add({
 	{
 		src = "https://github.com/MeanderingProgrammer/render-markdown.nvim",
+		event = "FileType",
+		filetype = { "codecompanion", "codecompanion_input", "markdown", "nvim-pack" },
 		after = function()
 			require("render-markdown").setup({
 				render_modes = true,

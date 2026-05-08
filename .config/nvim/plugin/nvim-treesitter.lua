@@ -4,7 +4,7 @@ require("pack").add({
 		src = {
 			{ src = "https://github.com/nvim-treesitter/nvim-treesitter", version = "main" },
 		},
-		event = "BufReadPost",
+		event = "BufReadPre",
 		on_pack_changed = function(args)
 			if args.name == "nvim-treesitter" and args.kind == "update" then
 				if not args.active then

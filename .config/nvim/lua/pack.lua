@@ -6,6 +6,7 @@
 ---@field sync? boolean
 ---@field on_pack_changed? function
 ---@field event? vim.api.keyset.events|vim.api.keyset.events[]
+---@field filetype? string|string[]
 ---@field cmd? string|string[]
 
 ---@class Loader
@@ -43,7 +44,7 @@ function H.make_loader(spec)
 				return
 			end
 			loaded = true
-			H.loaders[spec] = nil
+			H.loaders[spec.id or spec] = nil
 			for _, fn in ipairs(cleanups) do
 				fn()
 			end
@@ -56,34 +57,30 @@ function H.make_loader(spec)
 	}
 end
 
----@param spec PackSpec
+---@param event vim.api.keyset.events|vim.api.keyset.events[]
 ---@param loader Loader
-function H.register_event(spec, loader)
-	if not spec.event then
-		return
-	end
-	local au_id = vim.api.nvim_create_autocmd(spec.event, {
+---@param pattern? string|string[]
+function H.register_event(event, loader, pattern)
+	local au_id = vim.api.nvim_create_autocmd(event, {
 		group = load_pack_group,
 		once = true,
 		callback = loader.try_load,
+		pattern = pattern,
 	})
 	loader.on_cleanup(function()
 		pcall(vim.api.nvim_del_autocmd, au_id)
 	end)
 end
 
----@param spec PackSpec
+---@param cmd string|string[]
 ---@param loader Loader
-function H.register_cmd(spec, loader)
-	if not spec.cmd then
-		return
-	end
-	for _, c in ipairs(H.as_list(spec.cmd)) do
+function H.register_cmd(cmd, loader)
+	for _, c in ipairs(H.as_list(cmd)) do
 		vim.api.nvim_create_user_command(c, function(args)
 			loader.try_load()
 			-- vim.api.nvim_cmd({ cmd = c, args = args.fargs, bang = args.bang }, {})
-      local command = c .. (args.bang and '!' or '')
-      vim.cmd(command .. ' ' .. table.concat(args.fargs, ' '))
+			local command = c .. (args.bang and "!" or "")
+			vim.cmd(command .. " " .. table.concat(args.fargs, " "))
 		end, { nargs = "*", bang = true })
 		loader.on_cleanup(function()
 			pcall(vim.api.nvim_del_user_command, c)
@@ -111,6 +108,7 @@ end
 function H.load_spec(spec)
 	H.call_or_skip(spec.before)
 	H.register_pack_changed(spec)
+	---@diagnostic disable-next-line: param-type-mismatch
 	vim.pack.add(spec.src)
 	H.call_or_skip(spec.after)
 end
@@ -123,11 +121,21 @@ function M.add(spec_list)
 		-- sync or past VimEnter → load immediately, else defer to VimEnter
 		if spec.sync or vim.v.vim_did_enter == 1 then
 			H.load_spec(spec)
-		elseif spec.event or spec.cmd then
+		elseif spec.event or spec.cmd or spec.filetype then
 			local loader = H.make_loader(spec)
 			H.loaders[spec.id or spec] = loader
-			H.register_event(spec, loader)
-			H.register_cmd(spec, loader)
+
+			if spec.event then
+				H.register_event(spec.event, loader, nil)
+			end
+
+			if spec.cmd then
+				H.register_cmd(spec.cmd, loader)
+			end
+
+			if spec.filetype then
+				H.register_event("FileType", loader, spec.filetype)
+			end
 		else
 			table.insert(H.queue, spec)
 		end
@@ -135,10 +143,9 @@ function M.add(spec_list)
 end
 
 --- @param spec_or_id PackSpec | string
---- @return Loader
+--- @return Loader?
 function M.get_loader(spec_or_id)
-	local key = type(spec_or_id) == "string" and spec_or_id or spec_or_id
-	return H.loaders[key]
+	return H.loaders[spec_or_id]
 end
 
 function M.create_autocmd()
