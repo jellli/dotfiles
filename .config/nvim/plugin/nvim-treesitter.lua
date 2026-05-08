@@ -4,7 +4,7 @@ require("pack").add({
 		src = {
 			{ src = "https://github.com/nvim-treesitter/nvim-treesitter", version = "main" },
 		},
-		sync = true,
+		event = "BufReadPost",
 		on_pack_changed = function(args)
 			if args.name == "nvim-treesitter" and args.kind == "update" then
 				if not args.active then
@@ -62,9 +62,7 @@ require("pack").add({
 					vim.wo.foldexpr = "v:lua.vim.treesitter.foldexpr()"
 					vim.wo.foldmethod = "expr"
 					vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
-					vim.schedule(function()
-						pcall(vim.treesitter.start, ev.buf)
-					end)
+					vim.treesitter.start(ev.buf)
 				end,
 				desc = "Treesitter start",
 			})
