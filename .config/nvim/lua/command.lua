@@ -13,42 +13,6 @@ vim.api.nvim_create_user_command("GenColors", function()
 	vim.g.gruvbox_material_diagnostic_virtual_text = "colored"
 	vim.g.gruvbox_material_better_performance = 0
 
-	Jili.autocmd("ColorScheme", {
-		once = true,
-		pattern = "gruvbox-material",
-		callback = function()
-			local override = {
-				Visual = { bg = "#433e39" },
-				Directory = { link = "Special" },
-
-				FloatBorder = { link = "Winseparator" },
-				CursorLineNr = { link = "Red" },
-				CurrentWord = { link = "Visual" },
-
-				FlashMatch = { link = "DiagnosticWarn" },
-				FlashCurrent = { link = "DiagnosticInfo" },
-				FlashLabel = { link = "Cursor" },
-
-				BlinkCmpMenu = { link = "StdoutMsg" },
-				BlinkCmpMenuSelection = { link = "Visual" },
-
-				BlinkCmpLabelDescription = { link = "Comment" },
-				BlinkCmpSource = { link = "Comment" },
-				BlinkCmpLabelMatch = { link = "FloatTitle" },
-
-				BlinkCmpMenuBorder = { link = "FloatBorder" },
-				BlinkCmpDocBorder = { link = "FloatBorder" },
-				BlinkCmpSignatureHelpBorder = { link = "FloatBorder" },
-				FzfLuaBorder = { link = "FloatBorder" },
-
-				CodeCompanionChatInfoBanner = { link = "Substitute" },
-			}
-			for group, opts in pairs(override) do
-				vim.api.nvim_set_hl(0, group, opts)
-			end
-		end,
-	})
-
 	vim.pack.add({
 		"https://github.com/sainnhe/gruvbox-material",
 		"https://github.com/aileot/ex-colors.nvim",
@@ -56,6 +20,35 @@ vim.api.nvim_create_user_command("GenColors", function()
 
 	vim.cmd("colorscheme gruvbox-material")
 
+	local override = {
+		Visual = { bg = "#433e39" },
+		Directory = { link = "Special" },
+
+		FloatBorder = { link = "Winseparator" },
+		CursorLineNr = { link = "Red" },
+		CurrentWord = { link = "Visual" },
+
+		FlashMatch = { link = "DiagnosticWarn" },
+		FlashCurrent = { link = "DiagnosticInfo" },
+		FlashLabel = { link = "Cursor" },
+
+		BlinkCmpMenu = { link = "StdoutMsg" },
+		BlinkCmpMenuSelection = { link = "Visual" },
+
+		BlinkCmpLabelDescription = { link = "Comment" },
+		BlinkCmpSource = { link = "Comment" },
+		BlinkCmpLabelMatch = { link = "FloatTitle" },
+
+		BlinkCmpMenuBorder = { link = "FloatBorder" },
+		BlinkCmpDocBorder = { link = "FloatBorder" },
+		BlinkCmpSignatureHelpBorder = { link = "FloatBorder" },
+		FzfLuaBorder = { link = "FloatBorder" },
+
+		CodeCompanionChatInfoBanner = { link = "Substitute" },
+	}
+	for group, opts in pairs(override) do
+		vim.api.nvim_set_hl(0, group, opts)
+	end
 	local presets = require("ex-colors.presets")
 	local ansi = presets.hlgroup.convention.ansi_colors
 	local ansi_bold = vim.tbl_map(function(c)

@@ -15,10 +15,10 @@ require("pack").add({
 				extensions = {},
 				interactions = {
 					cmd = {
-						adapter = "bailian",
+						adapter = "deepseek",
 					},
 					inline = {
-						adapter = "bailian",
+						adapter = "deepseek",
 					},
 					chat = {
 						adapter = "deepseek",
