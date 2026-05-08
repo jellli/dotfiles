@@ -1,9 +1,12 @@
+local loaded = false
 require("pack").add({
 	{
 		src = "https://github.com/ibhagwan/fzf-lua",
+		cmd = "FzfLua",
+		id = "fzf-lua",
 		after = function()
 			local fzf = require("fzf-lua")
-
+			loaded = true
 			fzf.setup({
 				keymap = {
 					fzf = {
@@ -78,17 +81,25 @@ require("pack").add({
 					},
 				},
 			})
-			local keymap = Jili.keymap
-
-			keymap("n", "<leader><leader>", "<cmd>FzfLua files<cr>")
-			keymap("n", "<leader>so", "<cmd>FzfLua oldfiles<cr>")
-			keymap("n", "<leader>sh", "<cmd>FzfLua helptags<cr>")
-			keymap("n", "<leader>sg", "<cmd>FzfLua live_grep_native<cr>")
-			keymap("n", "<leader>sR", "<cmd>FzfLua resume<cr>")
-			keymap("n", "<leader>sB", "<cmd>FzfLua buffers<cr>")
-			keymap("n", "<leader>sb", "<cmd>FzfLua blines<cr>")
-			keymap("n", "<leader>sk", "<cmd>FzfLua keymaps<cr>")
-			keymap("i", "<c-x>p", "<cmd>FzfLua complete_path<cr>")
 		end,
 	},
 })
+
+local keymap = Jili.keymap
+
+keymap("n", "<leader><leader>", "<cmd>FzfLua files<cr>")
+keymap("n", "<leader>so", "<cmd>FzfLua oldfiles<cr>")
+keymap("n", "<leader>sh", "<cmd>FzfLua helptags<cr>")
+keymap("n", "<leader>sg", "<cmd>FzfLua live_grep_native<cr>")
+keymap("n", "<leader>sR", "<cmd>FzfLua resume<cr>")
+keymap("n", "<leader>sB", "<cmd>FzfLua buffers<cr>")
+keymap("n", "<leader>sb", "<cmd>FzfLua blines<cr>")
+keymap("n", "<leader>sk", "<cmd>FzfLua keymaps<cr>")
+keymap("i", "<c-x>p", "<cmd>FzfLua complete_path<cr>")
+
+vim.ui.select = function(...)
+	if not loaded then
+		require("pack").get_loader("fzf-lua").try_load()
+	end
+	vim.ui.select(...)
+end

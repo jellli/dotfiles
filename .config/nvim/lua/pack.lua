@@ -1,5 +1,6 @@
 ---@class PackSpec
 ---@field src string | (string|vim.pack.Spec)[]
+---@field id? string
 ---@field before? function
 ---@field after? function
 ---@field sync? boolean
@@ -17,6 +18,7 @@ local H = {}
 local load_pack_group = vim.api.nvim_create_augroup("LoadPack", { clear = false })
 local pack_changed_group = vim.api.nvim_create_augroup("PackChanged", { clear = false })
 H.queue = {}
+H.loaders = {}
 
 function H.call_or_skip(f)
 	if type(f) == "function" then
@@ -41,6 +43,7 @@ function H.make_loader(spec)
 				return
 			end
 			loaded = true
+			H.loaders[spec] = nil
 			for _, fn in ipairs(cleanups) do
 				fn()
 			end
@@ -120,12 +123,20 @@ function M.add(spec_list)
 			H.load_spec(spec)
 		elseif spec.event or spec.cmd then
 			local loader = H.make_loader(spec)
+			H.loaders[spec.id or spec] = loader
 			H.register_event(spec, loader)
 			H.register_cmd(spec, loader)
 		else
 			table.insert(H.queue, spec)
 		end
 	end
+end
+
+--- @param spec_or_id PackSpec | string
+--- @return Loader
+function M.get_loader(spec_or_id)
+	local key = type(spec_or_id) == "string" and spec_or_id or spec_or_id
+	return H.loaders[key]
 end
 
 function M.create_autocmd()
