@@ -3,6 +3,16 @@ local keymap = Jili.keymap
 local pack = require("pack")
 pack.add({
 	{
+		src = "https://github.com/carlos-algms/agentic.nvim",
+		event = "BufReadPre",
+		after = function()
+			-- pack.get_loader("render-markdown").try_load()
+			require("agentic").setup({
+				provider = "opencode-acp",
+			})
+		end,
+	},
+	{
 		src = { "https://github.com/nvim-lua/plenary.nvim", "https://github.com/olimorris/codecompanion.nvim" },
 		cmd = {
 			"CodeCompanion",
