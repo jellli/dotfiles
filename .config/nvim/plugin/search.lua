@@ -83,6 +83,24 @@ require("pack").add({
 			})
 		end,
 	},
+	{
+		src = "https://github.com/mhinz/vim-grepper",
+	},
+	{
+		src = {
+			"https://github.com/stevearc/quicker.nvim",
+			"https://github.com/kevinhwang91/nvim-bqf",
+		},
+		filetype = "qf",
+		after = function()
+			require("quicker").setup()
+			require("bqf").setup({
+				preview = {
+					border = "single",
+				},
+			})
+		end,
+	},
 })
 
 local keymap = Jili.keymap
@@ -103,3 +121,4 @@ vim.ui.select = function(...)
 	end
 	vim.ui.select(...)
 end
+

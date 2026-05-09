@@ -8,9 +8,7 @@ require("pack").add({
 		cmd = { "Git", "G" },
 	},
 	{
-		src = {
-			"https://github.com/lewis6991/gitsigns.nvim",
-		},
+		src = "https://github.com/lewis6991/gitsigns.nvim",
 		after = function()
 			require("gitsigns").setup({
 				current_line_blame = false,
@@ -18,6 +16,9 @@ require("pack").add({
 			})
 		end,
 	},
+	-- {
+	-- 	src = "https://github.com/akinsho/git-conflict.nvim",
+	-- },
 })
 
 local keymap = Jili.keymap

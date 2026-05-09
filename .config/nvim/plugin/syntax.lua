@@ -31,7 +31,6 @@ require("pack").add({
 				"yaml",
 				"zig",
 			}
-
 			local filetypes = {}
 			for _, lang in ipairs(langs) do
 				for _, ft in ipairs(vim.treesitter.language.get_filetypes(lang)) do
@@ -46,7 +45,6 @@ require("pack").add({
 					local is_not_installed = function(lang)
 						return #vim.api.nvim_get_runtime_file("parser/" .. lang .. ".*", false) == 0
 					end
-
 					local to_install = vim.tbl_filter(is_not_installed, langs)
 					if #to_install > 0 then
 						require("nvim-treesitter").install(to_install)
@@ -55,7 +53,6 @@ require("pack").add({
 				end,
 				desc = "Treesitter lazy init",
 			})
-
 			autocmd("FileType", {
 				pattern = filetypes,
 				callback = function(ev)
@@ -78,5 +75,31 @@ require("pack").add({
 			})
 		end,
 	},
+	{
+		src = "https://github.com/windwp/nvim-ts-autotag",
+		filetype = {
+			"html",
+			"xml",
+			"javascript",
+			"javascriptreact",
+			"typescriptreact",
+		},
+		after = function()
+			require("nvim-ts-autotag").setup({
+				opts = {
+					enable_close = true,
+					enable_rename = true,
+					enable_close_on_slash = true,
+				},
+			})
+		end,
+	},
+	{
+		src = "https://github.com/andymass/vim-matchup",
+		before = function()
+			vim.g.matchup_treesitter_stopline = 500
+		end,
+	},
 })
+
 Jili.keymap("n", "<leader>sj", "<cmd>TSJToggle<cr>", "Toggle split/join")

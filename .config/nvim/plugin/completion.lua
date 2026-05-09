@@ -5,6 +5,7 @@ require("pack").add({
 			{ src = "https://github.com/saghen/blink.cmp", version = vim.version.range("^1") },
 			"https://github.com/abecodes/tabout.nvim",
 		},
+		id = "completion",
 		event = { "InsertEnter", "CmdlineEnter" },
 		on_pack_changed = function(args)
 			if (args.kind == "install" or args.kind == "update") and args.path == "blink.cmp" then
@@ -41,7 +42,6 @@ require("pack").add({
 					completion = { menu = { auto_show = true } },
 				},
 			})
-			pcall(require, "codecompanion.providers.completion.blink.setup")
 			require("tabout").setup({})
 		end,
 	},

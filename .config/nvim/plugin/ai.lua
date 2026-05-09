@@ -1,6 +1,7 @@
 _G.CodeCompanionWinbar = nil
 local keymap = Jili.keymap
-require("pack").add({
+local pack = require("pack")
+pack.add({
 	{
 		src = { "https://github.com/nvim-lua/plenary.nvim", "https://github.com/olimorris/codecompanion.nvim" },
 		cmd = {
@@ -11,6 +12,7 @@ require("pack").add({
 			"CodeCompanionActions",
 		},
 		after = function()
+			pack.get_loader("completion").try_load()
 			require("codecompanion").setup({
 				extensions = {},
 				interactions = {
