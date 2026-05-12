@@ -97,6 +97,7 @@ require("pack").add({
 			require("bqf").setup({
 				preview = {
 					border = "single",
+					winblend = 0,
 				},
 			})
 		end,
@@ -121,4 +122,3 @@ vim.ui.select = function(...)
 	end
 	vim.ui.select(...)
 end
-
