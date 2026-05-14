@@ -3,16 +3,6 @@ local keymap = Jili.keymap
 local pack = require("pack")
 pack.add({
 	{
-		src = "https://github.com/carlos-algms/agentic.nvim",
-		event = "BufReadPre",
-		after = function()
-			-- pack.get_loader("render-markdown").try_load()
-			require("agentic").setup({
-				provider = "opencode-acp",
-			})
-		end,
-	},
-	{
 		src = { "https://github.com/nvim-lua/plenary.nvim", "https://github.com/olimorris/codecompanion.nvim" },
 		cmd = {
 			"CodeCompanion",
@@ -22,7 +12,40 @@ pack.add({
 			"CodeCompanionActions",
 		},
 		after = function()
-			pack.get_loader("completion").try_load()
+			local function get_op_key(key_name)
+				local cache_dir = vim.fn.stdpath("cache") .. "/op_api_keys"
+				local cache_file = cache_dir .. "/" .. key_name
+
+				local f = io.open(cache_file, "r")
+				if f then
+					local cached = f:read("*a")
+					f:close()
+					if cached and #cached > 0 then
+						return vim.trim(cached)
+					end
+				end
+
+				local obj = vim.system({
+					"op",
+					"read",
+					"op://apikey/" .. key_name .. "/credential",
+					"--no-newline",
+				}):wait()
+
+				local key = vim.trim(obj.stdout or "")
+				if key ~= "" then
+					vim.fn.mkdir(cache_dir, "p")
+					local wf = io.open(cache_file, "w")
+					if wf then
+						wf:write(key)
+						wf:close()
+					end
+				end
+
+				return key
+			end
+
+			-- pack.get_loader("completion").try_load()
 			require("codecompanion").setup({
 				extensions = {},
 				interactions = {
@@ -45,7 +68,9 @@ pack.add({
 							return require("codecompanion.adapters").extend("openai_compatible", {
 								formatted_name = "DeepSeek",
 								env = {
-									api_key = "cmd:op read op://apikey/DEEPSEEK_API_KEY/credential --no-newline",
+									api_key = function()
+										return get_op_key("DEEPSEEK_API_KEY")
+									end,
 									url = "https://api.deepseek.com",
 								},
 								schema = {
@@ -59,7 +84,9 @@ pack.add({
 							return require("codecompanion.adapters").extend("openai_compatible", {
 								formatted_name = "Kimi",
 								env = {
-									api_key = "cmd:op read op://apikey/KIMI_CODE_KEY/credential --no-newline",
+									api_key = function()
+										return get_op_key("KIMI_CODE_KEY")
+									end,
 									url = "https://api.moonshot.cn",
 								},
 								schema = {
@@ -73,7 +100,9 @@ pack.add({
 							return require("codecompanion.adapters").extend("openai_compatible", {
 								formatted_name = "Bailian",
 								env = {
-									api_key = "cmd:op read op://apikey/BAILIAN_API_KEY/credential --no-newline",
+									api_key = function()
+										return get_op_key("BAILIAN_API_KEY")
+									end,
 									url = "https://dashscope.aliyuncs.com/compatible-mode",
 								},
 								schema = {
