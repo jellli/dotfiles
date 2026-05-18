@@ -1,12 +1,14 @@
 local later = require("q").later
+local autocmd = Jili.autocmd
+local keymap = Jili.keymap
 
 later(function()
 	vim.pack.add({
 		"https://github.com/nvim-mini/mini.files",
 	})
 
-	local keymap = Jili.keymap
-	require("mini.files").setup({
+	local minifiles = require("mini.files")
+	minifiles.setup({
 		mappings = {
 			go_in_plus = "<cr>",
 		},
@@ -14,15 +16,15 @@ later(function()
 
 	local map_split = function(buf_id, lhs, direction)
 		local rhs = function()
-			local cur_target = MiniFiles.get_explorer_state().target_window
+			local cur_target = minifiles.get_explorer_state().target_window
 			local new_target = vim.api.nvim_win_call(cur_target, function()
 				vim.cmd(direction .. " split")
 				return vim.api.nvim_get_current_win()
 			end)
 
-			MiniFiles.set_target_window(new_target)
+			minifiles.set_target_window(new_target)
 
-			MiniFiles.go_in({
+			minifiles.go_in({
 				close_on_file = true,
 			})
 		end
@@ -31,17 +33,8 @@ later(function()
 		keymap("n", lhs, rhs, { buffer = buf_id, desc = desc })
 	end
 
-	vim.api.nvim_create_autocmd("User", {
-		pattern = "MiniFilesBufferCreate",
-		callback = function(args)
-			local buf_id = args.data.buf_id
-			map_split(buf_id, "<C-v>", "belowright vertical")
-			map_split(buf_id, "<C-t>", "tab")
-		end,
-	})
-
 	local yank_path = function(modifiers)
-		local path = (MiniFiles.get_fs_entry() or {}).path
+		local path = (minifiles.get_fs_entry() or {}).path
 		if path == nil then
 			return vim.notify("Cursor is not on valid entry")
 		end
@@ -49,32 +42,31 @@ later(function()
 	end
 
 	local ui_open = function()
-		vim.ui.open(MiniFiles.get_fs_entry().path)
+		vim.ui.open(minifiles.get_fs_entry().path)
 	end
 
-	vim.api.nvim_create_autocmd("User", {
+	autocmd("User", {
 		pattern = "MiniFilesBufferCreate",
 		callback = function(args)
-			local b = args.data.buf_id
-			keymap("n", "gx", ui_open, { buffer = b, desc = "OS open" })
+			local buf_id = args.data.buf_id
+
+			map_split(buf_id, "<C-v>", "belowright vertical")
+			map_split(buf_id, "<C-t>", "tab")
+
+			keymap("n", "gx", ui_open, { buffer = buf_id, desc = "OS open" })
 			keymap("n", "gy", function()
 				yank_path(":.")
-			end, { buffer = b, desc = "Yank path" })
+			end, { buffer = buf_id, desc = "Yank path" })
 			keymap("n", "gY", function()
 				yank_path(":p")
-			end, { buffer = b, desc = "Yank path" })
-			keymap(
-				"i",
-				"<c-s>",
-				"<esc><cmd>lua MiniFiles.synchronize()<cr>",
-				{ buffer = b, desc = "Yank path" }
-			)
+			end, { buffer = buf_id, desc = "Yank path" })
+			keymap("i", "<c-s>", "<esc><cmd>lua files.synchronize()<cr>", { buffer = b, desc = "Yank path" })
 		end,
 	})
 
 	vim.api.nvim_create_autocmd("User", {
 		desc = "Notify LSPs that a file was renamed",
-		pattern = { "MiniFilesActionRename", "MiniFilesActionMove" },
+		pattern = { "filesActionRename", "MiniFilesActionMove" },
 		callback = function(args)
 			local changes = {
 				files = {
@@ -84,8 +76,7 @@ later(function()
 					},
 				},
 			}
-			local will_rename_method, did_rename_method =
-				"workspace/willRenameFiles", "workspace/didRenameFiles"
+			local will_rename_method, did_rename_method = "workspace/willRenameFiles", "workspace/didRenameFiles"
 			local clients = vim.lsp.get_clients()
 			for _, client in ipairs(clients) do
 				if client:supports_method(will_rename_method) then
@@ -111,14 +102,14 @@ later(function()
 
 		if path and vim.uv.fs_stat(path) then
 			last_buf_name = bufname
-			require("mini.files").open(bufname, false)
+			minifiles.open(bufname, false)
 		else
 			if last_buf_name then
-				require("mini.files").open(last_buf_name, false)
+				minifiles.open(last_buf_name, false)
 			else
 				local cwd = vim.fn.getcwd()
 				last_buf_name = cwd
-				require("mini.files").open(cwd, false)
+				minifiles.open(cwd, false)
 			end
 		end
 	end, {

@@ -5,7 +5,6 @@ later(function()
 
 		"https://github.com/rafamadriz/friendly-snippets",
 		{ src = "https://github.com/saghen/blink.cmp", version = vim.version.range("^1") },
-		"https://github.com/abecodes/tabout.nvim",
 	})
 	require("blink-cmp").setup({
 		keymap = {
@@ -35,6 +34,13 @@ later(function()
 			sources = { "cmdline" },
 			completion = { menu = { auto_show = true } },
 		},
+	})
+	pcall(require, "codecompanion.providers.completion.blink.setup")
+end)
+
+later(function()
+	vim.pack.add({
+		"https://github.com/abecodes/tabout.nvim",
 	})
 	require("tabout").setup({})
 end)

@@ -6,7 +6,6 @@ later(function()
 	vim.pack.add({
 		"https://github.com/nvim-lua/plenary.nvim",
 		"https://github.com/olimorris/codecompanion.nvim",
-		"https://github.com/monkoose/neocodeium",
 	})
 
 	local function get_op_key(key_name)
@@ -42,7 +41,22 @@ later(function()
 		return key
 	end
 
-	require("codecompanion").setup({
+	local codecompanion = require("codecompanion")
+	codecompanion.setup({
+		display = {
+			chat = {
+				show_token_count = false,
+			},
+			action_palette = {
+				prompt = "Prompt ",
+				provider = "fzf_lua",
+				opts = {
+					show_preset_actions = false,
+					show_preset_prompts = true,
+					title = "",
+				},
+			},
+		},
 		extensions = {},
 		interactions = {
 			cmd = {
@@ -111,6 +125,9 @@ later(function()
 			},
 		},
 	})
+	keymap({ "n", "v" }, "<leader>ac", codecompanion.actions, "Code Companion Actions")
+	keymap({ "n", "v" }, "<leader>aa", codecompanion.toggle_chat, "Toggle Code Companion Chat")
+	keymap("v", "ga", codecompanion.add, "Add to Chat")
 
 	Jili.autocmd("FileType", {
 		pattern = "codecompanion",
@@ -145,8 +162,14 @@ later(function()
 			vim.wo.winbar = "%{%v:lua.CodeCompanionWinbar()%}"
 		end,
 	})
+end)
 
-	require("neocodeium").setup({
+later(function()
+	vim.pack.add({
+		"https://github.com/monkoose/neocodeium",
+	})
+	local neocodeium = require("neocodeium")
+	neocodeium.setup({
 		show_label = false,
 		silent = true,
 		filetypes = {
@@ -156,20 +179,8 @@ later(function()
 		},
 	})
 
-	keymap("i", "<C-f>", function()
-		require("neocodeium").accept()
-	end, "Accept suggestion")
-	keymap("i", "<A-w>", function()
-		require("neocodeium").accept_word()
-	end, "Accept word")
-	keymap("i", "<A-l>", function()
-		require("neocodeium").accept_line()
-	end, "Accept line")
-	keymap({ "n", "i" }, "<A-c>", function()
-		require("neocodeium").clear()
-	end, "Clear suggestion")
+	keymap("i", "<C-f>", neocodeium.accept, "Accept suggestion")
+	keymap("i", "<A-w>", neocodeium.accept_word, "Accept word")
+	keymap("i", "<A-l>", neocodeium.accept_line, "Accept line")
+	keymap({ "n", "i" }, "<A-c>", neocodeium.clear, "Clear suggestion")
 end)
-
-keymap({ "n", "v" }, "<leader>ac", "<cmd>CodeCompanionActions<cr>", "Code Companion Actions")
-keymap({ "n", "v" }, "<leader>aa", "<cmd>CodeCompanionChat Toggle<cr>", "Toggle Code Companion Chat")
-keymap("v", "ga", "<cmd>CodeCompanionChat Add<cr>", "Add to Chat")

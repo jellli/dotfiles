@@ -3,9 +3,6 @@ local later = require("q").later
 later(function()
 	vim.pack.add({
 		"https://github.com/ibhagwan/fzf-lua",
-		"https://github.com/mhinz/vim-grepper",
-		"https://github.com/stevearc/quicker.nvim",
-		"https://github.com/kevinhwang91/nvim-bqf",
 	})
 
 	local fzf = require("fzf-lua")
@@ -81,6 +78,29 @@ later(function()
 			},
 		},
 	})
+	local keymap = Jili.keymap
+
+	keymap("n", "<leader><leader>", fzf.files)
+	keymap("n", "<leader>so", fzf.oldfiles)
+	keymap("n", "<leader>sh", fzf.help_tags)
+	keymap("n", "<leader>sg", fzf.live_grep_native)
+	keymap("n", "<leader>sR", fzf.resume)
+	keymap("n", "<leader>sB", fzf.buffers)
+	keymap("n", "<leader>sb", fzf.blines)
+	keymap("n", "<leader>sk", fzf.keymaps)
+	keymap("n", "<leader>ss", fzf.lsp_document_symbols)
+	keymap("n", "<leader>sS", fzf.lsp_workspace_symbols)
+	keymap("n", "<leader>sd", fzf.diagnostics_document)
+	keymap("n", "<leader>sD", fzf.diagnostics_workspace)
+	keymap("i", "<c-x>p", fzf.complete_path)
+end)
+
+later(function()
+	vim.pack.add({
+		"https://github.com/mhinz/vim-grepper",
+		"https://github.com/stevearc/quicker.nvim",
+		"https://github.com/kevinhwang91/nvim-bqf",
+	})
 	require("quicker").setup()
 	require("bqf").setup({
 		preview = {
@@ -89,15 +109,3 @@ later(function()
 		},
 	})
 end)
-
-local keymap = Jili.keymap
-
-keymap("n", "<leader><leader>", "<cmd>FzfLua files<cr>")
-keymap("n", "<leader>so", "<cmd>FzfLua oldfiles<cr>")
-keymap("n", "<leader>sh", "<cmd>FzfLua helptags<cr>")
-keymap("n", "<leader>sg", "<cmd>FzfLua live_grep_native<cr>")
-keymap("n", "<leader>sR", "<cmd>FzfLua resume<cr>")
-keymap("n", "<leader>sB", "<cmd>FzfLua buffers<cr>")
-keymap("n", "<leader>sb", "<cmd>FzfLua blines<cr>")
-keymap("n", "<leader>sk", "<cmd>FzfLua keymaps<cr>")
-keymap("i", "<c-x>p", "<cmd>FzfLua complete_path<cr>")

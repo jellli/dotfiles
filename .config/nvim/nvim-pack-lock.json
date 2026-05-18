@@ -1,9 +1,5 @@
 {
   "plugins": {
-    "agentic.nvim": {
-      "rev": "6188ace5b5198d16e2586ce137c2852202cf4732",
-      "src": "https://github.com/carlos-algms/agentic.nvim"
-    },
     "blink.cmp": {
       "rev": "78336bc89ee5365633bcf754d93df01678b5c08f",
       "src": "https://github.com/saghen/blink.cmp",
@@ -77,10 +73,6 @@
       "rev": "42387c7fe68fc0b6e95eaf37f1bb76e7bffaa0d9",
       "src": "https://github.com/nvim-mini/mini.pairs"
     },
-    "miniharp.nvim": {
-      "rev": "a8fd9dadba00119f1d610936ef694515c448a47c",
-      "src": "https://github.com/vieitesss/miniharp.nvim"
-    },
     "neocodeium": {
       "rev": "bfe790d78e66adaa95cb50a8c75c64a752336e9c",
       "src": "https://github.com/monkoose/neocodeium"
@@ -149,10 +141,6 @@
     "vim-matchup": {
       "rev": "dccb2d12ef2a703d2f076b3cda36a3339449d1eb",
       "src": "https://github.com/andymass/vim-matchup"
-    },
-    "vim-repeat": {
-      "rev": "65846025c15494983dafe5e3b46c8f88ab2e9635",
-      "src": "https://github.com/tpope/vim-repeat"
     },
     "vim-startuptime": {
       "rev": "f10474b400c197787a0434548d842a2db583c333",

@@ -45,3 +45,4 @@ safe_load "zoxide"   'eval "$(zoxide init zsh)"'
 safe_load "fzf"      'source <(fzf --zsh)'
 setopt append_history inc_append_history share_history 
 export KEYTIMEOUT=1
+export EDITOR="nvim"
