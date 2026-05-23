@@ -210,6 +210,7 @@ autocmd({ "BufReadPost", "BufNewFile" }, {
 			"emmet_ls",
 			"vimdoc_ls",
 			"zls",
+			"bashls",
 		})
 	end,
 })
