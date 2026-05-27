@@ -85,7 +85,7 @@ later(function()
 						},
 						schema = {
 							model = {
-								default = "deepseek-v4-pro",
+								default = "deepseek-v4-flash",
 							},
 						},
 					})

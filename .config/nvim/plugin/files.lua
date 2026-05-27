@@ -60,7 +60,7 @@ later(function()
 			keymap("n", "gY", function()
 				yank_path(":p")
 			end, { buffer = buf_id, desc = "Yank path" })
-			keymap("i", "<c-s>", "<esc><cmd>lua files.synchronize()<cr>", { buffer = b, desc = "Yank path" })
+			keymap("i", "<c-s>", "<esc><cmd>lua MiniFiles.synchronize()<cr>", { buffer = buf_id, desc = "Yank path" })
 		end,
 	})
 
