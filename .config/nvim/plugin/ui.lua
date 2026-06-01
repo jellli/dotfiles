@@ -1,11 +1,4 @@
 local later = require("q").later
-local now = require("q").now
-
-now(function()
-	vim.pack.add({
-		"https://github.com/rachartier/tiny-cmdline.nvim",
-	})
-end)
 
 later(function()
 	vim.pack.add({

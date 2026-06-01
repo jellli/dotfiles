@@ -6,7 +6,7 @@
       "version": "1.0.0 - 2.0.0"
     },
     "codecompanion.nvim": {
-      "rev": "fe792b30974893d8809b06c5e31c5c876c14bbc7",
+      "rev": "57989aca2e92083b16a2500ad47f285d82d5c43b",
       "src": "https://github.com/olimorris/codecompanion.nvim"
     },
     "codediff.nvim": {
@@ -14,7 +14,7 @@
       "src": "https://github.com/esmuellert/codediff.nvim"
     },
     "conform.nvim": {
-      "rev": "086a40dc7ed8242c03be9f47fbcee68699cc2395",
+      "rev": "619363c30309d29ffa631e67c8183f2a72caa373",
       "src": "https://github.com/stevearc/conform.nvim"
     },
     "dial.nvim": {
@@ -58,7 +58,7 @@
       "src": "https://github.com/mason-org/mason.nvim"
     },
     "mini.ai": {
-      "rev": "7e10ce8468c0fce4f527ae2c0e5c484f7667f73d",
+      "rev": "deacc8e9cf05df0297e3b14a08c2f8a415045c6f",
       "src": "https://github.com/nvim-mini/mini.ai"
     },
     "mini.clue": {
@@ -74,7 +74,7 @@
       "src": "https://github.com/nvim-mini/mini.pairs"
     },
     "neocodeium": {
-      "rev": "bfe790d78e66adaa95cb50a8c75c64a752336e9c",
+      "rev": "a1f73887af6cc4b09cb15cc96e0b72d7932552a5",
       "src": "https://github.com/monkoose/neocodeium"
     },
     "nvim-bqf": {
@@ -122,28 +122,25 @@
       "rev": "9a3499480a8e53dcaa665e2836f287e3b7764009",
       "src": "https://github.com/abecodes/tabout.nvim"
     },
-    "tiny-cmdline.nvim": {
-      "rev": "807d23bcb7cdf26da9e92c5ea5299e7f0d07383d",
-      "src": "https://github.com/rachartier/tiny-cmdline.nvim"
-    },
     "treesj": {
       "rev": "26bc2a8432ba3ea79ed6aa346fba780a3d372570",
       "src": "https://github.com/wansmer/treesj"
     },
+    "ts-enable.nvim": {
+      "rev": "caa312e0b1b1b2e99943792526d64445dcf74d48",
+      "src": "https://github.com/VonHeikemen/ts-enable.nvim",
+      "version": "'v2.x'"
+    },
     "vim-fugitive": {
       "rev": "3b753cf8c6a4dcde6edee8827d464ba9b8c4a6f0",
       "src": "https://github.com/tpope/vim-fugitive"
-    },
-    "vim-grepper": {
-      "rev": "acaaf32edaa11d82fb972d2af36b949ec3042928",
-      "src": "https://github.com/mhinz/vim-grepper"
     },
     "vim-matchup": {
       "rev": "dccb2d12ef2a703d2f076b3cda36a3339449d1eb",
       "src": "https://github.com/andymass/vim-matchup"
     },
     "vim-startuptime": {
-      "rev": "f10474b400c197787a0434548d842a2db583c333",
+      "rev": "5f33e50f1e2e2a80370c9094e4c303ea54cd2aea",
       "src": "https://github.com/dstein64/vim-startuptime"
     },
     "yanky.nvim": {

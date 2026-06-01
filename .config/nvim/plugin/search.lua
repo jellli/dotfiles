@@ -97,7 +97,6 @@ end)
 
 later(function()
 	vim.pack.add({
-		"https://github.com/mhinz/vim-grepper",
 		"https://github.com/stevearc/quicker.nvim",
 		"https://github.com/kevinhwang91/nvim-bqf",
 	})
