@@ -22,8 +22,8 @@
   },
   "colors": {
     "accent": "blue",
-    "border": "grey",
-    "borderAccent": "aqua",
+    "border": "yellow",
+    "borderAccent": "orange",
     "borderMuted": "dim",
     "success": "green",
     "error": "red",
@@ -72,9 +72,9 @@
 
     "thinkingOff": "dim",
     "thinkingMinimal": "grey",
-    "thinkingLow": "blue",
-    "thinkingMedium": "aqua",
-    "thinkingHigh": "purple",
+    "thinkingLow": "yellow",
+    "thinkingMedium": "orange",
+    "thinkingHigh": "red",
     "thinkingXhigh": "red",
 
     "bashMode": "yellow"
