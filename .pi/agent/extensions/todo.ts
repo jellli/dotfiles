@@ -5,12 +5,14 @@
  * next. Useful in any mode — plan, build, or none.
  *
  * Features:
- * - `todo` tool: add, list, toggle, clear actions
- * - `/todos` command: interactive TUI viewer
- * - Widget above editor showing checklist progress
- * - Footer status showing completion count
- * - State persisted via appendEntry, reconstructed on session start/tree
- * - Branch-aware: tool result details carry full state for correct /tree behavior
+ * - `todo` tool: create, update (status/text/activeForm), list (filtered), clear
+ * - 3-state status machine: pending → in_progress → completed
+ * - `/todos` command: interactive TUI viewer grouped by status
+ * - Widget above editor showing pending/in_progress/completed
+ * - Footer status showing active/completed counts
+ * - State persisted via toolResult details, replayed from branch on reload
+ * - Auto-hides completed tasks from widget after next agent turn
+ * - Handles session_start, session_tree, session_compact with stale-ctx guard
  */
 
 import type {
@@ -23,14 +25,17 @@ import { Type } from "typebox";
 
 // --- Types ---
 
-interface Todo {
+type TaskStatus = "pending" | "in_progress" | "completed";
+
+interface Task {
   id: number;
   text: string;
-  done: boolean;
+  status: TaskStatus;
+  activeForm?: string;
 }
 
-interface TodoState {
-  todos: Todo[];
+interface TaskState {
+  tasks: Task[];
   nextId: number;
 }
 
@@ -39,112 +44,237 @@ interface TodoState {
 const TodoParams = Type.Object({
   action: Type.Union(
     [
-      Type.Literal("add", { description: "Add a new todo" }),
-      Type.Literal("list", { description: "List all todos" }),
-      Type.Literal("toggle", { description: "Toggle a todo's done status" }),
-      Type.Literal("clear", { description: "Clear all todos" }),
+      Type.Literal("create", { description: "Create a new task" }),
+      Type.Literal("update", {
+        description: "Update a task's status, text, or activeForm",
+      }),
+      Type.Literal("list", {
+        description: "List all tasks, optionally filtered by status",
+      }),
+      Type.Literal("clear", { description: "Clear all tasks" }),
     ],
     { description: "Action to perform" },
   ),
   text: Type.Optional(
-    Type.String({ description: "Todo text (required for add)" }),
+    Type.String({ description: "Task text or subject (required for create)" }),
   ),
   id: Type.Optional(
-    Type.Number({ description: "Todo ID (required for toggle)" }),
+    Type.Number({ description: "Task ID (required for update)" }),
+  ),
+  status: Type.Optional(
+    Type.Union(
+      [
+        Type.Literal("pending"),
+        Type.Literal("in_progress"),
+        Type.Literal("completed"),
+      ],
+      { description: "Target status for update, or filter for list" },
+    ),
+  ),
+  activeForm: Type.Optional(
+    Type.String({
+      description:
+        "Present-continuous label shown in widget while in_progress (e.g. 'researching API')",
+    }),
+  ),
+  statusFilter: Type.Optional(
+    Type.Union(
+      [
+        Type.Literal("pending"),
+        Type.Literal("in_progress"),
+        Type.Literal("completed"),
+      ],
+      { description: "Filter list by status" },
+    ),
   ),
 });
 
 // --- State ---
 
-const MAX_WIDGET_ITEMS = 7;
+const MAX_WIDGET_ITEMS = 12;
 
-function createEmptyState(): TodoState {
-  return { todos: [], nextId: 1 };
+function createEmptyState(): TaskState {
+  return { tasks: [], nextId: 1 };
 }
 
-/**
- * Reconstruct state from the latest todo-state custom entry in the session.
- * Falls back to scanning tool results for backward compatibility.
- */
-function reconstructState(ctx: ExtensionContext): TodoState {
-  const entries = ctx.sessionManager.getEntries();
-
-  // Find the latest todo-state custom entry
-  for (let i = entries.length - 1; i >= 0; i--) {
-    const entry = entries[i] as {
-      type: string;
-      customType?: string;
-      data?: TodoState;
+/** Replay state from the last `todo` toolResult on the branch. */
+function replayFromBranch(ctx: ExtensionContext): TaskState {
+  for (const entry of ctx.sessionManager.getBranch()) {
+    const e = entry as {
+      type?: string;
+      message?: {
+        role?: string;
+        toolName?: string;
+        details?: { tasks?: Task[]; nextId?: number };
+      };
     };
-    if (
-      entry.type === "custom" &&
-      entry.customType === "todo-state" &&
-      entry.data
-    ) {
+    if (e.type !== "message") continue;
+    const msg = e.message;
+    if (msg?.role !== "toolResult" || msg.toolName !== "todo") continue;
+    if (!msg.details || !Array.isArray(msg.details.tasks)) continue;
+    return {
+      tasks: msg.details.tasks.map((t) => ({ ...t })),
+      nextId: msg.details.nextId ?? 1,
+    };
+  }
+  return createEmptyState();
+}
+
+// --- Pure reducer ---
+
+function applyMutation(
+  state: TaskState,
+  action: string,
+  params: {
+    text?: string;
+    id?: number;
+    status?: TaskStatus;
+    activeForm?: string;
+    statusFilter?: TaskStatus;
+  },
+): { state: TaskState; error?: string } {
+  switch (action) {
+    case "create": {
+      if (!params.text?.trim()) {
+        return { state, error: "text is required for create" };
+      }
+      const newTask: Task = {
+        id: state.nextId,
+        text: params.text.trim(),
+        status: "pending",
+        activeForm: params.activeForm,
+      };
       return {
-        todos: entry.data.todos ?? [],
-        nextId: entry.data.nextId ?? 1,
+        state: { tasks: [...state.tasks, newTask], nextId: state.nextId + 1 },
       };
     }
-  }
 
-  return createEmptyState();
+    case "update": {
+      if (params.id === undefined) {
+        return { state, error: "id is required for update" };
+      }
+      const idx = state.tasks.findIndex((t) => t.id === params.id);
+      if (idx === -1) {
+        return { state, error: `Task #${params.id} not found` };
+      }
+
+      // Validate status transition
+      if (params.status) {
+        const current = state.tasks[idx].status;
+        const valid = isValidTransition(current, params.status);
+        if (!valid) {
+          return {
+            state,
+            error: `Cannot transition from ${current} to ${params.status}`,
+          };
+        }
+      }
+
+      const updated = { ...state.tasks[idx] };
+      if (params.text !== undefined) updated.text = params.text;
+      if (params.status !== undefined) updated.status = params.status;
+      if (params.activeForm !== undefined)
+        updated.activeForm = params.activeForm;
+
+      const newTasks = [...state.tasks];
+      newTasks[idx] = updated;
+      return { state: { ...state, tasks: newTasks } };
+    }
+
+    case "list": {
+      return { state }; // no mutation — execute handler uses state directly
+    }
+
+    case "clear": {
+      return { state: createEmptyState() };
+    }
+
+    default:
+      return { state, error: `Unknown action: ${action}` };
+  }
+}
+
+function isValidTransition(from: TaskStatus, to: TaskStatus): boolean {
+  if (from === to) return true;
+  // Can go forward, but not back from completed
+  if (from === "completed") return false;
+  // pending <-> in_progress, either -> completed
+  return true;
 }
 
 // --- Widget ---
 
-function updateWidget(ctx: ExtensionContext, state: TodoState): void {
-  if (state.todos.length === 0) {
+/** IDs of tasks completed since the last agent_start — hidden from widget on next turn. */
+let recentlyCompletedIds: Set<number> = new Set();
+
+function updateWidget(ctx: ExtensionContext, state: TaskState): void {
+  if (state.tasks.length === 0) {
     ctx.ui.setWidget("todo-widget", undefined);
     return;
   }
 
-  const display = state.todos.slice(0, MAX_WIDGET_ITEMS);
-  const lines = display.map((todo) => {
-    if (todo.done) {
+  // Filter out recently-completed items (auto-hide after agent_start)
+  const visible = state.tasks.filter((t) => !recentlyCompletedIds.has(t.id));
+  if (visible.length === 0) {
+    ctx.ui.setWidget("todo-widget", undefined);
+    return;
+  }
+
+  const display = visible.slice(0, MAX_WIDGET_ITEMS);
+  const lines = display.map((task) => {
+    if (task.status === "completed") {
       return (
-        ctx.ui.theme.fg("success", "☑ ") +
+        ctx.ui.theme.fg("success", "✓ ") +
         ctx.ui.theme.fg(
           "muted",
-          ctx.ui.theme.strikethrough(`#${todo.id} ${todo.text}`),
+          ctx.ui.theme.strikethrough(`#${task.id} ${task.text}`),
         )
       );
     }
-    return `${ctx.ui.theme.fg("muted", "☐ ")}${ctx.ui.theme.fg("text", `#${todo.id} ${todo.text}`)}`;
+    if (task.status === "in_progress") {
+      const label = task.activeForm
+        ? ` ${ctx.ui.theme.fg("accent", task.activeForm)}`
+        : "";
+      return `${ctx.ui.theme.fg("accent", "◐")} ${ctx.ui.theme.fg("text", `#${task.id} ${task.text}`)}${label}`;
+    }
+    // pending
+    return `${ctx.ui.theme.fg("muted", "○")} ${ctx.ui.theme.fg("text", `#${task.id} ${task.text}`)}`;
   });
 
-  if (state.todos.length > MAX_WIDGET_ITEMS) {
-    const remaining = state.todos.length - MAX_WIDGET_ITEMS;
+  if (visible.length > MAX_WIDGET_ITEMS) {
+    const remaining = visible.length - MAX_WIDGET_ITEMS;
     lines.push(ctx.ui.theme.fg("dim", `...and ${remaining} more`));
   }
 
   ctx.ui.setWidget("todo-widget", lines);
 }
 
-function updateStatus(ctx: ExtensionContext, state: TodoState): void {
-  if (state.todos.length === 0) {
+function updateStatus(ctx: ExtensionContext, state: TaskState): void {
+  if (state.tasks.length === 0) {
     ctx.ui.setStatus("todo-status", undefined);
     return;
   }
 
-  const done = state.todos.filter((t) => t.done).length;
-  const total = state.todos.length;
-  ctx.ui.setStatus(
-    "todo-status",
-    ctx.ui.theme.fg("accent", `✓ ${done}/${total}`),
-  );
+  const done = state.tasks.filter((t) => t.status === "completed").length;
+  const active = state.tasks.filter((t) => t.status === "in_progress").length;
+  const total = state.tasks.length;
+  const parts: string[] = [];
+  if (active > 0) parts.push(ctx.ui.theme.fg("accent", `◐ ${active}`));
+  if (done > 0) parts.push(ctx.ui.theme.fg("success", `✓ ${done}`));
+  parts.push(ctx.ui.theme.fg("muted", `${total}`));
+  ctx.ui.setStatus("todo-status", parts.join(" "));
 }
 
 // --- TUI Component ---
 
 class TodoListComponent {
-  private state: TodoState;
+  private state: TaskState;
   private theme: Theme;
   private onClose: () => void;
   private cachedWidth?: number;
   private cachedLines?: string[];
 
-  constructor(state: TodoState, theme: Theme, onClose: () => void) {
+  constructor(state: TaskState, theme: Theme, onClose: () => void) {
     this.state = state;
     this.theme = theme;
     this.onClose = onClose;
@@ -166,7 +296,7 @@ class TodoListComponent {
     const add = (s: string) => lines.push(truncateToWidth(s, width));
 
     add("");
-    const title = theme.fg("accent", " Todos ");
+    const title = theme.fg("accent", " Tasks ");
     const headerLine =
       theme.fg("borderMuted", "─".repeat(3)) +
       title +
@@ -174,37 +304,82 @@ class TodoListComponent {
     add(headerLine);
     add("");
 
-    if (state.todos.length === 0) {
+    if (state.tasks.length === 0) {
       add(
         truncateToWidth(
-          `  ${theme.fg("dim", "No todos yet. Ask the agent to add some!")}`,
+          `  ${theme.fg("dim", "No tasks yet. Ask the agent to create some!")}`,
           width,
         ),
       );
     } else {
-      const done = state.todos.filter((t) => t.done).length;
-      const total = state.todos.length;
-      add(
-        truncateToWidth(
-          `  ${theme.fg("muted", `${done}/${total} completed`)}`,
-          width,
-        ),
-      );
+      const done = state.tasks.filter((t) => t.status === "completed").length;
+      const active = state.tasks.filter(
+        (t) => t.status === "in_progress",
+      ).length;
+      const pending = state.tasks.filter((t) => t.status === "pending").length;
+      const total = state.tasks.length;
+      const summary: string[] = [];
+      if (active > 0) summary.push(theme.fg("accent", `${active} active`));
+      summary.push(theme.fg("muted", `${done}/${total} completed`));
+      add(truncateToWidth(`  ${summary.join(" · ")}`, width));
       add("");
 
-      for (const todo of state.todos) {
-        const check = todo.done
-          ? theme.fg("success", "✓")
-          : theme.fg("dim", "○");
-        const id = theme.fg("accent", `#${todo.id}`);
-        const text = todo.done
-          ? theme.fg("dim", todo.text)
-          : theme.fg("text", todo.text);
-        add(truncateToWidth(`  ${check} ${id} ${text}`, width));
+      // Pending group
+      const pendingTasks = state.tasks.filter((t) => t.status === "pending");
+      if (pendingTasks.length > 0) {
+        add(truncateToWidth(`  ${theme.fg("dim", "── Pending ──")}`, width));
+        for (const t of pendingTasks) {
+          add(
+            truncateToWidth(
+              `  ${theme.fg("dim", "○")} ${theme.fg("accent", `#${t.id}`)} ${theme.fg("text", t.text)}`,
+              width,
+            ),
+          );
+        }
+        add("");
+      }
+
+      // In-progress group
+      const activeTasks = state.tasks.filter((t) => t.status === "in_progress");
+      if (activeTasks.length > 0) {
+        add(
+          truncateToWidth(
+            `  ${theme.fg("accent", "── In Progress ──")}`,
+            width,
+          ),
+        );
+        for (const t of activeTasks) {
+          const label = t.activeForm
+            ? ` ${theme.fg("accent", t.activeForm)}`
+            : "";
+          add(
+            truncateToWidth(
+              `  ${theme.fg("accent", "◐")} ${theme.fg("accent", `#${t.id}`)} ${theme.fg("text", t.text)}${label}`,
+              width,
+            ),
+          );
+        }
+        add("");
+      }
+
+      // Completed group
+      const doneTasks = state.tasks.filter((t) => t.status === "completed");
+      if (doneTasks.length > 0) {
+        add(
+          truncateToWidth(`  ${theme.fg("success", "── Completed ──")}`, width),
+        );
+        for (const t of doneTasks) {
+          add(
+            truncateToWidth(
+              `  ${theme.fg("success", "✓")} ${theme.fg("accent", `#${t.id}`)} ${theme.fg("dim", t.text)}`,
+              width,
+            ),
+          );
+        }
+        add("");
       }
     }
 
-    add("");
     add(
       truncateToWidth(`  ${theme.fg("dim", "Press Escape to close")}`, width),
     );
@@ -223,13 +398,25 @@ class TodoListComponent {
 
 // --- Extension ---
 
-export default function todoExtension(pi: ExtensionAPI): void {
-  let state: TodoState = createEmptyState();
+function isStaleCtxError(e: unknown): boolean {
+  return /stale after session replacement/.test(String(e));
+}
 
-  // Persist state as a custom session entry
-  function persistState(): void {
-    pi.appendEntry("todo-state", { ...state });
+function formatTaskLine(task: Task, theme: Theme): string {
+  if (task.status === "completed") {
+    return `${theme.fg("success", "✓")} ${theme.fg("accent", `#${task.id}`)} ${theme.fg("dim", task.text)}`;
   }
+  if (task.status === "in_progress") {
+    const label = task.activeForm
+      ? ` ${theme.fg("accent", task.activeForm)}`
+      : "";
+    return `${theme.fg("accent", "◐")} ${theme.fg("accent", `#${task.id}`)} ${theme.fg("text", task.text)}${label}`;
+  }
+  return `${theme.fg("dim", "○")} ${theme.fg("accent", `#${task.id}`)} ${theme.fg("text", task.text)}`;
+}
+
+export default function todoExtension(pi: ExtensionAPI): void {
+  let state: TaskState = createEmptyState();
 
   // Update UI (widget + status)
   function refreshUI(ctx: ExtensionContext): void {
@@ -242,100 +429,121 @@ export default function todoExtension(pi: ExtensionAPI): void {
     name: "todo",
     label: "Todo",
     description:
-      "Manage a todo list. Actions: add (text), list, toggle (id), clear.",
-    promptSnippet: "Track what to do next — add, list, toggle, or clear todos",
+      "Manage a task list for tracking multi-step progress. Actions: create (new task), update (change status/text/activeForm), list (all tasks, optionally filtered by status), clear (reset all). Status: pending → in_progress → completed.",
+    promptSnippet:
+      "Manage a task list to track multi-step progress — create, update status, list, or clear tasks",
     promptGuidelines: [
-      "Use todo to maintain a running checklist of tasks during multi-step work.",
-      "After completing a todo item, call todo with action toggle and the item's id to mark it done.",
-      "Call todo action list at the start of a new task sequence to check existing items.",
-      "When ALL tasks are done, call todo with action clear to clean up the UI.",
+      "Use `todo` for complex work with 3+ steps, when the user gives you a list of tasks, or immediately after receiving new instructions to capture requirements. Skip it for single trivial tasks and purely conversational requests.",
+      "When starting any task, mark it in_progress BEFORE beginning work. Mark it completed IMMEDIATELY when done — never batch completions. Exactly one task should be in_progress at a time.",
+      "Never mark a task completed if tests are failing, the implementation is partial, or you hit unresolved errors — keep it in_progress and create a new task for the blocker instead.",
+      "Task status is a 3-state machine: pending → in_progress → completed. Pass activeForm (present-continuous label, e.g. 'researching existing tool') when marking in_progress.",
+      "Use list to see all tasks, optionally filtered by status with statusFilter. Call clear only when ALL tasks are truly done.",
+      "Subject must be short and imperative (e.g. 'Research existing tool'); activeForm is a present-continuous label shown while in_progress.",
     ],
     parameters: TodoParams,
 
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-      switch (params.action) {
-        case "add": {
-          if (!params.text) {
-            return {
-              content: [
-                { type: "text", text: "Error: text is required for add" },
-              ],
-              details: { error: "text required" },
-            };
-          }
-          const newTodo: Todo = {
-            id: state.nextId++,
-            text: params.text,
-            done: false,
-          };
-          state.todos.push(newTodo);
-          persistState();
-          refreshUI(ctx);
+      const result = applyMutation(
+        state,
+        params.action as string,
+        params as Record<string, unknown>,
+      );
+
+      if (result.error) {
+        return {
+          content: [{ type: "text", text: `Error: ${result.error}` }],
+          details: {
+            error: result.error,
+            tasks: state.tasks,
+            nextId: state.nextId,
+          },
+        };
+      }
+
+      state = result.state;
+
+      // Persist: no custom entry — replay reads from toolResult details
+      refreshUI(ctx);
+
+      // Track newly-completed IDs for overlay auto-hide
+      if (
+        params.action === "update" &&
+        params.status === "completed" &&
+        params.id !== undefined
+      ) {
+        recentlyCompletedIds.add(params.id as number);
+      }
+
+      switch (params.action as string) {
+        case "create": {
+          const newTask = state.tasks[state.tasks.length - 1];
           return {
             content: [
               {
                 type: "text",
-                text: `Added todo #${newTodo.id}: ${newTodo.text}`,
+                text: `Created task #${newTask.id}: ${newTask.text} (${newTask.status})`,
               },
             ],
-            details: { ...state },
+            details: { tasks: state.tasks, nextId: state.nextId },
+          };
+        }
+
+        case "update": {
+          const task = state.tasks.find((t) => t.id === params.id);
+          return {
+            content: [
+              {
+                type: "text",
+                text: task
+                  ? `Task #${task.id} → ${task.status}${task.activeForm ? ` (${task.activeForm})` : ""}`
+                  : `Task #${params.id} updated`,
+              },
+            ],
+            details: { tasks: state.tasks, nextId: state.nextId },
           };
         }
 
         case "list": {
-          return {
-            content: [
-              {
-                type: "text",
-                text: state.todos.length
-                  ? state.todos
-                      .map((t) => `[${t.done ? "x" : " "}] #${t.id}: ${t.text}`)
-                      .join("\n")
-                  : "No todos",
-              },
-            ],
-            details: { ...state },
-          };
-        }
-
-        case "toggle": {
-          if (params.id === undefined) {
+          const filter = params.statusFilter as TaskStatus | undefined;
+          const display = filter
+            ? state.tasks.filter((t) => t.status === filter)
+            : state.tasks;
+          if (display.length === 0) {
             return {
               content: [
-                { type: "text", text: "Error: id is required for toggle" },
+                {
+                  type: "text",
+                  text: filter ? `No ${filter} tasks` : "No tasks",
+                },
               ],
-              details: { error: "id required", ...state },
+              details: { tasks: state.tasks, nextId: state.nextId },
             };
           }
-          const todo = state.todos.find((t) => t.id === params.id);
-          if (!todo) {
-            return {
-              content: [{ type: "text", text: `Todo #${params.id} not found` }],
-              details: { error: `#${params.id} not found`, ...state },
-            };
-          }
-          todo.done = !todo.done;
-          persistState();
-          refreshUI(ctx);
+          const header = filter
+            ? `Tasks (${filter}):`
+            : `${display.length} task(s):`;
+          const body = display
+            .map((t) => {
+              const s =
+                t.status === "completed"
+                  ? "x"
+                  : t.status === "in_progress"
+                    ? ">"
+                    : " ";
+              const af = t.activeForm ? ` (${t.activeForm})` : "";
+              return `[${s}] #${t.id}: ${t.text}${af}`;
+            })
+            .join("\n");
           return {
-            content: [
-              {
-                type: "text",
-                text: `Todo #${todo.id} ${todo.done ? "completed" : "uncompleted"}`,
-              },
-            ],
-            details: { ...state },
+            content: [{ type: "text", text: `${header}\n${body}` }],
+            details: { tasks: state.tasks, nextId: state.nextId },
           };
         }
 
         case "clear": {
-          const count = state.todos.length;
-          state = createEmptyState();
-          persistState();
-          refreshUI(ctx);
           return {
-            content: [{ type: "text", text: `Cleared ${count} todo(s)` }],
-            details: { ...state },
+            content: [{ type: "text", text: "All tasks cleared" }],
+            details: { tasks: state.tasks, nextId: state.nextId },
           };
         }
 
@@ -344,7 +552,7 @@ export default function todoExtension(pi: ExtensionAPI): void {
             content: [
               { type: "text", text: `Unknown action: ${params.action}` },
             ],
-            details: { ...state },
+            details: { tasks: state.tasks, nextId: state.nextId },
           };
       }
     },
@@ -356,12 +564,13 @@ export default function todoExtension(pi: ExtensionAPI): void {
       if (args.text) text += ` ${theme.fg("dim", `"${args.text}"`)}`;
       if (args.id !== undefined)
         text += ` ${theme.fg("accent", `#${args.id}`)}`;
+      if (args.status) text += ` ${theme.fg("muted", `→ ${args.status}`)}`;
       return new Text(text, 0, 0);
     },
 
     renderResult(result, { expanded }, theme, _context) {
       const details = result.details as
-        | (TodoState & { error?: string })
+        | { tasks?: Task[]; nextId?: number; error?: string }
         | undefined;
       if (!details) {
         const text = result.content[0];
@@ -372,40 +581,33 @@ export default function todoExtension(pi: ExtensionAPI): void {
         return new Text(theme.fg("error", `Error: ${details.error}`), 0, 0);
       }
 
-      const todos = details.todos ?? [];
+      const tasks = details.tasks ?? [];
       const action = (result.content[0] as { text?: string })?.text ?? "";
 
-      // For list action, show the full list
-      if (action.includes("No todos")) {
-        return new Text(theme.fg("dim", "No todos"), 0, 0);
+      if (action.startsWith("No") || action.startsWith("All")) {
+        return new Text(theme.fg("dim", action), 0, 0);
       }
 
-      if (todos.length > 0) {
-        let listText = theme.fg("muted", `${todos.length} todo(s):`);
-        const display = expanded ? todos : todos.slice(0, 5);
+      if (tasks.length > 0 && action.includes(":")) {
+        // list action
+        let listText = theme.fg("muted", action);
+        const display = expanded ? tasks : tasks.slice(0, 5);
         for (const t of display) {
-          const check = t.done
-            ? theme.fg("success", "✓")
-            : theme.fg("dim", "○");
-          const itemText = t.done
-            ? theme.fg("dim", t.text)
-            : theme.fg("muted", t.text);
-          listText += `\n${check} ${theme.fg("accent", `#${t.id}`)} ${itemText}`;
+          listText += `\n${formatTaskLine(t, theme)}`;
         }
-        if (!expanded && todos.length > 5) {
-          listText += `\n${theme.fg("dim", `... ${todos.length - 5} more`)}`;
+        if (!expanded && tasks.length > 5) {
+          listText += `\n${theme.fg("dim", `... ${tasks.length - 5} more`)}`;
         }
         return new Text(listText, 0, 0);
       }
 
-      // For add/toggle/clear, show the action result
       return new Text(theme.fg("success", action), 0, 0);
     },
   });
 
   // Register /todos command
   pi.registerCommand("todos", {
-    description: "Show all todos",
+    description: "Show all tasks, grouped by status",
     handler: async (_args, ctx) => {
       if (!ctx.hasUI) {
         ctx.ui.notify("/todos requires interactive mode", "error");
@@ -420,12 +622,28 @@ export default function todoExtension(pi: ExtensionAPI): void {
 
   // Reconstruct state on session events
   pi.on("session_start", async (_event, ctx) => {
-    state = reconstructState(ctx);
+    state = replayFromBranch(ctx);
+    recentlyCompletedIds = new Set();
     refreshUI(ctx);
   });
 
   pi.on("session_tree", async (_event, ctx) => {
-    state = reconstructState(ctx);
+    state = replayFromBranch(ctx);
     refreshUI(ctx);
+  });
+
+  pi.on("session_compact", async (_event, ctx) => {
+    try {
+      state = replayFromBranch(ctx);
+    } catch (e) {
+      if (!isStaleCtxError(e)) throw e;
+    }
+    if (ctx.hasUI) {
+      refreshUI(ctx);
+    }
+  });
+
+  pi.on("agent_start", async () => {
+    recentlyCompletedIds = new Set();
   });
 }
