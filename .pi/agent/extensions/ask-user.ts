@@ -106,7 +106,11 @@ interface ValidationResult {
 
 function validateParams(questions: Question[]): ValidationResult {
   if (questions.length === 0) {
-    return { ok: false, error: "no_questions", message: "At least one question is required" };
+    return {
+      ok: false,
+      error: "no_questions",
+      message: "At least one question is required",
+    };
   }
   if (questions.length > MAX_QUESTIONS) {
     return {
@@ -119,7 +123,11 @@ function validateParams(questions: Question[]): ValidationResult {
   const seenQuestions = new Set<string>();
   for (const q of questions) {
     if (seenQuestions.has(q.prompt)) {
-      return { ok: false, error: "duplicate_question", message: "Question text must be unique" };
+      return {
+        ok: false,
+        error: "duplicate_question",
+        message: "Question text must be unique",
+      };
     }
     seenQuestions.add(q.prompt);
 
@@ -166,7 +174,9 @@ function validateParams(questions: Question[]): ValidationResult {
 const OptionSchema = Type.Object({
   label: Type.String({ description: "Display text for the option" }),
   value: Type.Optional(
-    Type.String({ description: "Value returned when selected (defaults to label)" }),
+    Type.String({
+      description: "Value returned when selected (defaults to label)",
+    }),
   ),
   description: Type.Optional(
     Type.String({ description: "Optional description shown below the label" }),
@@ -176,7 +186,9 @@ const OptionSchema = Type.Object({
 const QuestionSchema = Type.Object({
   id: Type.String({ description: "Unique identifier for this question" }),
   label: Type.Optional(
-    Type.String({ description: "Short label for tab bar (defaults to Q1, Q2, etc.)" }),
+    Type.String({
+      description: "Short label for tab bar (defaults to Q1, Q2, etc.)",
+    }),
   ),
   prompt: Type.String({ description: "The question text to display" }),
   options: Type.Array(OptionSchema, {
@@ -185,7 +197,9 @@ const QuestionSchema = Type.Object({
     maxItems: MAX_OPTIONS,
   }),
   allowCustom: Type.Optional(
-    Type.Boolean({ description: "Allow user to type a custom answer (default: true)" }),
+    Type.Boolean({
+      description: "Allow user to type a custom answer (default: true)",
+    }),
   ),
   multiSelect: Type.Optional(
     Type.Boolean({
@@ -206,7 +220,10 @@ const ListOptionParams = Type.Object({
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
-function errorResult(message: string, questions: Question[] = []): {
+function errorResult(
+  message: string,
+  questions: Question[] = [],
+): {
   content: { type: "text"; text: string }[];
   details: ListOptionResult;
 } {
@@ -229,7 +246,8 @@ Each question supports 1–${MAX_OPTIONS} options with optional descriptions exp
 Per-option notes: users can press 'n' on a focused option to attach a free-text note — the note travels back with the answer. Results include any notes typed.
 
 Recommend a specific option by placing it first and appending "(Recommended)" to its label.`,
-    promptSnippet: "Present structured questions with selectable options; user picks one, types custom input, or adds notes",
+    promptSnippet:
+      "Present structured questions with selectable options; user picks one, types custom input, or adds notes",
     promptGuidelines: [
       `Use ask_user when the user's request is underspecified and you cannot proceed without concrete decisions — ask 1–${MAX_QUESTIONS} questions per invocation.`,
       "Each question needs 1–4 options with concise labels and descriptions explaining trade-offs. Users can type a custom answer via the auto-appended 'Type something.' row.",
@@ -241,12 +259,24 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
 
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       if (!ctx.hasUI) {
-        return errorResult("Error: UI not available (running in non-interactive mode)");
+        return errorResult(
+          "Error: UI not available (running in non-interactive mode)",
+        );
       }
 
       // Normalize
       const rawQuestions: Question[] = params.questions.map(
-        (q: { id: string; label?: string; prompt: string; options: Option[]; allowCustom?: boolean; multiSelect?: boolean }, i: number) => ({
+        (
+          q: {
+            id: string;
+            label?: string;
+            prompt: string;
+            options: Option[];
+            allowCustom?: boolean;
+            multiSelect?: boolean;
+          },
+          i: number,
+        ) => ({
           ...q,
           label: q.label || `Q${i + 1}`,
           allowCustom: q.allowCustom !== false,
@@ -340,7 +370,11 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
                 a.note = note.text;
               }
             }
-            done({ questions, answers: Array.from(answers.values()), cancelled });
+            done({
+              questions,
+              answers: Array.from(answers.values()),
+              cancelled,
+            });
           }
 
           function currentQuestion(): Question | undefined {
@@ -383,7 +417,13 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
             refresh();
           }
 
-          function saveAnswer(id: string, value: string, label: string, wasCustom: boolean, index?: number) {
+          function saveAnswer(
+            id: string,
+            value: string,
+            label: string,
+            wasCustom: boolean,
+            index?: number,
+          ) {
             answers.set(id, { id, value, label, wasCustom, index });
           }
 
@@ -485,7 +525,11 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
 
           // ─── Notes ──────────────────────────────────────────────
 
-          function startNoteForOption(questionId: string, optionIdx: number, optLabel: string) {
+          function startNoteForOption(
+            questionId: string,
+            optionIdx: number,
+            optLabel: string,
+          ) {
             const key = `${questionId}:${optionIdx}`;
             const existing = notesByOption.get(key);
             notesDraft = existing?.text ?? "";
@@ -579,7 +623,10 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
                 refresh();
                 return;
               }
-              if (matchesKey(data, Key.shift("tab")) || matchesKey(data, Key.left)) {
+              if (
+                matchesKey(data, Key.shift("tab")) ||
+                matchesKey(data, Key.left)
+              ) {
                 currentTab = (currentTab - 1 + totalTabs) % totalTabs;
                 optionIndex = 0;
                 refresh();
@@ -598,7 +645,12 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
             }
 
             // ── Notes toggle (single-select only) ──
-            if (data === "n" && q && !q.multiSelect && !isCurrentMultiSelect()) {
+            if (
+              data === "n" &&
+              q &&
+              !q.multiSelect &&
+              !isCurrentMultiSelect()
+            ) {
               const focused = opts[optionIndex];
               if (focused && !focused.isCustom) {
                 startNoteForOption(q.id, optionIndex, focused.label);
@@ -700,7 +752,13 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
                 editor.setText("");
                 refresh();
               } else {
-                saveAnswer(q.id, selected.value ?? selected.label, selected.label, false, selNum);
+                saveAnswer(
+                  q.id,
+                  selected.value ?? selected.label,
+                  selected.label,
+                  false,
+                  selNum,
+                );
                 advanceAfterAnswer();
               }
               return;
@@ -713,7 +771,13 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
                 editor.setText("");
                 refresh();
               } else {
-                saveAnswer(q.id, selected.value ?? selected.label, selected.label, false, optionIndex + 1);
+                saveAnswer(
+                  q.id,
+                  selected.value ?? selected.label,
+                  selected.label,
+                  false,
+                  optionIndex + 1,
+                );
                 advanceAfterAnswer();
               }
               return;
@@ -731,7 +795,7 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
 
             // ── Collapsed mode ──
             if (collapsed) {
-              const collapseMsg = ` ${theme.fg("dim", "Ctrl+] to expand · questions ")}${theme.fg("accent", isMulti ? `${questions.filter((qq) => answers.has(qq.id)).length}/${questions.length} answered` : currentQuestion()?.prompt ?? "")} `;
+              const collapseMsg = ` ${theme.fg("dim", "Ctrl+] to expand · questions ")}${theme.fg("accent", isMulti ? `${questions.filter((qq) => answers.has(qq.id)).length}/${questions.length} answered` : (currentQuestion()?.prompt ?? ""))} `;
               return [truncateToWidth(collapseMsg, width)];
             }
 
@@ -747,16 +811,19 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
                 const isActive = i === currentTab;
                 const isAnswered = answers.has(questions[i].id);
                 const lbl = questions[i].label;
-                const box = isAnswered ? "■" : "□";
-                const text = ` ${box} ${lbl} `;
+                const icon = isAnswered
+                  ? theme.fg("success", "●")
+                  : theme.fg("muted", "○");
+                const text = ` ${icon} ${lbl} `;
                 const styled = isActive
                   ? theme.bg("selectedBg", theme.fg("text", text))
                   : theme.fg(isAnswered ? "success" : "muted", text);
-                tabs.push(`${styled} `);
+                tabs.push(styled);
+                tabs.push(theme.fg("dim", "│"));
               }
               const canSubmit = allAnswered();
               const isSubmitTab = currentTab === questions.length;
-              const submitText = " ✓ Submit ";
+              const submitText = canSubmit ? ` ✓ Submit ` : ` Submit `;
               const submitStyled = isSubmitTab
                 ? theme.bg("selectedBg", theme.fg("text", submitText))
                 : theme.fg(canSubmit ? "success" : "dim", submitText);
@@ -767,55 +834,67 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
 
             // ── Submit tab ──
             if (currentTab === questions.length) {
-              add(theme.fg("accent", theme.bold(" Review & Submit")));
+              add(theme.fg("accent", theme.bold(" ── Review & Submit ──")));
               lines.push("");
               for (const question of questions) {
                 const answer = answers.get(question.id);
                 if (answer) {
-                  const prefix = answer.wasCustom ? "(custom) " : "";
-                  const noteSuffix = answer.note ? ` ${theme.fg("dim", `[note: ${answer.note}]`)}` : "";
+                  const prefix = answer.wasCustom
+                    ? theme.fg("muted", "(custom) ")
+                    : "";
+                  const noteSuffix = answer.note
+                    ? `  ${theme.fg("dim", `📝 ${answer.note}`)}`
+                    : "";
                   if (answer.values && answer.values.length > 1) {
                     const selections = answer
                       .labels!.map((l, i) => `${answer.indices![i]}. ${l}`)
                       .join(", ");
                     add(
-                      ` ${theme.fg("muted", `${question.label}: `)}${theme.fg("text", selections)}${noteSuffix}`,
+                      `  ${theme.fg("accent", theme.bold(`${question.label}: `))}${theme.fg("text", selections)}${noteSuffix}`,
                     );
                   } else {
                     add(
-                      ` ${theme.fg("muted", `${question.label}: `)}${theme.fg("text", prefix + answer.label)}${noteSuffix}`,
+                      `  ${theme.fg("accent", theme.bold(`${question.label}: `))}${prefix}${theme.fg("text", answer.label)}${noteSuffix}`,
                     );
                   }
                 } else {
                   add(
-                    ` ${theme.fg("muted", `${question.label}: `)}${theme.fg("warning", "unanswered")}`,
+                    `  ${theme.fg("accent", theme.bold(`${question.label}: `))}${theme.fg("warning", "(unanswered)")}`,
                   );
                 }
               }
               lines.push("");
               if (allAnswered()) {
-                add(theme.fg("success", " Press Enter to submit"));
+                add(theme.fg("success", "  Press Enter to submit"));
               } else {
-                add(theme.fg("warning", " Answer all questions first"));
+                add(theme.fg("warning", "  Answer all questions first"));
               }
             }
             // ── Question content ──
             else if (currentQuestion()) {
               const cq = currentQuestion()!;
               const isMultiSel = cq.multiSelect === true;
-              add(theme.fg("text", ` ${cq.prompt}`));
+              const prevAnswer = isMulti ? answers.get(cq.id) : undefined;
+              add(theme.fg("accent", theme.bold(` ❓ ${cq.prompt}`)));
               if (isMultiSel) {
                 const selectedCount = multiSelectState.get(cq.id)?.size ?? 0;
-                const customCount = customMultiSelectValues.get(cq.id)?.length ?? 0;
-                add(theme.fg("muted", ` (${selectedCount + customCount} selected)`));
+                const customCount =
+                  customMultiSelectValues.get(cq.id)?.length ?? 0;
+                const total = selectedCount + customCount;
+                if (total > 0) {
+                  add(theme.fg("success", `  (${total} selected)`));
+                }
+              } else if (prevAnswer) {
+                const label = prevAnswer.wasCustom
+                  ? prevAnswer.label
+                  : `${prevAnswer.index}. ${prevAnswer.label}`;
+                add(theme.fg("success", `  ✓ ${label}`));
               }
               lines.push("");
 
               const opts = currentOptions();
               const selIndices = multiSelectState.get(cq.id);
 
-              // Compute max prefix width for alignment
-              const numberWidth = String(opts.length).length;
               const customValues = customMultiSelectValues.get(cq.id) || [];
               let customDisplayIdx = 0;
 
@@ -830,53 +909,93 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
 
                 if (isMultiSel) {
                   const checkbox = isSelected ? theme.fg("success", "☑") : "☐";
-                  const prefix = isCursor ? theme.fg("accent", "❯ ") : "  ";
+                  const cursor = isCursor ? theme.fg("accent", "▸") : " ";
 
-                  if (isCustom && isSelected && customValues[customDisplayIdx]) {
+                  if (
+                    isCustom &&
+                    isSelected &&
+                    customValues[customDisplayIdx]
+                  ) {
                     const customVal = customValues[customDisplayIdx];
                     customDisplayIdx++;
                     if (editMode && isCursor) {
-                      add(prefix + checkbox + " " + theme.fg("accent", `${customVal} ✎`));
+                      add(
+                        ` ${cursor} ${checkbox} ${theme.fg("accent", `${customVal} ✎`)}`,
+                      );
                     } else {
-                      add(prefix + checkbox + " " + theme.fg("text", `${i + 1}. ${customVal}`));
+                      add(
+                        ` ${cursor} ${checkbox} ${theme.fg("text", customVal)}`,
+                      );
                     }
                   } else if (isCustom && editMode && isCursor) {
-                    add(prefix + checkbox + " " + theme.fg("accent", `${opt.label} ✎`));
+                    add(
+                      ` ${cursor} ${checkbox} ${theme.fg("accent", `${opt.label} ✎`)}`,
+                    );
                   } else if (isCustom) {
-                    add(prefix + checkbox + " " + theme.fg("text", `${i + 1}. ${opt.label}`));
+                    add(
+                      ` ${cursor} ${checkbox} ${theme.fg("muted", opt.label)}`,
+                    );
                   } else if (isCursor) {
-                    add(prefix + checkbox + " " + theme.fg("accent", `${i + 1}. ${opt.label}`));
+                    add(
+                      ` ${cursor} ${checkbox} ${theme.fg("accent", `${i + 1}. ${opt.label}`)}`,
+                    );
                   } else {
-                    add(`  ${checkbox} ${theme.fg("text", `${i + 1}. ${opt.label}`)}`);
+                    add(
+                      ` ${cursor} ${checkbox} ${theme.fg("text", `${i + 1}. ${opt.label}`)}`,
+                    );
                   }
                 } else {
-                  const prefix = isCursor ? theme.fg("accent", "❯ ") : "  ";
+                  const cursor = isCursor ? theme.fg("accent", "▸") : " ";
                   const noteMark = hasNote ? theme.fg("dim", " 📝") : "";
+                  const isPrevSelected =
+                    prevAnswer &&
+                    ((prevAnswer.index === i + 1 && !isCustom) ||
+                      (isCustom && prevAnswer.wasCustom));
 
                   if (isCustom && editMode) {
-                    add(prefix + theme.fg("accent", `${opt.label} ✎`));
+                    add(` ${cursor}  ${theme.fg("accent", `${opt.label} ✎`)}`);
+                  } else if (isCustom && isCursor) {
+                    add(` ${cursor}  ${theme.fg("accent", opt.label)}`);
+                  } else if (isCustom && isPrevSelected) {
+                    add(
+                      ` ${cursor}  ${theme.fg("success", `✎ ${prevAnswer!.label}`)}`,
+                    );
+                  } else if (isCustom) {
+                    add(` ${cursor}  ${theme.fg("muted", opt.label)}`);
+                  } else if (isPrevSelected) {
+                    add(
+                      ` ${cursor}  ${theme.fg("success", `◉ ${i + 1}. ${opt.label}${noteMark}`)}`,
+                    );
                   } else if (isCursor) {
-                    add(prefix + theme.fg("accent", `${i + 1}. ${opt.label}${noteMark}`));
+                    add(
+                      ` ${cursor}  ${theme.fg("accent", `○ ${i + 1}. ${opt.label}${noteMark}`)}`,
+                    );
                   } else {
-                    add(`  ${theme.fg("text", `${i + 1}. ${opt.label}${noteMark}`)}`);
+                    add(
+                      ` ${cursor}  ${theme.fg("muted", `○ ${i + 1}. ${opt.label}${noteMark}`)}`,
+                    );
                   }
                 }
 
                 // Description with word wrapping
                 if (opt.description) {
-                  const contentWidth = Math.max(1, width - 5);
-                  const wrapped = wrapTextWithAnsi(opt.description, contentWidth);
+                  const contentWidth = Math.max(1, width - 7);
+                  const wrapped = wrapTextWithAnsi(
+                    opt.description,
+                    contentWidth,
+                  );
                   for (const seg of wrapped) {
-                    add(`     ${theme.fg("muted", seg)}`);
+                    add(`      ${theme.fg("muted", seg)}`);
                   }
                 }
 
                 // Show note content inline when notes are active for this option
                 if (notesActive && noteForOption === noteKey) {
-                  const noteDisplay = notesDraft || theme.fg("dim", "type note here");
-                  add(`   ${theme.fg("warning", "📝")} ${noteDisplay}`);
+                  const noteDisplay =
+                    notesDraft || theme.fg("dim", "type note here");
+                  add(`      ${theme.fg("warning", "📝")} ${noteDisplay}`);
                 } else if (hasNote && noteEntry) {
-                  add(`   ${theme.fg("dim", `📝 ${noteEntry.text}`)}`);
+                  add(`      ${theme.fg("dim", `📝 ${noteEntry.text}`)}`);
                 }
               }
 
@@ -885,57 +1004,67 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
                 const doneIndex = opts.length;
                 const isDoneCursor = doneIndex === optionIndex;
                 const selectedCount = multiSelectState.get(cq.id)?.size ?? 0;
-                const customCount = customMultiSelectValues.get(cq.id)?.length ?? 0;
+                const customCount =
+                  customMultiSelectValues.get(cq.id)?.length ?? 0;
                 const totalCount = selectedCount + customCount;
-                const donePrefix = isDoneCursor ? theme.fg("accent", "❯ ") : "  ";
-                const doneLabel = totalCount > 0 ? `✓ Done (${totalCount} selected)` : "✓ Done";
-                add(donePrefix + theme.fg(totalCount > 0 ? "success" : "muted", doneLabel));
+                const doneCursor = isDoneCursor ? theme.fg("accent", "▸") : " ";
+                const doneLabel =
+                  totalCount > 0 ? `✓ Done (${totalCount} selected)` : "✓ Done";
+                add(
+                  ` ${doneCursor}  ${theme.fg(totalCount > 0 ? "success" : "muted", doneLabel)}`,
+                );
               }
             }
 
             // ── Input / notes editors ──
             if (notesActive) {
               lines.push("");
-              add(theme.fg("warning", " Note:"));
-              for (const line of editor.render(width - 2)) {
-                add(` ${line}`);
+              add(theme.fg("warning", theme.bold(" 📝 Note:")));
+              for (const line of editor.render(width - 4)) {
+                add(`   ${line}`);
               }
             } else if (editMode) {
               lines.push("");
-              add(theme.fg("muted", " Your answer:"));
-              for (const line of editor.render(width - 2)) {
-                add(` ${line}`);
+              add(theme.fg("accent", theme.bold(" ✎ Your answer:")));
+              for (const line of editor.render(width - 4)) {
+                add(`   ${line}`);
               }
             }
 
             // ── Help bar ──
             lines.push("");
+            const k = (key: string) => theme.fg("accent", key);
+            const d = (desc: string) => theme.fg("dim", desc);
+            const sep = theme.fg("dim", " • ");
             if (notesActive) {
-              add(theme.fg("dim", " Enter to save note • Esc to cancel"));
+              add(
+                `${k("Enter")} ${d("save note")}${sep}${k("Esc")} ${d("cancel")}`,
+              );
             } else if (editMode) {
-              add(theme.fg("dim", " Enter to submit • Esc to go back"));
+              add(
+                `${k("Enter")} ${d("submit")}${sep}${k("Esc")} ${d("go back")}`,
+              );
             } else if (currentTab === questions.length) {
-              add(theme.fg("dim", " Enter to submit • Esc to cancel • Ctrl+] collapse"));
+              add(
+                `${k("Enter")} ${d("submit")}${sep}${k("Esc")} ${d("cancel")}${sep}${k("Ctrl+]")} ${d("collapse")}`,
+              );
             } else if (isCurrentMultiSelect()) {
               add(
-                theme.fg(
-                  "dim",
-                  " ↑↓ navigate • Space/Enter toggle • 1-9 toggle • n note • a all • d none • Ctrl+] collapse • Esc cancel",
-                ),
+                `${k("↑↓")} ${d("navigate")}${sep}${k("Space/Enter")} ${d("toggle")}${sep}${k("1-9")} ${d("toggle")}${sep}${k("n")} ${d("note")}`,
+              );
+              add(
+                `${k("a")} ${d("all")}${sep}${k("d")} ${d("none")}${sep}${k("Ctrl+]")} ${d("collapse")}${sep}${k("Esc")} ${d("cancel")}`,
               );
             } else if (isMulti) {
               add(
-                theme.fg(
-                  "dim",
-                  " Tab/←→ switch • ↑↓ navigate • 1-9 pick • Enter select • n note • Ctrl+] collapse • Esc cancel",
-                ),
+                `${k("Tab/←→")} ${d("switch")}${sep}${k("↑↓")} ${d("navigate")}${sep}${k("1-9")} ${d("pick")}${sep}${k("Enter")} ${d("select")}`,
+              );
+              add(
+                `${k("n")} ${d("note")}${sep}${k("Ctrl+]")} ${d("collapse")}${sep}${k("Esc")} ${d("cancel")}`,
               );
             } else {
               add(
-                theme.fg(
-                  "dim",
-                  " ↑↓ navigate • 1-9 pick • Enter select • n note • Ctrl+] collapse • Esc cancel",
-                ),
+                `${k("↑↓")} ${d("navigate")}${sep}${k("1-9")} ${d("pick")}${sep}${k("Enter")} ${d("select")}${sep}${k("n")} ${d("note")}${sep}${k("Ctrl+]")} ${d("collapse")}${sep}${k("Esc")} ${d("cancel")}`,
               );
             }
 
@@ -949,19 +1078,31 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
             if (lines.length > termRows) {
               const topFixed = 1 + (isMulti ? 2 : 0); // top border + tabs (+ spacer)
               const bottomFixed = 2; // help bar + bottom border
-              const availableMiddle = Math.max(0, termRows - topFixed - bottomFixed);
+              const availableMiddle = Math.max(
+                0,
+                termRows - topFixed - bottomFixed,
+              );
 
               if (availableMiddle <= 0) {
                 return lines.slice(0, termRows);
               }
 
               const naturalMiddleLen = lines.length - topFixed - bottomFixed;
-              const scrollStart = Math.max(0, Math.min(
-                Math.floor(optionIndex * availableMiddle / Math.max(1, naturalMiddleLen)),
-                naturalMiddleLen - availableMiddle,
-              ));
+              const scrollStart = Math.max(
+                0,
+                Math.min(
+                  Math.floor(
+                    (optionIndex * availableMiddle) /
+                      Math.max(1, naturalMiddleLen),
+                  ),
+                  naturalMiddleLen - availableMiddle,
+                ),
+              );
 
-              const scrollableMiddle = lines.slice(topFixed + scrollStart, topFixed + scrollStart + availableMiddle);
+              const scrollableMiddle = lines.slice(
+                topFixed + scrollStart,
+                topFixed + scrollStart + availableMiddle,
+              );
 
               const hasUp = scrollStart > 0;
               const hasDown = scrollStart + availableMiddle < naturalMiddleLen;
@@ -973,7 +1114,10 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
                   scrollableMiddle[0] = theme.fg("dim", OVERFLOW_UP);
                 }
                 if (hasDown && scrollableMiddle.length > 0) {
-                  scrollableMiddle[scrollableMiddle.length - 1] = theme.fg("dim", OVERFLOW_DOWN);
+                  scrollableMiddle[scrollableMiddle.length - 1] = theme.fg(
+                    "dim",
+                    OVERFLOW_DOWN,
+                  );
                 }
               }
 
@@ -992,7 +1136,9 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
 
           return {
             render,
-            invalidate: () => { cachedLines = undefined; },
+            invalidate: () => {
+              cachedLines = undefined;
+            },
             handleInput,
           };
         },
@@ -1100,7 +1246,11 @@ Recommend a specific option by placing it first and appending "(Recommended)" to
         }
         const display = a.index ? `${a.index}. ${a.label}` : a.label;
         return (
-          theme.fg("success", "✓ ") + theme.fg("accent", a.id) + ": " + display + noteSuffix
+          theme.fg("success", "✓ ") +
+          theme.fg("accent", a.id) +
+          ": " +
+          display +
+          noteSuffix
         );
       });
       return new Text(answerLines.join("\n"), 0, 0);
