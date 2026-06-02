@@ -21,12 +21,9 @@ export default function (pi: ExtensionAPI) {
     process.on("exit", () => {
       // ANSI codes
       const reset = "\x1b[0m";
-      const dim = "\x1b[2m";
       const bold = "\x1b[1m";
-      const cyan = "\x1b[36m";
       const yellow = "\x1b[33m";
       const green = "\x1b[32m";
-      const gray = "\x1b[90m";
 
       const id = sessionId.slice(0, 8);
       const logo = (s: string) => `${bold}${s}${reset}`;

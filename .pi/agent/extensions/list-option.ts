@@ -33,14 +33,18 @@ interface Question {
   prompt: string;
   options: Option[];
   allowCustom?: boolean;
+  multiSelect?: boolean;
 }
 
 interface Answer {
   id: string;
   value: string;
+  values?: string[];
   label: string;
+  labels?: string[];
   wasCustom: boolean;
   index?: number;
+  indices?: number[];
 }
 
 interface ListOptionResult {
@@ -79,6 +83,13 @@ const QuestionSchema = Type.Object({
   allowCustom: Type.Optional(
     Type.Boolean({
       description: "Allow user to type a custom answer (default: true)",
+    }),
+  ),
+  multiSelect: Type.Optional(
+    Type.Boolean({
+      description:
+        "Allow selecting multiple options (default: false). " +
+        "When true, user can toggle options and confirm with Done.",
     }),
   ),
 });
@@ -151,6 +162,10 @@ export default function listOption(pi: ExtensionAPI) {
           let editMode = false;
           let cachedLines: string[] | undefined;
           const answers = new Map<string, Answer>();
+          // Track selected indices for multi-select questions
+          const multiSelectState = new Map<string, Set<number>>();
+          // Track custom values for multi-select questions
+          const customMultiSelectValues = new Map<string, string[]>();
 
           const editorTheme: EditorTheme = {
             borderColor: (s) => theme.fg("accent", s),
@@ -169,10 +184,28 @@ export default function listOption(pi: ExtensionAPI) {
             if (!q) return;
             const trimmed = value.trim();
             if (trimmed) {
-              saveAnswer(q.id, trimmed, trimmed, true);
+              if (q.multiSelect) {
+                // Multi-select: add custom answer to selection
+                // Custom answers are stored at the end of options
+                const customIdx = q.options.length;
+                let selected = multiSelectState.get(q.id);
+                if (!selected) {
+                  selected = new Set();
+                  multiSelectState.set(q.id, selected);
+                }
+                selected.add(customIdx);
+                // Store the custom value in a separate map
+                if (!customMultiSelectValues.has(q.id)) {
+                  customMultiSelectValues.set(q.id, []);
+                }
+                customMultiSelectValues.get(q.id)!.push(trimmed);
+              } else {
+                saveAnswer(q.id, trimmed, trimmed, true);
+                advanceAfterAnswer();
+              }
               editMode = false;
               editor.setText("");
-              advanceAfterAnswer();
+              refresh();
             } else {
               editMode = false;
               editor.setText("");
@@ -195,6 +228,11 @@ export default function listOption(pi: ExtensionAPI) {
 
           function currentQuestion(): Question | undefined {
             return questions[currentTab];
+          }
+
+          function isCurrentMultiSelect(): boolean {
+            const q = currentQuestion();
+            return q?.multiSelect === true;
           }
 
           function currentOptions(): DisplayOption[] {
@@ -237,6 +275,97 @@ export default function listOption(pi: ExtensionAPI) {
             index?: number,
           ) {
             answers.set(id, { id, value, label, wasCustom, index });
+          }
+
+          function saveMultiSelectAnswer(id: string) {
+            const q = questions.find((q) => q.id === id);
+            if (!q) return;
+            const selected = multiSelectState.get(id);
+            if (!selected || selected.size === 0) return;
+
+            const opts = q.options;
+            const values: string[] = [];
+            const labels: string[] = [];
+            const indices: number[] = [];
+            const customValues = customMultiSelectValues.get(id) || [];
+            let customIdx = 0;
+
+            for (const idx of selected) {
+              if (idx < opts.length) {
+                const opt = opts[idx];
+                values.push(opt.value ?? opt.label);
+                labels.push(opt.label);
+                indices.push(idx + 1);
+              } else if (q.allowCustom && idx === opts.length) {
+                // Custom option at the end
+                const customVal = customValues[customIdx];
+                if (customVal) {
+                  values.push(customVal);
+                  labels.push(customVal);
+                  indices.push(idx + 1);
+                  customIdx++;
+                }
+              }
+            }
+
+            if (values.length > 0) {
+              answers.set(id, {
+                id,
+                value: values[0],
+                values,
+                label: labels[0],
+                labels,
+                wasCustom: false,
+                index: indices[0],
+                indices,
+              });
+            }
+          }
+
+          function toggleSelection(idx: number) {
+            const q = currentQuestion();
+            if (!q) return;
+            let selected = multiSelectState.get(q.id);
+            if (!selected) {
+              selected = new Set();
+              multiSelectState.set(q.id, selected);
+            }
+            if (selected.has(idx)) {
+              selected.delete(idx);
+            } else {
+              selected.add(idx);
+            }
+            refresh();
+          }
+
+          function selectAll() {
+            const q = currentQuestion();
+            if (!q) return;
+            const opts = currentOptions();
+            const selected = new Set<number>();
+            // Select all non-custom options
+            for (let i = 0; i < opts.length; i++) {
+              if (!opts[i].isCustom) {
+                selected.add(i);
+              }
+            }
+            multiSelectState.set(q.id, selected);
+            refresh();
+          }
+
+          function deselectAll() {
+            const q = currentQuestion();
+            if (!q) return;
+            multiSelectState.delete(q.id);
+            customMultiSelectValues.delete(q.id);
+            refresh();
+          }
+
+          function confirmMultiSelect() {
+            const q = currentQuestion();
+            if (!q) return;
+            saveMultiSelectAnswer(q.id);
+            advanceAfterAnswer();
           }
 
           function handleInput(data: string) {
@@ -285,7 +414,82 @@ export default function listOption(pi: ExtensionAPI) {
               return;
             }
 
-            // --- Option navigation ---
+            // --- Multi-select mode ---
+            if (q && q.multiSelect) {
+              // The "Done" option is appended at the end
+              const doneIndex = opts.length;
+              const totalOptions = opts.length + 1; // +1 for Done
+
+              // Navigation
+              if (matchesKey(data, Key.up)) {
+                optionIndex = Math.max(0, optionIndex - 1);
+                refresh();
+                return;
+              }
+              if (matchesKey(data, Key.down)) {
+                optionIndex = Math.min(totalOptions - 1, optionIndex + 1);
+                refresh();
+                return;
+              }
+
+              // Number keys toggle selection (1-9)
+              const num = parseInt(data, 10);
+              if (num >= 1 && num <= opts.length) {
+                const opt = opts[num - 1];
+                if (opt.isCustom) {
+                  optionIndex = num - 1;
+                  editMode = true;
+                  editor.setText("");
+                  refresh();
+                } else {
+                  toggleSelection(num - 1);
+                }
+                return;
+              }
+
+              // Space or Enter on option toggles selection
+              if (
+                (matchesKey(data, Key.space) || matchesKey(data, Key.enter)) &&
+                optionIndex < doneIndex
+              ) {
+                const opt = opts[optionIndex];
+                if (opt.isCustom) {
+                  editMode = true;
+                  editor.setText("");
+                  refresh();
+                } else {
+                  toggleSelection(optionIndex);
+                }
+                return;
+              }
+
+              // Enter on Done confirms selection
+              if (matchesKey(data, Key.enter) && optionIndex === doneIndex) {
+                confirmMultiSelect();
+                return;
+              }
+
+              // 'a' or Ctrl+A selects all
+              if (data === "a" || matchesKey(data, Key.ctrl("a"))) {
+                selectAll();
+                return;
+              }
+
+              // 'd' or Ctrl+D deselects all
+              if (data === "d" || matchesKey(data, Key.ctrl("d"))) {
+                deselectAll();
+                return;
+              }
+
+              // Escape to cancel
+              if (matchesKey(data, Key.escape)) {
+                submit(true);
+              }
+              return;
+            }
+
+            // --- Single-select mode ---
+            // Option navigation
             if (matchesKey(data, Key.up)) {
               optionIndex = Math.max(0, optionIndex - 1);
               refresh();
@@ -387,9 +591,19 @@ export default function listOption(pi: ExtensionAPI) {
                 const answer = answers.get(question.id);
                 if (answer) {
                   const prefix = answer.wasCustom ? "(custom) " : "";
-                  add(
-                    ` ${theme.fg("muted", `${question.label}: `)}${theme.fg("text", prefix + answer.label)}`,
-                  );
+                  // Multi-select answer
+                  if (answer.values && answer.values.length > 1) {
+                    const selections = answer
+                      .labels!.map((l, i) => `${answer.indices![i]}. ${l}`)
+                      .join(", ");
+                    add(
+                      ` ${theme.fg("muted", `${question.label}: `)}${theme.fg("text", selections)}`,
+                    );
+                  } else {
+                    add(
+                      ` ${theme.fg("muted", `${question.label}: `)}${theme.fg("text", prefix + answer.label)}`,
+                    );
+                  }
                 } else {
                   add(
                     ` ${theme.fg("muted", `${question.label}: `)}${theme.fg("warning", "unanswered")}`,
@@ -406,27 +620,119 @@ export default function listOption(pi: ExtensionAPI) {
             // --- Question content ---
             else if (currentQuestion()) {
               const cq = currentQuestion()!;
+              const isMultiSel = cq.multiSelect === true;
               add(theme.fg("text", ` ${cq.prompt}`));
+              if (isMultiSel) {
+                const selectedCount = multiSelectState.get(cq.id)?.size ?? 0;
+                const customCount =
+                  customMultiSelectValues.get(cq.id)?.length ?? 0;
+                const totalCount = selectedCount + customCount;
+                add(
+                  theme.fg(
+                    "muted",
+                    ` (${totalCount} selected - press Space to toggle)`,
+                  ),
+                );
+              }
               lines.push("");
 
               const opts = currentOptions();
+              const selectedIndices = multiSelectState.get(cq.id);
+
+              const customValues = customMultiSelectValues.get(cq.id) || [];
+              let customDisplayIdx = 0;
+
               for (let i = 0; i < opts.length; i++) {
                 const opt = opts[i];
-                const selected = i === optionIndex;
+                const isCursor = i === optionIndex;
                 const isCustom = opt.isCustom === true;
-                const prefix = selected ? theme.fg("accent", "❯ ") : "  ";
+                const isSelected = selectedIndices?.has(i) ?? false;
 
-                if (isCustom && editMode) {
-                  add(prefix + theme.fg("accent", `${opt.label} ✎`));
-                } else if (selected) {
-                  add(prefix + theme.fg("accent", `${i + 1}. ${opt.label}`));
+                if (isMultiSel) {
+                  // Multi-select: show checkboxes
+                  const checkbox = isSelected ? theme.fg("success", "☑") : "☐";
+                  const prefix = isCursor ? theme.fg("accent", "❯ ") : "  ";
+
+                  if (isCustom) {
+                    // Show custom values that have been added
+                    if (isSelected && customValues[customDisplayIdx]) {
+                      const customVal = customValues[customDisplayIdx];
+                      customDisplayIdx++;
+                      if (editMode && isCursor) {
+                        add(
+                          prefix +
+                            checkbox +
+                            " " +
+                            theme.fg("accent", `${customVal} ✎`),
+                        );
+                      } else {
+                        add(
+                          prefix +
+                            checkbox +
+                            " " +
+                            theme.fg("text", `${i + 1}. ${customVal}`),
+                        );
+                      }
+                    } else if (editMode && isCursor) {
+                      add(
+                        prefix +
+                          checkbox +
+                          " " +
+                          theme.fg("accent", `${opt.label} ✎`),
+                      );
+                    } else {
+                      add(
+                        prefix +
+                          checkbox +
+                          " " +
+                          theme.fg("text", `${i + 1}. ${opt.label}`),
+                      );
+                    }
+                  } else if (isCursor) {
+                    add(
+                      prefix +
+                        checkbox +
+                        " " +
+                        theme.fg("accent", `${i + 1}. ${opt.label}`),
+                    );
+                  } else {
+                    add(
+                      `  ${checkbox} ${theme.fg("text", `${i + 1}. ${opt.label}`)}`,
+                    );
+                  }
                 } else {
-                  add(`  ${theme.fg("text", `${i + 1}. ${opt.label}`)}`);
+                  // Single-select: show radio style
+                  const prefix = isCursor ? theme.fg("accent", "❯ ") : "  ";
+
+                  if (isCustom && editMode) {
+                    add(prefix + theme.fg("accent", `${opt.label} ✎`));
+                  } else if (isCursor) {
+                    add(prefix + theme.fg("accent", `${i + 1}. ${opt.label}`));
+                  } else {
+                    add(`  ${theme.fg("text", `${i + 1}. ${opt.label}`)}`);
+                  }
                 }
 
                 if (opt.description) {
                   add(`     ${theme.fg("muted", opt.description)}`);
                 }
+              }
+
+              // Multi-select: add Done option
+              if (isMultiSel) {
+                const doneIndex = opts.length;
+                const isDoneCursor = doneIndex === optionIndex;
+                const selectedCount = multiSelectState.get(cq.id)?.size ?? 0;
+                const customCount =
+                  customMultiSelectValues.get(cq.id)?.length ?? 0;
+                const totalCount = selectedCount + customCount;
+                const donePrefix = isDoneCursor
+                  ? theme.fg("accent", "❯ ")
+                  : "  ";
+                const doneLabel =
+                  totalCount > 0 ? `✓ Done (${totalCount} selected)` : "✓ Done";
+                const doneColor = totalCount > 0 ? "success" : "muted";
+                add(donePrefix + theme.fg(doneColor, doneLabel));
               }
 
               if (editMode) {
@@ -444,6 +750,13 @@ export default function listOption(pi: ExtensionAPI) {
               add(theme.fg("dim", " Enter to submit • Esc to go back"));
             } else if (currentTab === questions.length) {
               add(theme.fg("dim", " Enter to submit • Esc to cancel"));
+            } else if (isCurrentMultiSelect()) {
+              add(
+                theme.fg(
+                  "dim",
+                  " ↑↓ navigate • Space/Enter toggle • 1-9 toggle • a select all • d deselect all • Esc cancel",
+                ),
+              );
             } else if (isMulti) {
               add(
                 theme.fg(
@@ -490,6 +803,13 @@ export default function listOption(pi: ExtensionAPI) {
         if (a.wasCustom) {
           return `${label}: user wrote: ${a.label}`;
         }
+        // Multi-select answer
+        if (a.values && a.values.length > 1) {
+          const selections = a
+            .labels!.map((l, i) => `${a.indices![i]}. ${l}`)
+            .join(", ");
+          return `${label}: user selected: ${selections}`;
+        }
         return `${label}: user selected: ${a.index}. ${a.label}`;
       });
 
@@ -504,10 +824,13 @@ export default function listOption(pi: ExtensionAPI) {
     renderCall(args, theme, _context) {
       const qs = (args.questions as Question[]) || [];
       if (qs.length === 1) {
+        const q = qs[0];
+        const multiLabel = q.multiSelect ? " [multi-select]" : "";
         let text =
           theme.fg("toolTitle", theme.bold("list_option ")) +
-          theme.fg("muted", qs[0].prompt);
-        const opts = qs[0].options || [];
+          theme.fg("muted", q.prompt) +
+          theme.fg("dim", multiLabel);
+        const opts = q.options || [];
         if (opts.length) {
           const labels = opts.map((o: Option) => o.label);
           const numbered = labels.map((o, i) => `${i + 1}. ${o}`);
@@ -518,6 +841,10 @@ export default function listOption(pi: ExtensionAPI) {
 
       let text = theme.fg("toolTitle", theme.bold("list_option "));
       text += theme.fg("muted", `${qs.length} questions`);
+      const multiCount = qs.filter((q) => q.multiSelect).length;
+      if (multiCount > 0) {
+        text += theme.fg("dim", ` (${multiCount} multi-select)`);
+      }
       const labels = qs.map((q) => q.label || q.id).join(", ");
       if (labels) {
         text += theme.fg("dim", ` (${truncateToWidth(labels, 40)})`);
@@ -543,6 +870,18 @@ export default function listOption(pi: ExtensionAPI) {
             ": " +
             theme.fg("muted", "(custom) ") +
             a.label
+          );
+        }
+        // Multi-select answer
+        if (a.values && a.values.length > 1) {
+          const selections = a
+            .labels!.map((l, i) => `${a.indices![i]}. ${l}`)
+            .join(", ");
+          return (
+            theme.fg("success", "✓ ") +
+            theme.fg("accent", a.id) +
+            ": " +
+            theme.fg("text", selections)
           );
         }
         const display = a.index ? `${a.index}. ${a.label}` : a.label;

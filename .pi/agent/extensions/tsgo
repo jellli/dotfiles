@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Drop-in replacement for `tsgo` in the extensions dir.
+# Auto-generates tsconfig.json from current pi installation before running tsgo.
+
+set -euo pipefail
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Resolve pi binary → package root
+PI_BIN=$(which pi)
+PI_REAL=$(node -e "console.log(require('fs').realpathSync('$PI_BIN'))")
+PKG_ROOT=$(dirname "$(dirname "$PI_REAL")")
+NESTED_NM="$PKG_ROOT/node_modules"
+
+# Generate tsconfig
+cat > "$DIR/tsconfig.json" <<EOF
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "paths": {
+      "*": ["$NESTED_NM/*"],
+      "@earendil-works/pi-coding-agent": ["$PKG_ROOT/dist/index.d.ts"],
+      "@earendil-works/pi-ai": ["$NESTED_NM/@earendil-works/pi-ai/dist/index.d.ts"],
+      "@earendil-works/pi-tui": ["$NESTED_NM/@earendil-works/pi-tui/dist/index.d.ts"],
+      "typebox": ["$NESTED_NM/typebox/build/index.d.mts"]
+    }
+  },
+  "include": ["./*.ts"]
+}
+EOF
+
+# Run tsgo with all passed args
+exec tsgo -p "$DIR/tsconfig.json" "$@"
