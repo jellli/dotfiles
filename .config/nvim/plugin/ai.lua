@@ -68,6 +68,17 @@ later(function()
 			chat = {
 				adapter = "deepseek",
 			},
+			cli = {
+				agent = "pi",
+				agents = {
+					pi = {
+						cmd = "pi",
+						args = {},
+						description = "Pi Coding Agent",
+						provider = "terminal",
+					},
+				},
+			},
 		},
 		opts = {
 			language = "Chinese",
@@ -126,7 +137,7 @@ later(function()
 		},
 	})
 	keymap({ "n", "v" }, "<leader>ac", codecompanion.actions, "Code Companion Actions")
-	keymap({ "n", "v" }, "<leader>aa", codecompanion.toggle_chat, "Toggle Code Companion Chat")
+	keymap({ "n", "v" }, "<leader>aa", codecompanion.toggle_cli, "Toggle Code Companion Chat")
 	keymap("v", "ga", codecompanion.add, "Add to Chat")
 
 	Jili.autocmd("FileType", {
