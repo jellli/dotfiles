@@ -4,6 +4,7 @@ later(function()
 	vim.pack.add({
 		"https://github.com/nvim-mini/mini.ai",
 		"https://github.com/nvim-mini/mini.pairs",
+		"https://github.com/nvim-mini/mini.input",
 		"https://github.com/kylechui/nvim-surround",
 		"https://github.com/gbprod/yanky.nvim",
 	})
@@ -23,6 +24,7 @@ later(function()
 		},
 		silent = true,
 	})
+	require("mini.input").setup({})
 	require("mini.pairs").setup({})
 	require("nvim-surround").setup({})
 	require("yanky").setup({
@@ -42,4 +44,12 @@ later(function()
 	keymap("n", "[p", "<Plug>(YankyPutIndentBeforeLinewise)", "Put Indented Before Cursor (Linewise)")
 	keymap("n", "]P", "<Plug>(YankyPutIndentAfterLinewise)", "Put Indented After Cursor (Linewise)")
 	keymap("n", "[P", "<Plug>(YankyPutIndentBeforeLinewise)", "Put Indented Before Cursor (Linewise)")
+
+	keymap("x", "(", "S)", { remap = true, desc = "Surround with ()'s" })
+	keymap("x", ")", "S)", { remap = true, desc = "Surround with ()'s" })
+	keymap("x", "{", "S}", { remap = true, desc = "Surround with {}'s" })
+	keymap("x", "}", "S}", { remap = true, desc = "Surround with {}'s" })
+	keymap("x", "[", "S]", { remap = true, desc = "Surround with []'s" })
+	keymap("x", "]", "S]", { remap = true, desc = "Surround with []'s" })
 end)
+

@@ -58,50 +58,7 @@ local function on_attach(client, bufnr)
 		{
 			method = "textDocument/rename",
 			key = "<leader>rn",
-			action = function()
-				local curr_name = vim.fn.expand("<cword>")
-				local win_width = #curr_name + 10
-
-				local buf = vim.api.nvim_create_buf(false, true)
-				local win = vim.api.nvim_open_win(buf, true, {
-					relative = "cursor",
-					width = win_width,
-					height = 1,
-					row = 1,
-					col = 0,
-					style = "minimal",
-					title = "New Name",
-				})
-
-				vim.api.nvim_buf_set_lines(buf, 0, -1, false, { curr_name })
-				vim.cmd("startinsert!")
-
-				local cleanup = function()
-					if vim.api.nvim_win_is_valid(win) then
-						vim.api.nvim_win_close(win, true)
-					end
-					vim.cmd("stopinsert")
-				end
-
-				keymap({ "n", "i" }, "<CR>", function()
-					local new_name = vim.trim(vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] or "")
-					vim.schedule(function()
-						cleanup()
-						if new_name ~= "" and new_name ~= curr_name then
-							vim.lsp.buf.rename(new_name)
-						end
-					end)
-				end, { buffer = buf })
-
-				keymap("n", "q", cleanup, { buffer = buf })
-				keymap("n", "<Esc>", cleanup, { buffer = buf })
-
-				autocmd("WinLeave", {
-					buffer = buf,
-					once = true,
-					callback = cleanup,
-				})
-			end,
+			action = vim.lsp.buf.rename,
 			desc = "Rename",
 		},
 	}
