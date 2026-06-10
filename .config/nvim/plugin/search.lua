@@ -14,11 +14,15 @@ later(function()
 		},
 		fzf_colors = {
 			border = { "fg", "FloatBorder" },
+			["fg+"] = { "fg", "CursorLine" },
+			["bg+"] = { "bg", "CursorLine" },
+			info = { "fg", "Comment" },
+			header = { "fg", "Comment" },
 			prompt = { "fg", "Comment" },
-			info = { "fg", "Special" },
 		},
 		fzf_opts = {},
 		defaults = {
+			header_prefix = "",
 			cwd_prompt = false,
 			formatter = "path.filename_first",
 			winopts = {
@@ -34,14 +38,27 @@ later(function()
 			winopts = { width = 0.5 },
 			previewer = false,
 			cwd_only = true,
+			git_icons = true,
 		},
 		oldfiles = {
 			winopts = { width = 0.5 },
 			previewer = false,
 			cwd_only = true,
 		},
+		grep = {
+			silent = true,
+			hidden = true,
+			multiline = 1,
+			rg_opts = "--glob='!.git'" .. fzf.defaults.grep.rg_opts,
+			actions = {
+				["ctrl-r"] = { fzf.actions.toggle_ignore },
+				["ctrl-h"] = { fzf.actions.toggle_hidden },
+				["ctrl-e"] = { fzf.win.toggle_fullscreen },
+			},
+		},
 		lsp = {
 			includeDeclaration = false,
+			multiline = 2,
 			---@diagnostic disable-next-line: missing-fields
 			code_actions = {
 				previewer = false,
@@ -83,7 +100,7 @@ later(function()
 	keymap("n", "<leader><leader>", fzf.files)
 	keymap("n", "<leader>so", fzf.oldfiles)
 	keymap("n", "<leader>sh", fzf.help_tags)
-	keymap("n", "<leader>sg", fzf.live_grep_native)
+	keymap("n", "<leader>sg", fzf.live_grep)
 	keymap("n", "<leader>sR", fzf.resume)
 	keymap("n", "<leader>sB", fzf.buffers)
 	keymap("n", "<leader>sb", fzf.blines)
@@ -92,6 +109,7 @@ later(function()
 	keymap("n", "<leader>sS", fzf.lsp_workspace_symbols)
 	keymap("n", "<leader>sd", fzf.diagnostics_document)
 	keymap("n", "<leader>sD", fzf.diagnostics_workspace)
+	keymap("n", "<c-m>", fzf.marks)
 	keymap("i", "<c-x>p", fzf.complete_path)
 end)
 
