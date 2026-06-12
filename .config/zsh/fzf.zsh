@@ -11,7 +11,6 @@ local color07='#fbf1c7'
 local color08='#ea6962'
 local color09='#e78a4e'
 local color0A='#d8a657'
-local color0B='#a9b665'
 local color0C='#89b482'
 local color0D='#7daea3'
 local color0E='#d3869b'
@@ -20,7 +19,7 @@ local color0F='#bd6f3e'
 export FZF_DEFAULT_OPTS="--color=bg+:-1,bg:-1,spinner:$color0C,hl:$color0D"\
 " --color=fg:$color04,header:$color0D,info:$color0A,pointer:$color0C"\
 " --color=marker:$color0C,fg+:$color06,prompt:$color0A,hl+:$color0D"\
-" --header-first --info=inline-right --highlight-line --layout=reverse"\
+" --info=inline-right --highlight-line --layout=reverse"\
 " --style=full:line"
 }
 
@@ -88,11 +87,35 @@ _fzf_npm_task_runner_widget() {
   fi
   
 }
-zle -N _fzf_nvim_widget
+_fzf_project_widget() {
+  local dir
+  output=$(zoxide query -l | \
+    awk -F/ '{printf "%3d %-40s %s\n", NR, $NF, $0} BEGIN {printf "%3s %-40s %s\n", "#", "Project", "Path"}' | \
+    fzf \
+    --popup \
+    --border=sharp \
+    --expect=ctrl-t,enter \
+    --header-lines=1 \
+    --footer="C-t: open in tmuxinator"
+  )
+  key=$(head -n 1 <<< "$output")
+  selected=$(tail -1 <<< "$output")
+  if [[ "$key" == "ctrl-t" ]]; then
+    dir=$(echo "$selected" | awk '{print $3}')
+    name=$(echo "$selected" | awk '{print $2}')
+    tmuxinator start frontend workspace="$dir" name="$name" || return
+  elif [[ "$key" == "enter" ]]; then
+    dir=$(echo "$selected" | awk '{print $3}')
+    cd "$dir" 
+    zle reset-prompt
+  fi
+}
+
+zle -N _fzf_project_widget
 zle -N _fzf_cd_widget
 zle -N _fzf_rg_widget
 zle -N _fzf_npm_task_runner_widget
-bindkey '^P' _fzf_nvim_widget
+bindkey '^P' _fzf_project_widget
 bindkey '^O' _fzf_cd_widget
 bindkey '^S' _fzf_rg_widget
 bindkey '^N' _fzf_npm_task_runner_widget

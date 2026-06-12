@@ -1,7 +1,20 @@
 local later = require("q").later
+local keymap = Jili.keymap
+
+vim.g.diffs = {
+	fugitive = {
+		horizontal = "du",
+		vertical = "dU",
+	},
+	integrations = {
+		fugitive = true,
+		gitsigns = true,
+	},
+}
 
 later(function()
 	vim.pack.add({
+		"https://github.com/barrettruth/diffs.nvim",
 		"https://github.com/esmuellert/codediff.nvim",
 		"https://github.com/tpope/vim-fugitive",
 		"https://github.com/lewis6991/gitsigns.nvim",
@@ -10,7 +23,6 @@ later(function()
 		current_line_blame = false,
 		gh = true,
 	})
-	local keymap = Jili.keymap
 	keymap("n", "[c", "<cmd>Gitsigns nav_hunk prev --target=all --navigation_message=false<cr>", "Previous hunk")
 	keymap("n", "]c", "<cmd>Gitsigns nav_hunk next --target=all --navigation_message=false<cr>", "Next hunk")
 

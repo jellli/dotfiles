@@ -32,14 +32,6 @@ autocmd("FileType", {
 	end,
 })
 
-autocmd({ "VimEnter", "VimLeave" }, {
-	callback = function()
-		if vim.fn.executable("tmux") == 1 then
-			vim.system({ "tmux", "rename-window", vim.fn.fnamemodify(vim.fn.getcwd(), ":t") })
-		end
-	end,
-})
-
 if im_cmd then
 	autocmd({ "InsertLeave", "CmdlineLeave", "FocusGained" }, {
 		callback = function()
@@ -47,3 +39,13 @@ if im_cmd then
 		end,
 	})
 end
+
+autocmd("TermOpen", {
+	pattern = "*",
+	callback = function()
+		if not vim.bo[0].filetype:find("fzf") then
+			vim.keymap.set("t", "<Esc>", [[<C-\><C-n>]], { buffer = 0 })
+			vim.keymap.set("n", "<Esc>", [[i<esc><C-\><C-n>]], { buffer = 0 })
+		end
+	end,
+})
