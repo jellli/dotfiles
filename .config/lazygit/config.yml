@@ -1,27 +1,34 @@
 gui:
+  border: single
   tabWidth: 2
   language: zh-CN
+  showIcons: true
+  nerdFontsVersion: "3"
+
+  # ── Gruvbox Material Hard Dark ─────────────────────────────────
+  # Extracted from nvim colors/ex-gruvbox-material.lua
   theme:
     activeBorderColor:
-      - '#89dceb'
+      - '#e78a4e'   # orange
       - bold
     inactiveBorderColor:
-      - '#a6adc8'
+      - '#928374'   # grey
     optionsTextColor:
-      - '#89b4fa'
+      - '#7daea3'   # blue
     selectedLineBgColor:
-      - '#313244'
+      - '#3c3836'   # selection bg
     cherryPickedCommitBgColor:
-      - '#45475a'
+      - '#504945'   # surface1
     cherryPickedCommitFgColor:
-      - '#89dceb'
+      - '#d8a657'   # yellow
     unstagedChangesColor:
-      - '#f38ba8'
+      - '#ea6962'   # red
     defaultFgColor:
-      - '#cdd6f4'
+      - '#d4be98'   # fg text
     searchingActiveBorderColor:
-      - '#f9e2af'
+      - '#d8a657'   # yellow
+
 git:
   pagers:
     - colorArg: always
-      pager: delta --dark --paging=never --line-numbers --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}"
+      pager: "delta --dark --paging=never --line-numbers --hyperlinks --hyperlinks-file-link-format='lazygit-edit://{path}:{line}' --syntax-theme gruvbox-dark --plus-style 'syntax #323d2a' --minus-style 'syntax #3c2626' --plus-emph-style '#a9b665 bold' --minus-emph-style '#ea6962 bold' --file-style '#e78a4e' --file-decoration-style '#e78a4e ul' --hunk-header-style '#7daea3 bold' --hunk-header-decoration-style '#7daea3 box' --commit-style raw --commit-decoration-style '#d8a657 ul' --line-numbers-left-style '#928374' --line-numbers-right-style '#928374' --line-numbers-zero-style '#504945'"
