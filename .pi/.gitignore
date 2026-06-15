@@ -1,3 +1,4 @@
 /agent/sessions/
 node_modules/
 /agent/auth.json
+tsconfig.json

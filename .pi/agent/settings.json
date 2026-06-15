@@ -1,0 +1,21 @@
+{
+  "lastChangelogVersion": "0.78.1",
+  "theme": "gruvbox-material",
+  "defaultProvider": "deepseek",
+  "defaultModel": "deepseek-v4-flash",
+  "defaultThinkingLevel": "high",
+  "packages": [
+    "npm:@plannotator/pi-extension"
+  ],
+  "skills": [
+    "-skills/caveman-commit/SKILL.md",
+    "-skills/caveman-review/SKILL.md",
+    "+skills/vercel-react-best-practices/SKILL.md",
+    "-skills/question-distiller.disabled/SKILL.md",
+    "-skills/plan-mode/SKILL.md"
+  ],
+  "extensions": [
+    "+extensions/resume-hint.ts",
+    "-extensions/permission-gate.ts"
+  ]
+}
