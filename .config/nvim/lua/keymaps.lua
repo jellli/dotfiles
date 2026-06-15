@@ -151,5 +151,5 @@ end, "Restart Neovim")
 
 keymap("n", "<leader>lg", function()
 	local current_dir = vim.fs.root(0, ".git") or "."
-	vim.system({ "tmux", "display-popup", "-B", "-w 90%", "-h 90%", "-E", "lazygit", "-p", current_dir })
+	vim.system({ "tmux", "display-popup", "-w 90%", "-h 90%", "-E", "lazygit", "-p", current_dir })
 end, "LazyGit")
