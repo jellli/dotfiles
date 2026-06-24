@@ -6,7 +6,7 @@ later(function()
 	})
 	require("render-markdown").setup({
 		render_modes = { "n", "v", "c", "t" },
-		file_types = { "codecompanion", "codecompanion_input", "markdown", "nvim-pack", "AgenticChat" },
+		file_types = { "codecompanion", "codecompanion_input", "markdown", "nvim-pack" },
 		sign = { enabled = false },
 		completions = {
 			lsp = { enabled = true },
@@ -16,12 +16,14 @@ later(function()
 			enabled = false,
 		},
 		heading = {
+			-- enabled = false,
 			position = "eol",
 			sign = false,
 			icons = { "一", "二", "三", "四", "五", "六" },
-			width = "full",
+			width = "block",
 			border = true,
 			left_pad = 1,
+      right_pad = 1,
 		},
 		code = {
 			border = "thin",

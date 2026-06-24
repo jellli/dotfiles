@@ -1,5 +1,6 @@
 local M = {}
 local h = require("utils").hl
+local get_icon = require("utils").get_buf_icon
 
 M.filename_component = function()
 	local bufname = vim.api.nvim_buf_get_name(0)
@@ -8,18 +9,13 @@ M.filename_component = function()
 	end
 	local dirname = vim.fn.fnamemodify(bufname, ":.:h")
 	local filename = vim.fn.fnamemodify(bufname, ":t")
-	local ext = vim.fn.fnamemodify(bufname, ":e")
 
 	local dirs = vim.split(dirname, "/")
 	if #dirs > 3 then
 		dirname = dirs[1] .. "/.../" .. dirs[#dirs]
 	end
 
-	local icon, icon_hl = "", ""
-	local ok, devicons = pcall(require, "nvim-web-devicons")
-	if ok then
-		icon, icon_hl = devicons.get_icon(filename, ext, { default = true })
-	end
+	local icon, icon_hl = get_icon()
 
 	local path_str = h({
 		{ hl = "StatuslineNC", string = dirname .. "/" },

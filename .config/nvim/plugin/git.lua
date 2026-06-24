@@ -20,7 +20,11 @@ later(function()
 		"https://github.com/lewis6991/gitsigns.nvim",
 	})
 	require("gitsigns").setup({
-		current_line_blame = false,
+		current_line_blame = true,
+		current_line_blame_opts = {
+			delay = 200,
+		},
+		current_line_blame_formatter = "  <author>, <author_time:%Y-%m-%d %H:%M:%S>",
 		gh = true,
 	})
 	keymap("n", "[c", "<cmd>Gitsigns nav_hunk prev --target=all --navigation_message=false<cr>", "Previous hunk")
