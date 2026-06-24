@@ -6,11 +6,11 @@
       "version": "1.0.0 - 2.0.0"
     },
     "codecompanion.nvim": {
-      "rev": "57989aca2e92083b16a2500ad47f285d82d5c43b",
+      "rev": "f6a7b8934fe9399755c1f9e1aa0cc6eb479ac12b",
       "src": "https://github.com/olimorris/codecompanion.nvim"
     },
     "codediff.nvim": {
-      "rev": "832f1ecc5f8b15a44cf7537e31d3266d657775b1",
+      "rev": "7608f3b436ce1f84a4888f75e53079caa981a2e9",
       "src": "https://github.com/esmuellert/codediff.nvim"
     },
     "conform.nvim": {
@@ -22,7 +22,7 @@
       "src": "https://github.com/monaqa/dial.nvim"
     },
     "diffs.nvim": {
-      "rev": "ef4db615efb4bdecfd54225dee137d703e422503",
+      "rev": "7ab445c39224160203ae692d3c883e2f51f2d442",
       "src": "https://github.com/barrettruth/diffs.nvim"
     },
     "ex-colors.nvim": {
@@ -34,7 +34,7 @@
       "src": "https://github.com/rafamadriz/friendly-snippets"
     },
     "fzf-lua": {
-      "rev": "33fe4b6f0c817c4d99a7baeea82c4d17e57efd64",
+      "rev": "267f5db2aa2202b9f6cc7a50783f0ccd2121766c",
       "src": "https://github.com/ibhagwan/fzf-lua"
     },
     "git-conflict.nvim": {
@@ -42,7 +42,7 @@
       "src": "https://github.com/akinsho/git-conflict.nvim"
     },
     "gitsigns.nvim": {
-      "rev": "8d82c240f190fc33723d48c308ccc1ed8baad69d",
+      "rev": "2038c666bd9d8a0b7349a0b6ee00dc83104b9ecf",
       "src": "https://github.com/lewis6991/gitsigns.nvim"
     },
     "gruvbox-material": {
@@ -54,7 +54,7 @@
       "src": "https://github.com/lukas-reineke/indent-blankline.nvim"
     },
     "leap.nvim": {
-      "rev": "b960d5038c5c505c52e56a54490f9bbb1f0e6ef6",
+      "rev": "d7f8ee64155b7790188f17a993390f32577cfb81",
       "src": "https://codeberg.org/andyg/leap.nvim"
     },
     "mason.nvim": {
@@ -62,32 +62,45 @@
       "src": "https://github.com/mason-org/mason.nvim"
     },
     "mini.ai": {
-      "rev": "deacc8e9cf05df0297e3b14a08c2f8a415045c6f",
+      "rev": "d73c36349aa7b0bab5f77ad71701a1d42211a1df",
       "src": "https://github.com/nvim-mini/mini.ai"
     },
     "mini.clue": {
-      "rev": "43bd6cf1c3ccdea46d403c32dbc4629fa6afa09d",
+      "rev": "62e9e38c3dc4b7d429f1b6e28d96f96cdff71132",
       "src": "https://github.com/nvim-mini/mini.clue"
     },
     "mini.files": {
-      "rev": "e8db416c9f5dbce70f5501da28263d45c0a4df6b",
+      "rev": "a5689dae6b732955e33eec225b798d6815063179",
       "src": "https://github.com/nvim-mini/mini.files"
     },
     "mini.input": {
-      "rev": "44477bc40a1d9556decab08cd0e13187f9d909e4",
+      "rev": "a8ab01372890c4ebf9f59893f42ad7c6bcd02c16",
       "src": "https://github.com/nvim-mini/mini.input"
     },
     "mini.pairs": {
-      "rev": "42387c7fe68fc0b6e95eaf37f1bb76e7bffaa0d9",
+      "rev": "4a014143fcb4e9df26198ccb3ecff3b9e77a048c",
       "src": "https://github.com/nvim-mini/mini.pairs"
     },
     "neocodeium": {
-      "rev": "a1f73887af6cc4b09cb15cc96e0b72d7932552a5",
+      "rev": "d6dd1fe6938e89460e27f5215516f5e9468d8a10",
       "src": "https://github.com/monkoose/neocodeium"
+    },
+    "neotest": {
+      "rev": "ad991822b7076b1d940b33a9d6d0d30416d5df81",
+      "src": "https://github.com/nvim-neotest/neotest",
+      "version": "5.0.0 - 6.0.0"
+    },
+    "neotest-vitest": {
+      "rev": "2f19d215d7d4d7f121826f99f6f35a81e2c18a6f",
+      "src": "https://github.com/marilari88/neotest-vitest"
     },
     "nvim-bqf": {
       "rev": "c282a62bec6c0621a1ef5132aa3f4c9fc4dcc2c7",
       "src": "https://github.com/kevinhwang91/nvim-bqf"
+    },
+    "nvim-nio": {
+      "rev": "21f5324bfac14e22ba26553caf69ec76ae8a7662",
+      "src": "https://github.com/nvim-neotest/nvim-nio"
     },
     "nvim-surround": {
       "rev": "9291040de8cd8a4439eb64c441e8d5d2bf884a5a",
