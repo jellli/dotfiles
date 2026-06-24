@@ -35,7 +35,7 @@ later(function()
 	keymap("n", "<leader>hs", "<cmd>Gitsigns stage_hunk<cr>", "Stage hunk")
 	keymap("n", "<leader>hr", "<cmd>Gitsigns reset_hunk<cr>", "Reset hunk")
 
-	keymap("n", "<leader>gg", "<cmd>Git<cr>", "Git status")
+	keymap("n", "<leader>gg", "<cmd>topleft vertical Git | vertical resize 80<cr>", "Git status (vertical, left)")
 
 	keymap("n", "<leader>gw", "<cmd>Gwrite<cr>", "Git write current buffer(stage)")
 	keymap("n", "<leader>gr", "<cmd>Gread<cr>", "Git read (reset)")

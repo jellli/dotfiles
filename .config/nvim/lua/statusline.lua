@@ -1,6 +1,7 @@
 local M = {}
 local h = require("utils").hl
 local get_icon = require("utils").get_buf_icon
+local set_default_hl = require("utils").set_default_hl
 
 M.modes = setmetatable({
 	["n"] = { long = "Normal", short = "N", hl = "StatuslineModeNormal" },
@@ -18,6 +19,13 @@ M.modes = setmetatable({
 	__index = function()
 		return { long = "Unknown", short = "U", hl = "StatuslineModeOther" }
 	end,
+})
+
+local SEP = h({
+	{
+		hl = "WinSeparator",
+		string = " / ",
+	},
 })
 
 M.mode_component = function()
@@ -42,11 +50,12 @@ M.git_component = function()
 		info = h({
 			{
 				hl = "Normal",
-				string = string.format("%s ", vim.fn.fnamemodify(dict.root, ":t")),
+				string = string.format("%s", vim.fn.fnamemodify(dict.root, ":t")),
 			},
+			SEP,
 			{
 				hl = "StatuslineNC",
-				string = string.format(">  %s", dict.head),
+				string = string.format(" %s", dict.head),
 			},
 		})
 	end
@@ -124,18 +133,23 @@ M.filetype_component = function()
 		},
 		{
 			hl = "Normal",
-			string = vim.bo.filetype,
+			string = vim.bo.filetype .. " ",
 		},
 	})
 end
 
 M.lsp_component = function()
-	local lsp_msg = #vim.lsp.status() > 0 and " LSP: " .. vim.lsp.status() or ""
+	local lsp_msg = #vim.lsp.status() > 0 and "LSP: " .. vim.lsp.status() or ""
 	local lsp_count = #vim.lsp.get_clients()
 	return h({
 		{
 			hl = "StatuslineNC",
-			string = string.format("  %d%s", lsp_count, lsp_msg),
+			string = string.format(" %d", lsp_count),
+		},
+		#lsp_msg > 0 and SEP or "",
+		{
+			hl = "StatuslineNC",
+			string = lsp_msg,
 		},
 	})
 end
@@ -150,6 +164,7 @@ M.macro_recording_component = function()
 				hl = "WarningMsg",
 				string = " @" .. recording_register,
 			},
+			SEP,
 		})
 	end
 end
@@ -158,31 +173,17 @@ M.render = function()
 	return h({
 		M.mode_component(),
 		M.git_component(),
+		SEP,
 		M.lsp_component(),
 		"%=",
 		M.macro_recording_component(),
-		"%=",
 		M.filetype_component(),
 		M.search_count_component(),
 	})
 end
 
 M.setup_hl = vim.schedule_wrap(function()
-	local set_default_hl = function(name, data)
-		if data.link then
-			local hl = vim.api.nvim_get_hl(0, { name = data.link })
-			if not vim.tbl_isempty(hl) then
-				for key, value in pairs(data) do
-					hl[key] = value
-				end
-				hl.link = nil
-				data = hl
-			end
-		end
-		data.default = true
-		vim.api.nvim_set_hl(0, name, data)
-	end
-	set_default_hl("StatuslineModeNormal", { link = "PmenuSel", bold = true })
+	set_default_hl("StatuslineModeNormal", { link = "DiffText", bold = true })
 	set_default_hl("StatuslineModeInsert", { link = "Substitute", bold = true })
 	set_default_hl("StatuslineModeVisual", { link = "PmenuKind", bold = true })
 	set_default_hl("StatuslineModeReplace", { link = "DiffDelete", bold = true })
@@ -200,6 +201,7 @@ local autocmd = Jili.autocmd
 
 autocmd({
 	"LspProgress",
+	"DiagnosticChanged",
 }, {
 	callback = function()
 		vim.cmd("redrawstatus")

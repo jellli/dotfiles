@@ -141,7 +141,7 @@ later(function()
 	keymap("v", "ga", codecompanion.add, "Add to Chat")
 
 	Jili.autocmd("FileType", {
-		pattern = "codecompanion",
+		pattern = { "codecompanion", "codecompanion_cli" },
 		callback = function(event)
 			local buf = event.buf
 			local opt = vim.opt_local

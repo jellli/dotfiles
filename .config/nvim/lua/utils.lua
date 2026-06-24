@@ -21,4 +21,19 @@ M.get_buf_icon = function(bufnr)
 	return icon, icon_hl
 end
 
+M.set_default_hl = function(name, data)
+	if data.link then
+		local hl = vim.api.nvim_get_hl(0, { name = data.link })
+		if not vim.tbl_isempty(hl) then
+			for key, value in pairs(data) do
+				hl[key] = value
+			end
+			hl.link = nil
+			data = hl
+		end
+	end
+	data.default = true
+	vim.api.nvim_set_hl(0, name, data)
+end
+
 return M

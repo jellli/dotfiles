@@ -55,6 +55,9 @@ later(function()
 				["ctrl-h"] = { fzf.actions.toggle_hidden },
 				["ctrl-e"] = { fzf.win.toggle_fullscreen },
 			},
+			winopts = {
+				height = 0.68,
+			},
 		},
 		lsp = {
 			includeDeclaration = false,

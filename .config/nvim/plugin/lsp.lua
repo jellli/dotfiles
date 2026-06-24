@@ -1,4 +1,17 @@
 local later = require("q").later
+local diagnostic_icon = require("icons").diagnostics
+local signs = {
+	[vim.diagnostic.severity.ERROR] = diagnostic_icon.ERROR,
+	[vim.diagnostic.severity.WARN] = diagnostic_icon.WARN,
+	[vim.diagnostic.severity.HINT] = diagnostic_icon.HINT,
+	[vim.diagnostic.severity.INFO] = diagnostic_icon.INFO,
+}
+local hl_map = {
+	[vim.diagnostic.severity.ERROR] = "DiagnosticSignError",
+	[vim.diagnostic.severity.WARN] = "DiagnosticSignWarn",
+	[vim.diagnostic.severity.HINT] = "DiagnosticSignHint",
+	[vim.diagnostic.severity.INFO] = "DiagnosticSignInfo",
+}
 
 later(function()
 	vim.pack.add({
@@ -134,7 +147,23 @@ autocmd({ "BufReadPost", "BufNewFile" }, {
 	callback = function()
 		vim.diagnostic.config({
 			severity_sort = true,
-			signs = false,
+			status = {
+				format = function(counts)
+					local items = {}
+					---@diagnostic disable-next-line: param-type-mismatch
+					for level, _ in ipairs(vim.diagnostic.severity) do
+						local count = counts[level] or 0
+						if count > 0 then
+							table.insert(items, ("%%#%s#%s %s"):format(hl_map[level], signs[level], count))
+						end
+					end
+					return table.concat(items, " ")
+				end,
+			},
+
+			signs = {
+				text = signs,
+			},
 			virtual_text = {
 				current_line = false,
 				spacing = 2,
@@ -144,7 +173,6 @@ autocmd({ "BufReadPost", "BufNewFile" }, {
 				spacing = 2,
 				source = true,
 			},
-			status = {},
 			jump = {
 				on_jump = function(diagnostic, bufnr)
 					if not diagnostic then

@@ -23,10 +23,12 @@ later(function()
 			width = "block",
 			border = true,
 			left_pad = 1,
-      right_pad = 1,
+			right_pad = 1,
 		},
 		code = {
-			border = "thin",
+			-- border = "thin",
+			-- disable_background = true,
+      style = 'language'
 		},
 		checkbox = {
 			enabled = true,
