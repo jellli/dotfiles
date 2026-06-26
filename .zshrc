@@ -48,3 +48,6 @@ export KEYTIMEOUT=1
 export EDITOR="nvim"
 source "$HOME/.config/zsh/fzf.zsh"
 export PATH=$PATH:$(go env GOPATH)/bin
+
+# Hermes Agent — ensure ~/.local/bin is on PATH
+export PATH="$HOME/.local/bin:$PATH"
