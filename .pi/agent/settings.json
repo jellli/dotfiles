@@ -1,11 +1,15 @@
 {
-  "lastChangelogVersion": "0.78.1",
+  "lastChangelogVersion": "0.80.2",
   "theme": "gruvbox-material",
-  "defaultProvider": "deepseek",
-  "defaultModel": "deepseek-v4-flash",
+  "defaultProvider": "neuralwatt",
+  "defaultModel": "glm-5.2",
   "defaultThinkingLevel": "high",
   "packages": [
-    "npm:@plannotator/pi-extension"
+    "npm:pi-lean-ctx",
+    "npm:@plannotator/pi-extension",
+    "npm:@aliou/pi-neuralwatt",
+    "npm:pi-observational-memory",
+    "git:github.com/elpapi42/pi-fork"
   ],
   "skills": [
     "-skills/caveman-commit/SKILL.md",
