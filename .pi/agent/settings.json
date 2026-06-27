@@ -1,25 +1,29 @@
 {
+  "quietStartup": true,
   "lastChangelogVersion": "0.80.2",
   "theme": "gruvbox-material",
-  "defaultProvider": "neuralwatt",
-  "defaultModel": "glm-5.2",
+  "defaultProvider": "xiaomi",
+  "defaultModel": "mimo-v2.5-pro",
   "defaultThinkingLevel": "high",
   "packages": [
     "npm:pi-lean-ctx",
     "npm:@plannotator/pi-extension",
     "npm:@aliou/pi-neuralwatt",
     "npm:pi-observational-memory",
-    "git:github.com/elpapi42/pi-fork"
+    "git:github.com/elpapi42/pi-fork",
+    "npm:@juicesharp/rpiv-ask-user-question",
+    "npm:@juicesharp/rpiv-todo",
+    "git:github.com/elpapi42/pi-minimal-subagent",
+    "npm:pi-rtk-optimizer"
   ],
   "skills": [
     "-skills/caveman-commit/SKILL.md",
     "-skills/caveman-review/SKILL.md",
-    "+skills/vercel-react-best-practices/SKILL.md",
+    "-skills/vercel-react-best-practices/SKILL.md",
     "-skills/question-distiller.disabled/SKILL.md",
     "-skills/plan-mode/SKILL.md"
   ],
   "extensions": [
-    "+extensions/resume-hint.ts",
-    "-extensions/permission-gate.ts"
+    "+extensions/resume-hint.ts"
   ]
 }

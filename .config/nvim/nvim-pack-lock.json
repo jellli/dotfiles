@@ -49,9 +49,17 @@
       "rev": "afb275d8e6dc379762d122bd24e1773fc057abf3",
       "src": "https://github.com/sainnhe/gruvbox-material"
     },
+    "gv.vim": {
+      "rev": "ed7e9c6a118d92462c7d709c34a92682b60fa9f7",
+      "src": "https://github.com/junegunn/gv.vim"
+    },
     "indent-blankline.nvim": {
       "rev": "d28a3f70721c79e3c5f6693057ae929f3d9c0a03",
       "src": "https://github.com/lukas-reineke/indent-blankline.nvim"
+    },
+    "kulala.nvim": {
+      "rev": "87c8f0136f0eaebe1dcea6f7448a34cea40b9513",
+      "src": "https://github.com/mistweaverco/kulala.nvim"
     },
     "leap.nvim": {
       "rev": "d7f8ee64155b7790188f17a993390f32577cfb81",
@@ -152,6 +160,10 @@
       "src": "https://github.com/VonHeikemen/ts-enable.nvim",
       "version": "'v2.x'"
     },
+    "vim-flog": {
+      "rev": "665b16ac8915f746bc43c9572b4581a5e9047216",
+      "src": "https://github.com/rbong/vim-flog"
+    },
     "vim-fugitive": {
       "rev": "3b753cf8c6a4dcde6edee8827d464ba9b8c4a6f0",
       "src": "https://github.com/tpope/vim-fugitive"
@@ -159,6 +171,10 @@
     "vim-matchup": {
       "rev": "dccb2d12ef2a703d2f076b3cda36a3339449d1eb",
       "src": "https://github.com/andymass/vim-matchup"
+    },
+    "vim-merginal": {
+      "rev": "3dca10fd8bce10edbc2024651db4ffb6dd2d89de",
+      "src": "https://github.com/idanarye/vim-merginal"
     },
     "vim-startuptime": {
       "rev": "5f33e50f1e2e2a80370c9094e4c303ea54cd2aea",
