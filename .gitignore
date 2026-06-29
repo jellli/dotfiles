@@ -1,1 +1,9 @@
+# --- dotfiles top-level ignores ---
 **/tmux/plugins
+
+# --- LLM Wiki (pi-llm-wiki) ---
+# Keep knowledge content (wiki/, raw/, templates/, config) in git; ignore
+# auto-generated metadata, lint outputs, and discoveries cache.
+.llm-wiki/meta/
+.llm-wiki/outputs/
+.llm-wiki/.discoveries/

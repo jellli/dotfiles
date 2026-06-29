@@ -290,6 +290,21 @@ export class VimEditor extends CustomEditor {
             lines[i] = applyDimBackground(lines[i]!);
         }
 
+        // Insert mode: render the cursor as an underline instead of the base
+        // editor's reverse-video block (which is the block cursor used by
+        // normal/visual/replace/etc.). base emits the cursor inline as
+        // `\x1b[7m{grapheme}\x1b[0m`; swap the reverse-video SGR (7) for the
+        // underline SGR (4) so the character keeps its colour but gains an
+        // underline. Only in insert mode — other modes keep the block cursor.
+        if (this.vimState.mode === "insert") {
+            for (let i = 1; i < bottomBorderIdx; i++) {
+                lines[i] = lines[i]!.replace(
+                    /\x1b\[7m([^\x1b]*)\x1b\[0m/g,
+                    "\x1b[4m$1\x1b[0m",
+                );
+            }
+        }
+
         // Apply visual selection highlighting if in visual mode
         // Also keep highlighting when in command-line mode initiated from visual
         const isVisual =

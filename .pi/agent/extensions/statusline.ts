@@ -1,7 +1,7 @@
 /**
  * Custom statusline extension — matches nvim statusline.lua style.
  *
- * Footer:  pct% [bar]  ↑in ↓out                     git-root / branch
+ * Footer:  pct% [bar]  ↑in ↺cache ↓out            git-root / branch
  *
  * (provider / model / thinking-level moved to the editor top border —
  *  injected by vim-mode/vim-editor.ts injectTopRight.)
@@ -72,17 +72,32 @@ export default function (pi: ExtensionAPI) {
           const pct = usage?.percent ?? null;
 
           // in/out from the MOST RECENT assistant message (branch is
-          // oldest→newest, so the last match is newest). This is a per-turn
-          // delta, NOT cumulative usage.
+          // oldest→newest, so the last match is newest). These are per-turn
+          // deltas, NOT cumulative usage:
+          //   ↑ input     = new (uncached) prompt tokens this turn
+          //   ↺ cacheRead = prompt tokens served from the cache (prior history)
+          //   ↓ output    = tokens generated this turn
+          // input+cacheRead ≈ what the model actually saw; that should track
+          // the context pct above. Skip aborted/error/all-zero messages
+          // (matching pi's internal getAssistantUsage filtering).
           let inputTokens: number | null = null;
+          let cacheReadTokens: number | null = null;
           let outputTokens: number | null = null;
           const branchEntries = ctx.sessionManager.getBranch();
           for (let i = branchEntries.length - 1; i >= 0; i--) {
             const entry = branchEntries[i]!;
             if (entry.type === "message" && entry.message.role === "assistant") {
               const msg = entry.message as AssistantMessage;
-              inputTokens = msg.usage.input;
-              outputTokens = msg.usage.output;
+              if (msg.stopReason === "aborted" || msg.stopReason === "error") {
+                continue;
+              }
+              const u = msg.usage;
+              if (!u || (u.input === 0 && u.output === 0 && (u.cacheRead ?? 0) === 0 && (u.cacheWrite ?? 0) === 0 && (u.totalTokens ?? 0) === 0)) {
+                continue;
+              }
+              inputTokens = u.input;
+              cacheReadTokens = u.cacheRead ?? 0;
+              outputTokens = u.output;
               break;
             }
           }
@@ -109,8 +124,12 @@ export default function (pi: ExtensionAPI) {
 
           const bar = barColor(progressBar(usageRatio, 10));
           const inStr = inputTokens !== null ? fmtTokens(inputTokens) : "?";
+          const cacheStr = cacheReadTokens !== null ? fmtTokens(cacheReadTokens) : "?";
           const outStr = outputTokens !== null ? fmtTokens(outputTokens) : "?";
-          const tokenInfo = theme.fg("muted", `↑${inStr} ↓${outStr}`);
+          const tokenInfo = theme.fg(
+            "muted",
+            `↑${inStr} ↺${cacheStr} ↓${outStr}`,
+          );
           const pctStr = theme.fg("muted", pctLabel);
 
           // ── Left: pct% [bar] ↑in ↓out ──────────────────────────

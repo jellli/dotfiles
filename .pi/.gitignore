@@ -1,4 +1,9 @@
+# --- runtime / per-machine data (not config) ---
 /agent/sessions/
 node_modules/
 /agent/auth.json
 tsconfig.json
+
+# Memory DBs (SQLite, high-churn, machine-local)
+/agent/pi-hermes-memory/
+/agent/projects-memory/

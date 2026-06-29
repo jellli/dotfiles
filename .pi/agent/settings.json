@@ -14,7 +14,10 @@
     "npm:@juicesharp/rpiv-ask-user-question",
     "npm:@juicesharp/rpiv-todo",
     "git:github.com/elpapi42/pi-minimal-subagent",
-    "npm:pi-rtk-optimizer"
+    "npm:pi-rtk-optimizer",
+    "npm:@zosmaai/pi-llm-wiki",
+    "npm:pi-hermes-memory",
+    "npm:pi-tool-display"
   ],
   "skills": [
     "-skills/caveman-commit/SKILL.md",
