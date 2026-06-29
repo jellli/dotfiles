@@ -1,7 +1,14 @@
 /**
  * Custom statusline extension — matches nvim statusline.lua style.
  *
- * Footer:  pct% [bar]  ↑in ↺cache ↓out            git-root / branch
+ * Footer:  pct% [bar]  ↑in ↓out            git-root / branch
+ *
+ * Token in/out: session-cumulative input/output (summed across all
+ * assistant messages via sessionManager.getEntries(), matching
+ * juanibiapina/pi-powerbar's powerbar-tokens producer). NOT per-turn deltas,
+ * NOT cacheRead — this is the billing-usage cumulative count.
+ *
+ * Context pct/bar: ctx.getContextUsage() (accounts for compaction).
  *
  * (provider / model / thinking-level moved to the editor top border —
  *  injected by vim-mode/vim-editor.ts injectTopRight.)
@@ -9,7 +16,6 @@
  * Separator: " / " (same as nvim SEP)
  */
 
-import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
@@ -71,34 +77,23 @@ export default function (pi: ExtensionAPI) {
           const totalTokens = usage?.tokens ?? null;
           const pct = usage?.percent ?? null;
 
-          // in/out from the MOST RECENT assistant message (branch is
-          // oldest→newest, so the last match is newest). These are per-turn
-          // deltas, NOT cumulative usage:
-          //   ↑ input     = new (uncached) prompt tokens this turn
-          //   ↺ cacheRead = prompt tokens served from the cache (prior history)
-          //   ↓ output    = tokens generated this turn
-          // input+cacheRead ≈ what the model actually saw; that should track
-          // the context pct above. Skip aborted/error/all-zero messages
-          // (matching pi's internal getAssistantUsage filtering).
-          let inputTokens: number | null = null;
-          let cacheReadTokens: number | null = null;
-          let outputTokens: number | null = null;
-          const branchEntries = ctx.sessionManager.getBranch();
-          for (let i = branchEntries.length - 1; i >= 0; i--) {
-            const entry = branchEntries[i]!;
+          // Cumulative session token usage across ALL assistant messages
+          // (matches juanibiapina/pi-powerbar powerbar-tokens: getEntries(),
+          // sum input + output, no cacheRead, no per-turn).
+          //   ↑ input  = cumulative new (uncached) prompt tokens billed
+          //   ↓ output = cumulative generated tokens billed
+          // This is billing/cost-usage cumulative, NOT current-context-size
+          // (that's the bar+pct above). getEntries() covers all entries
+          // including forked siblings; matches powerbar's choice.
+          let totalInput = 0;
+          let totalOutput = 0;
+          for (const entry of ctx.sessionManager.getEntries()) {
             if (entry.type === "message" && entry.message.role === "assistant") {
-              const msg = entry.message as AssistantMessage;
-              if (msg.stopReason === "aborted" || msg.stopReason === "error") {
-                continue;
+              const u = entry.message.usage;
+              if (u) {
+                totalInput += u.input;
+                totalOutput += u.output;
               }
-              const u = msg.usage;
-              if (!u || (u.input === 0 && u.output === 0 && (u.cacheRead ?? 0) === 0 && (u.cacheWrite ?? 0) === 0 && (u.totalTokens ?? 0) === 0)) {
-                continue;
-              }
-              inputTokens = u.input;
-              cacheReadTokens = u.cacheRead ?? 0;
-              outputTokens = u.output;
-              break;
             }
           }
 
@@ -123,13 +118,16 @@ export default function (pi: ExtensionAPI) {
           }
 
           const bar = barColor(progressBar(usageRatio, 10));
-          const inStr = inputTokens !== null ? fmtTokens(inputTokens) : "?";
-          const cacheStr = cacheReadTokens !== null ? fmtTokens(cacheReadTokens) : "?";
-          const outStr = outputTokens !== null ? fmtTokens(outputTokens) : "?";
-          const tokenInfo = theme.fg(
-            "muted",
-            `↑${inStr} ↺${cacheStr} ↓${outStr}`,
-          );
+          // powerbar-tokens: skip display entirely when both cumulative =0.
+          let tokenInfo: string;
+          if (totalInput === 0 && totalOutput === 0) {
+            tokenInfo = theme.fg("dim", "↑? ↓?");
+          } else {
+            tokenInfo = theme.fg(
+              "muted",
+              `↑${fmtTokens(totalInput)} ↓${fmtTokens(totalOutput)}`,
+            );
+          }
           const pctStr = theme.fg("muted", pctLabel);
 
           // ── Left: pct% [bar] ↑in ↓out ──────────────────────────
