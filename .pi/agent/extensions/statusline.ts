@@ -1,8 +1,10 @@
 /**
  * Custom statusline extension — matches nvim statusline.lua style.
  *
- * Left:  git-root / branch  token-usage [████████░░] 75%
- * Right: provider / model  thinking:high
+ * Footer:  pct% [bar]  ↑in ↓out                     git-root / branch
+ *
+ * (provider / model / thinking-level moved to the editor top border —
+ *  injected by vim-mode/vim-editor.ts injectTopRight.)
  *
  * Separator: " / " (same as nvim SEP)
  */
@@ -57,29 +59,47 @@ export default function (pi: ExtensionAPI) {
         dispose: unsub,
         invalidate() {},
         render(width: number): string[] {
-          // ── Token usage ──────────────────────────────────────────
-          let inputTokens = 0;
-          let outputTokens = 0;
-          for (const entry of ctx.sessionManager.getBranch()) {
-            if (
-              entry.type === "message" &&
-              entry.message.role === "assistant"
-            ) {
+          // ── Source of truth for current context usage ──────────────────
+          // ctx.getContextUsage() accounts for compaction (returns tokens:null
+          // right after a compact, before the next LLM response) — unlike
+          // summing every assistant message's usage.input, which double-counts
+          // (usage.input is the FULL prompt size for that turn, not a delta,
+          // and pre-compaction history stays in the branch).
+          const usage = ctx.getContextUsage();
+          const contextWindow =
+            usage?.contextWindow ?? ctx.model?.contextWindow ?? 200_000;
+          const totalTokens = usage?.tokens ?? null;
+          const pct = usage?.percent ?? null;
+
+          // in/out from the MOST RECENT assistant message (branch is
+          // oldest→newest, so the last match is newest). This is a per-turn
+          // delta, NOT cumulative usage.
+          let inputTokens: number | null = null;
+          let outputTokens: number | null = null;
+          const branchEntries = ctx.sessionManager.getBranch();
+          for (let i = branchEntries.length - 1; i >= 0; i--) {
+            const entry = branchEntries[i]!;
+            if (entry.type === "message" && entry.message.role === "assistant") {
               const msg = entry.message as AssistantMessage;
-              inputTokens += msg.usage.input;
-              outputTokens += msg.usage.output;
+              inputTokens = msg.usage.input;
+              outputTokens = msg.usage.output;
+              break;
             }
           }
 
-          // Context window estimate (use model's contextWindow or default 200k)
-          const contextWindow = ctx.model?.contextWindow ?? 200_000;
-          const totalTokens = inputTokens + outputTokens;
-          const usageRatio = Math.min(totalTokens / contextWindow, 1);
-          const pct = Math.round(usageRatio * 100);
+          // usageRatio is meaningful only with real token counts.
+          const hasUsage = totalTokens !== null && contextWindow > 0;
+          const usageRatio = hasUsage
+            ? Math.min(totalTokens! / contextWindow, 1)
+            : 0;
+          const pctLabel = pct !== null ? `${Math.round(pct)}%` : "?%";
 
-          // Color the bar: green < 50%, yellow < 80%, red >= 80%
+          // Color the bar: green < 50%, yellow < 80%, red >= 80%.
+          // When usage unknown (post-compaction) fall back to dim.
           let barColor: (s: string) => string;
-          if (usageRatio < 0.5) {
+          if (!hasUsage) {
+            barColor = (s) => theme.fg("dim", s);
+          } else if (usageRatio < 0.5) {
             barColor = (s) => theme.fg("success", s);
           } else if (usageRatio < 0.8) {
             barColor = (s) => theme.fg("warning", s);
@@ -88,47 +108,23 @@ export default function (pi: ExtensionAPI) {
           }
 
           const bar = barColor(progressBar(usageRatio, 10));
-          const tokenInfo = theme.fg(
-            "muted",
-            `↑${fmtTokens(inputTokens)} ↓${fmtTokens(outputTokens)}`,
-          );
-          const pctStr = theme.fg("muted", `${pct}%`);
+          const inStr = inputTokens !== null ? fmtTokens(inputTokens) : "?";
+          const outStr = outputTokens !== null ? fmtTokens(outputTokens) : "?";
+          const tokenInfo = theme.fg("muted", `↑${inStr} ↓${outStr}`);
+          const pctStr = theme.fg("muted", pctLabel);
 
-          // ── Left side: git-root / branch  tokens [bar] pct ───────
+          // ── Left: pct% [bar] ↑in ↓out ──────────────────────────
+          // ── Right: git-root / branch ────────────────────────────
+          const left = `${pctStr} ${bar} ${tokenInfo}`;
+
           const branch = footerData.getGitBranch();
-          let left = "";
+          let right = "";
           if (gitRoot || branch) {
             const rootStr = gitRoot ? theme.fg("text", gitRoot) : "";
             const branchStr = branch ? theme.fg("muted", `${branch}`) : "";
-            left = `${rootStr}${theme.fg("dim", " / ")}${branchStr}  `;
+            right = `${rootStr}${theme.fg("dim", " / ")}${branchStr}`;
           }
-          left += `${tokenInfo} ${bar} ${pctStr}`;
 
-          // ── Right side: provider / model  thinking:level ─────────
-          const provider = ctx.model?.provider ?? "unknown";
-          const model = ctx.model?.id ?? "no-model";
-          const thinkingLevel = pi.getThinkingLevel();
-
-          // Thinking level colors — cool tones
-          const thinkingColors: Record<string, string> = {
-            off: "146;131;116", // grey
-            minimal: "169;182;101", // green
-            low: "137;180;130", // aqua
-            medium: "125;174;163", // blue
-            high: "231;138;78", // orange
-            xhigh: "231;138;78", // orange
-          };
-          const thinkingBg =
-            thinkingColors[thinkingLevel] ?? thinkingColors["high"]!;
-
-          // Styled blocks with background + padding
-          // model: subtle bg, thinking: vibrant bg
-          const modelBlock = `\x1b[38;2;212;190;152;48;2;60;56;54m ${model} \x1b[0m`;
-          const levelBlock = `\x1b[1;38;2;29;32;33;48;2;${thinkingBg}m ${thinkingLevel} \x1b[0m`;
-
-          const right = `${theme.fg("muted", provider)}${theme.fg("dim", " / ")}${modelBlock}${levelBlock}`;
-
-          // ── Assemble with padding ────────────────────────────────
           const leftW = visibleWidth(left);
           const rightW = visibleWidth(right);
           const pad = Math.max(1, width - leftW - rightW);

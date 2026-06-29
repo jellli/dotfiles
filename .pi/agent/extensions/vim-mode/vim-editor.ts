@@ -3,7 +3,7 @@
  * Routes input to mode-specific handlers and renders mode indicator.
  */
 
-import { CustomEditor } from "@earendil-works/pi-coding-agent";
+import { CustomEditor, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import {
     matchesKey,
     truncateToWidth,
@@ -40,14 +40,20 @@ export class VimEditor extends CustomEditor {
         cursorCol: number;
     }> = [];
 
+    private readonly api: { pi: ExtensionAPI; ctx: ExtensionContext };
+
     constructor(
         tui: TUI,
         theme: EditorTheme,
         keybindings: any,
-        options?: EditorOptions,
+        options?: EditorOptions & { pi?: ExtensionAPI; ctx?: ExtensionContext },
     ) {
         super(tui, theme, keybindings, options);
         this.vimState = createInitialState();
+        this.api = {
+            pi: options?.pi!,
+            ctx: options?.ctx!,
+        };
     }
 
     /** Preserve Pi's built-in autocomplete provider behavior. */
@@ -245,10 +251,35 @@ export class VimEditor extends CustomEditor {
         // re-stroke it in the shared dim color so the border fg matches the
         // input-area bg below (one source of truth: EDITOR_DIM_RGB).
         lines[0] = recolorBorder(lines[0]!, EDITOR_BORDER_FG).replace(/─/g, "▄");
-        const bottomBorderIdx = lines.length - 1;
+        lines[0] = this.injectTopRight(lines[0]!, width);
+        // base editor may append autocomplete menu rows AFTER the bottom border;
+        // `lines.length - 1` would then point at an autocomplete row, not the
+        // border. Locate the real bottom border by its glyph shape instead.
+        let bottomBorderIdx = findBottomBorderIdx(lines, width);
         if (bottomBorderIdx > 0) {
             lines[bottomBorderIdx] =
                 recolorBorder(lines[bottomBorderIdx]!, EDITOR_BORDER_FG).replace(/─/g, "▀");
+        }
+
+        // Pad the content area to a minimum height of 3 visible content lines
+        // (empty / short input). base Editor only emits as many content lines
+        // as there is text, so an empty editor is just 1 content line tall.
+        // Insert blank content lines (same visible width as base's empty lines)
+        // before the bottom border so the editor body is at least 3 rows.
+        const MIN_CONTENT_LINES = 3;
+        const contentCount = Math.max(0, bottomBorderIdx - 1);
+        if (bottomBorderIdx > 0 && contentCount < MIN_CONTENT_LINES) {
+            // Blank content row: match base editor's content-width (width minus
+            // horizontal padding) so it never overflows the content area.
+            const paddingX = this.getPaddingX();
+            const contentWidth = Math.max(1, width - paddingX * 2);
+            const blank = " ".repeat(contentWidth);
+            const need = MIN_CONTENT_LINES - contentCount;
+            lines.splice(bottomBorderIdx, 0, ...Array.from({ length: need }, () => blank));
+            // bottom border shifted down by `need` rows; keep the local var
+            // in sync so the dim-bg loop below covers the new blank rows and
+            // stops at the (now-lower) bottom border.
+            bottomBorderIdx += need;
         }
 
         // Dim background on the input/content area (everything between the borders).
@@ -269,11 +300,13 @@ export class VimEditor extends CustomEditor {
             (getSearchState().returnMode === "visual" ||
                 getSearchState().returnMode === "visual-line");
         if ((isVisual || isSearchFromVisual) && this.vimState.visualAnchor) {
-            this.applyVisualHighlight(lines, width);
+            this.applyVisualHighlight(lines, width, bottomBorderIdx);
         }
 
-        // Add mode indicator to the bottom border (right side)
-        const last = lines.length - 1;
+        // Add mode indicator to the bottom border (right side).
+        // Use the already-resolved bottom-border index (handles autocomplete
+        // rows appended after the border — see findBottomBorderIdx).
+        const last = bottomBorderIdx;
 
         if (this.vimState.mode === "command-line" && getSearchState().active) {
             // Show search prompt on the bottom border
@@ -316,6 +349,46 @@ export class VimEditor extends CustomEditor {
     }
 
     /**
+     * Inject provider / model / thinking-level into the TOP border (right side).
+     * Mirrors the bottom-border mode-label injection: truncate the border `▄` run
+     * to leave room, then append a styled block carrying its own fg/bg SGR so it
+     * sits on the editor border without depending on the border's dim fg.
+     *
+     * Returns the new top border string (caller reassigns lines[0]).
+     */
+    private injectTopRight(topBorder: string, width: number): string {
+        const { pi, ctx } = this.api;
+
+        const provider = ctx.model?.provider ?? "unknown";
+        const model = ctx.model?.id ?? "no-model";
+        const thinkingLevel = pi.getThinkingLevel();
+
+        // Thinking level colors — cool tones (same palette as statusline footer).
+        const thinkingColors: Record<string, string> = {
+            off: "146;131;116", // grey
+            minimal: "169;182;101", // green
+            low: "137;180;130", // aqua
+            medium: "125;174;163", // blue
+            high: "231;138;78", // orange
+            xhigh: "231;138;78", // orange
+        };
+        const thinkingBg = thinkingColors[thinkingLevel] ?? thinkingColors["high"]!;
+
+        const provBg = "80;73;69"; // grey (gruvbox bg2)
+        const providerBlock = `\x1b[1;38;2;29;32;33;48;2;${provBg}m ${provider} \x1b[0m`;
+        // model: subtle bg (gruvbox fg0 on bg1), thinking: vibrant bg per level.
+        const modelBlock = `\x1b[38;2;212;190;152;48;2;60;56;54m ${model} \x1b[0m`;
+        const levelBlock = `\x1b[1;38;2;29;32;33;48;2;${thinkingBg}m ${thinkingLevel} \x1b[0m`;
+        const block = `${providerBlock}${modelBlock}${levelBlock}`;
+
+        const blockW = visibleWidth(block);
+        if (visibleWidth(topBorder) < blockW + 1) return topBorder; // not enough room
+        // Truncate the border `▄` run from the right, then append the block.
+        // truncateToWidth preserves the leading EDITOR_BORDER_FG SGR.
+        return truncateToWidth(topBorder, width - blockW, "") + block;
+    }
+
+    /**
      * Apply reverse-video highlighting to the visual selection range in rendered output.
      *
      * The rendered output from super.render() is structured as:
@@ -328,7 +401,7 @@ export class VimEditor extends CustomEditor {
      * We use pi-tui's extractAnsiCode to properly skip ALL escape sequences
      * (CSI, OSC, APC) when counting visible positions.
      */
-    private applyVisualHighlight(renderedLines: string[], width: number): void {
+    private applyVisualHighlight(renderedLines: string[], width: number, bottomBorderIdx: number): void {
         const text = this.getText();
         const textLines = text.split("\n");
         const cursor = this.getCursor();
@@ -383,7 +456,7 @@ export class VimEditor extends CustomEditor {
 
             for (let wrap = 0; wrap < wrappedCount; wrap++) {
                 const rIdx = renderedStart + wrap;
-                if (rIdx >= renderedLines.length - 1) break; // don't touch bottom border
+                if (rIdx >= bottomBorderIdx) break; // don't touch bottom border (or anything past it, e.g. autocomplete)
 
                 const wrapStartCol = wrap * layoutWidth;
                 const wrapEndCol = wrapStartCol + layoutWidth;
@@ -549,6 +622,48 @@ function isResetSequence(seq: string): boolean {
 const EDITOR_DIM_RGB = "40;40;40";
 const EDITOR_BORDER_FG = `\x1b[38;2;${EDITOR_DIM_RGB}m`;
 const EDITOR_INPUT_BG = `\x1b[48;2;${EDITOR_DIM_RGB}m`;
+
+/**
+ * Locate the BOTTOM border row in a rendered editor line array.
+ *
+ * base Editor.render() emits:
+ *   [top border, ...content lines, bottom border, ...autocomplete lines]
+ * When autocomplete is active, the bottom border is NOT the last row —
+ * autocomplete menu rows are appended after it. Code that assumes
+ * `lines.length - 1` is the bottom border therefore corrupts an autocomplete
+ * row (recolor/dim-bg/mode-label land on the wrong line) and skips the real
+ * bottom border.
+ *
+ * This scans from the top (skipping the top border at [0]) for the FIRST row
+ * whose visible text is a full-width run of `─` glyphs optionally prefixed by
+ * a scroll indicator (`─── ↑ N more ` / `─── ↓ N more `). Autocomplete rows are
+ * menu text and never match, so they are skipped correctly.
+ *
+ * Falls back to `lines.length - 1` when no border-like row is found (preserves
+ * legacy behaviour if the editor's render format ever changes unexpectedly).
+ */
+function findBottomBorderIdx(lines: string[], width: number): number {
+    const borderRe = /^(?:─── [↑↓] \d+ more )?─+$/;
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i]!;
+        // Strip CSI/OSC/APC to get visible text.
+        let visible = "";
+        let j = 0;
+        while (j < line.length) {
+            const seqLen = escapeSeqLength(line, j);
+            if (seqLen > 0) {
+                j += seqLen;
+                continue;
+            }
+            visible += line[j];
+            j++;
+        }
+        if (borderRe.test(visible) && visibleWidth(visible) === width) {
+            return i;
+        }
+    }
+    return lines.length - 1;
+}
 
 /**
  * Strip every escape sequence (CSI/OSC/APC) from a border line and re-wrap
