@@ -24,7 +24,7 @@
     "accent": "blue",
     "border": "yellow",
     "borderAccent": "orange",
-    "borderMuted": "dim",
+    "borderMuted": "bg0",
     "success": "green",
     "error": "red",
     "warning": "yellow",
@@ -71,11 +71,11 @@
     "syntaxPunctuation": "grey",
 
     "thinkingOff": "dim",
-    "thinkingMinimal": "grey",
-    "thinkingLow": "yellow",
-    "thinkingMedium": "orange",
-    "thinkingHigh": "red",
-    "thinkingXhigh": "red",
+    "thinkingMinimal": "dim",
+    "thinkingLow": "dim",
+    "thinkingMedium": "dim",
+    "thinkingHigh": "dim",
+    "thinkingXhigh": "dim",
 
     "bashMode": "yellow"
   },

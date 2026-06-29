@@ -2,8 +2,8 @@
   "quietStartup": true,
   "lastChangelogVersion": "0.80.2",
   "theme": "gruvbox-material",
-  "defaultProvider": "xiaomi",
-  "defaultModel": "mimo-v2.5-pro",
+  "defaultProvider": "neuralwatt",
+  "defaultModel": "glm-5.2-short-fast",
   "defaultThinkingLevel": "high",
   "packages": [
     "npm:pi-lean-ctx",
@@ -23,7 +23,5 @@
     "-skills/question-distiller.disabled/SKILL.md",
     "-skills/plan-mode/SKILL.md"
   ],
-  "extensions": [
-    "+extensions/resume-hint.ts"
-  ]
+  "extensions": []
 }
