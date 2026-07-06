@@ -1,0 +1,10 @@
+{
+  "id": "SRC-2026-06-29-002",
+  "captured": "2026-06-29",
+  "packet_version": "1.0",
+  "title": "GitHub - tintinweb/pi-subagents: Sub-agents for pi with Claude Code look and feel — parallel execution, live widget, custom agent types, mid-run steering and more ... · GitHub",
+  "url": "https://github.com/tintinweb/pi-subagents",
+  "format": "web",
+  "extractor": "htmlToMarkdown",
+  "extraction_status": "success"
+}
