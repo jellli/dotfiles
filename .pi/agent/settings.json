@@ -3,7 +3,7 @@
   "lastChangelogVersion": "0.80.2",
   "theme": "gruvbox-material",
   "defaultProvider": "neuralwatt",
-  "defaultModel": "glm-5.2-short-fast",
+  "defaultModel": "glm-5.2-short-flex",
   "defaultThinkingLevel": "high",
   "packages": [
     "npm:pi-lean-ctx",
@@ -13,11 +13,12 @@
     "git:github.com/elpapi42/pi-fork",
     "npm:@juicesharp/rpiv-ask-user-question",
     "npm:@juicesharp/rpiv-todo",
-    "git:github.com/elpapi42/pi-minimal-subagent",
+    "npm:@tintinweb/pi-subagents",
     "npm:pi-rtk-optimizer",
     "npm:@zosmaai/pi-llm-wiki",
     "npm:pi-hermes-memory",
-    "npm:pi-tool-display"
+    "npm:pi-tool-display",
+    "npm:pi-speeed"
   ],
   "skills": [
     "-skills/caveman-commit/SKILL.md",
