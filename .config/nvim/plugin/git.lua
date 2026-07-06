@@ -1,4 +1,4 @@
-local later = require("q").later
+local later = require("queue").later
 local keymap = Jili.keymap
 
 vim.g.diffs = {

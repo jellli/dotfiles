@@ -1,4 +1,4 @@
-local later = require("q").later
+local later = require("queue").later
 
 later(function()
 	vim.pack.add({
@@ -52,4 +52,3 @@ later(function()
 	keymap("x", "[", "S]", { remap = true, desc = "Surround with []'s" })
 	keymap("x", "]", "S]", { remap = true, desc = "Surround with []'s" })
 end)
-

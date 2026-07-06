@@ -49,7 +49,7 @@ M.git_component = function()
 	if dict.head and dict.root then
 		info = h({
 			{
-				hl = "Normal",
+				hl = "StatuslineNC",
 				string = string.format("%s", vim.fn.fnamemodify(dict.root, ":t")),
 			},
 			SEP,
@@ -139,12 +139,12 @@ M.filetype_component = function()
 end
 
 M.lsp_component = function()
-	local lsp_msg = #vim.lsp.status() > 0 and "LSP: " .. vim.lsp.status() or ""
+	local lsp_msg = #(vim.trim(vim.lsp.status())) > 0 and ("LSP: " .. vim.lsp.status()) or ""
 	local lsp_count = #vim.lsp.get_clients()
 	return h({
 		{
-			hl = "StatuslineNC",
-			string = string.format(" %d", lsp_count),
+			hl = "Number",
+			string = string.format("↯ %d", lsp_count),
 		},
 		#lsp_msg > 0 and SEP or "",
 		{

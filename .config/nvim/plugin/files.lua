@@ -1,4 +1,4 @@
-local later = require("q").later
+local later = require("queue").later
 local autocmd = Jili.autocmd
 local keymap = Jili.keymap
 

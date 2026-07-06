@@ -1,5 +1,5 @@
-local later = require("q").later
-local now = require("q").now
+local later = require("queue").later
+local now = require("queue").now
 
 vim.g.ts_enable = {
 	auto_init = true,

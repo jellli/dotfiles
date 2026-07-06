@@ -1,4 +1,4 @@
-local later = require("q").later
+local later = require("queue").later
 
 later(function()
 	vim.pack.add({
@@ -28,7 +28,7 @@ later(function()
 		code = {
 			-- border = "thin",
 			-- disable_background = true,
-      style = 'language'
+			style = "language",
 		},
 		checkbox = {
 			enabled = true,

@@ -1,4 +1,4 @@
-local later = require("q").later
+local later = require("queue").later
 
 later(function()
 	vim.g.startuptime_tries = 10

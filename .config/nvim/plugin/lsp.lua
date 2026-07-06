@@ -1,4 +1,4 @@
-local later = require("q").later
+local later = require("queue").later
 local diagnostic_icon = require("icons").diagnostics
 local signs = {
 	[vim.diagnostic.severity.ERROR] = diagnostic_icon.ERROR,

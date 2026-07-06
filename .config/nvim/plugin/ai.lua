@@ -1,6 +1,6 @@
 _G.CodeCompanionWinbar = nil
 local keymap = Jili.keymap
-local later = require("q").later
+local later = require("queue").later
 
 later(function()
 	vim.pack.add({
