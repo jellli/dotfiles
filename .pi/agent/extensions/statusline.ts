@@ -35,6 +35,21 @@ function plannotatorPhase(entries: PlnEntry[]): string | null {
   return null;
 }
 
+// ── token-per-sec tracking (replaces pi-speeed) ────────────────────
+// Counts output tokens while an assistant message streams (usage deltas
+// when the provider reports them, otherwise a word-count estimate of the
+// delta text) and divides by elapsed time. Shown in the footer right after
+// the ↑in ↓out token usage.
+
+const estimateTokens = (text: string): number => {
+  if (!text) return 0;
+  const m = text.match(/\w+|[^\s\w]/g);
+  return m ? m.length : 0;
+};
+
+const sanitizeTokS = (v: number, durMs: number): number | null =>
+  Number.isFinite(v) && v > 0 && v < 2000 && durMs >= 300 ? v : null;
+
 // ── extension ─────────────────────────────────────────────────────
 
 export default function (pi: ExtensionAPI) {
@@ -47,6 +62,51 @@ export default function (pi: ExtensionAPI) {
       if (r.code === 0) gitRoot = r.stdout.trim().split("/").pop() ?? "";
     } catch { gitRoot = ""; }
   }
+
+  // ── token-per-sec state (live while streaming, last completed after) ──
+  const speed = {
+    streaming: false,
+    startTs: 0,
+    tokens: 0,
+    lastUsageOut: 0,
+    lastTokS: null as number | null,
+    liveTokS: null as number | null,
+  };
+
+  pi.on("message_start", (event) => {
+    if (event.message.role !== "assistant") return;
+    speed.streaming = true;
+    speed.startTs = Date.now();
+    speed.tokens = 0;
+    speed.lastUsageOut = 0;
+    speed.liveTokS = null;
+  });
+
+  pi.on("message_update", (event) => {
+    if (!speed.streaming || event.message.role !== "assistant") return;
+    const ev = event.assistantMessageEvent;
+    if (!ev || (ev.type !== "text_delta" && ev.type !== "thinking_delta")) return;
+    const usageOut = ev.partial?.usage?.output;
+    if (typeof usageOut === "number" && usageOut > speed.lastUsageOut) {
+      speed.tokens += usageOut - speed.lastUsageOut;
+      speed.lastUsageOut = usageOut;
+    } else {
+      speed.tokens += estimateTokens(ev.delta ?? "");
+    }
+    const dur = Date.now() - speed.startTs;
+    if (dur >= 300) speed.liveTokS = speed.tokens / (dur / 1000);
+    tuiRef?.requestRender();
+  });
+
+  pi.on("message_end", (event) => {
+    if (!speed.streaming || event.message.role !== "assistant") return;
+    const dur = Date.now() - speed.startTs;
+    const finalOut = event.message.usage?.output ?? speed.tokens;
+    speed.lastTokS = sanitizeTokS(finalOut / (dur / 1000), dur);
+    speed.streaming = false;
+    speed.liveTokS = null;
+    tuiRef?.requestRender();
+  });
 
   // Refresh the footer when a plannotator phase transition lands.
   pi.on("turn_end", () => tuiRef?.requestRender());
@@ -93,7 +153,14 @@ export default function (pi: ExtensionAPI) {
             ? theme.fg("dim", "↑? ↓?")
             : theme.fg("muted", `↑${ft(tin)} ↓${ft(tout)}`);
 
-          const left = `${theme.fg("muted", pl)} ${bc(bar(r, 6))} ${ts}`;
+          // token-per-sec: live during streaming, last completed otherwise
+          const spd = speed.streaming && speed.liveTokS !== null
+            ? theme.fg("accent", ` ⚡${speed.liveTokS.toFixed(0)}t/s`)
+            : speed.lastTokS !== null
+            ? theme.fg("muted", ` ⚡${speed.lastTokS.toFixed(0)}t/s`)
+            : theme.fg("dim", " ⚡--");
+
+          const left = `${theme.fg("muted", pl)} ${bc(bar(r, 6))} ${ts}${spd}`;
 
           // ── right: git ──────────────────────────────
           const br = fd.getGitBranch();
