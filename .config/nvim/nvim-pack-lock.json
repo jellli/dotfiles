@@ -6,11 +6,11 @@
       "version": "1.0.0 - 2.0.0"
     },
     "codecompanion.nvim": {
-      "rev": "f6a7b8934fe9399755c1f9e1aa0cc6eb479ac12b",
+      "rev": "f1afd02537c68b3dd6e0d41d4adda5ef538e0473",
       "src": "https://github.com/olimorris/codecompanion.nvim"
     },
     "codediff.nvim": {
-      "rev": "7608f3b436ce1f84a4888f75e53079caa981a2e9",
+      "rev": "31510a9b34c032b6fe98fc158d4066702f68cff2",
       "src": "https://github.com/esmuellert/codediff.nvim"
     },
     "conform.nvim": {
@@ -22,7 +22,7 @@
       "src": "https://github.com/monaqa/dial.nvim"
     },
     "diffs.nvim": {
-      "rev": "7ab445c39224160203ae692d3c883e2f51f2d442",
+      "rev": "e6d3aa4bb400287ba1a612e28b5cd55e0ba15726",
       "src": "https://github.com/barrettruth/diffs.nvim"
     },
     "ex-colors.nvim": {
@@ -34,12 +34,8 @@
       "src": "https://github.com/rafamadriz/friendly-snippets"
     },
     "fzf-lua": {
-      "rev": "39da6060d53659acf3ec118200bc48721b29b8fd",
+      "rev": "8671012a7b2a1648595952c655039d51fb301c14",
       "src": "https://github.com/ibhagwan/fzf-lua"
-    },
-    "git-conflict.nvim": {
-      "rev": "a1badcd070d176172940eb55d9d59029dad1c5a6",
-      "src": "https://github.com/akinsho/git-conflict.nvim"
     },
     "gitsigns.nvim": {
       "rev": "eb60cc7b94c46005237fd34170d76f3a089a90aa",
@@ -58,7 +54,7 @@
       "src": "https://github.com/lukas-reineke/indent-blankline.nvim"
     },
     "leap.nvim": {
-      "rev": "d7f8ee64155b7790188f17a993390f32577cfb81",
+      "rev": "0d0549b13428855c063468a6935c18e933599a18",
       "src": "https://codeberg.org/andyg/leap.nvim"
     },
     "mason.nvim": {
@@ -88,11 +84,6 @@
     "neocodeium": {
       "rev": "d6dd1fe6938e89460e27f5215516f5e9468d8a10",
       "src": "https://github.com/monkoose/neocodeium"
-    },
-    "neotest": {
-      "rev": "ad991822b7076b1d940b33a9d6d0d30416d5df81",
-      "src": "https://github.com/nvim-neotest/neotest",
-      "version": "5.0.0 - 6.0.0"
     },
     "nvim-bqf": {
       "rev": "c282a62bec6c0621a1ef5132aa3f4c9fc4dcc2c7",
@@ -136,7 +127,7 @@
       "src": "https://github.com/MeanderingProgrammer/render-markdown.nvim"
     },
     "smart-splits.nvim": {
-      "rev": "0bd02161ee5c5378bf4133fcedf53d1fc4179e1d",
+      "rev": "0fe3bbd99d48458ad188c4c262c31049fa9b018c",
       "src": "https://github.com/mrjones2014/smart-splits.nvim"
     },
     "tabout.nvim": {
