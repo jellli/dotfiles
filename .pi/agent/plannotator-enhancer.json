@@ -1,0 +1,4 @@
+{
+  "autoEnterOnSessionStart": true,
+  "reenterAfterPlanComplete": true
+}

@@ -7,3 +7,10 @@
 .llm-wiki/meta/
 .llm-wiki/outputs/
 .llm-wiki/.discoveries/
+
+# --- pi runtime state (not config) ---
+.pi/agent/mcp-cache.json
+.pi/agent/mcp-npx-cache.json
+.pi/agent/models-store.json
+.pi/agent/pi-speeed-stats.json
+.pi/agent/plannotator-enhancer.log

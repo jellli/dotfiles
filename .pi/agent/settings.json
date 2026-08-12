@@ -1,9 +1,9 @@
 {
   "quietStartup": true,
-  "lastChangelogVersion": "0.80.2",
+  "lastChangelogVersion": "0.83.0",
   "theme": "gruvbox-material",
-  "defaultProvider": "neuralwatt",
-  "defaultModel": "glm-5.2-short-flex",
+  "defaultProvider": "opencode-go",
+  "defaultModel": "deepseek-v4-flash",
   "defaultThinkingLevel": "high",
   "packages": [
     "npm:pi-lean-ctx",
@@ -18,7 +18,8 @@
     "npm:@zosmaai/pi-llm-wiki",
     "npm:pi-hermes-memory",
     "npm:pi-tool-display",
-    "npm:pi-speeed"
+    "npm:pi-speeed",
+    "npm:pi-mcp-adapter"
   ],
   "skills": [
     "-skills/caveman-commit/SKILL.md",
@@ -27,5 +28,9 @@
     "-skills/question-distiller.disabled/SKILL.md",
     "-skills/plan-mode/SKILL.md"
   ],
-  "extensions": []
+  "extensions": [],
+  "hideThinkingBlock": true,
+  "compaction": {
+    "enabled": true
+  }
 }
