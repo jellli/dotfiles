@@ -208,7 +208,7 @@ export default function plannotatorEnhancer(pi: ExtensionAPI): void {
 
   // Loaded AFTER the plannotator package (packages load before local
   // extensions), so these handlers run after plannotator's own state restore.
-  pi.on("session_start", async () => {
+  async function runSessionStart(): Promise<void> {
     lastPhase = null;
     consecutiveNulls = 0;
     const phase = await probePhase(pi, "session_start", 6);
@@ -232,6 +232,21 @@ export default function plannotatorEnhancer(pi: ExtensionAPI): void {
       assertFullToolSet(pi);
       log(`session_start: phase=${phase}, assertTools (full)`);
     }
+  }
+
+  // CRITICAL ordering: package-manager.js sorts resolved extension paths by
+  // resourcePrecedenceRank (~line 2042) — auto-discovered local extensions
+  // (rank 1/3) load BEFORE npm packages (rank 4). So THIS extension's
+  // handlers run FIRST in runner.emit's sequential await chain. Probing
+  // synchronously here would race plannotator's session_start context-setter
+  // (it hasn't run yet → every probe returns "unavailable"). Schedule the
+  // work on a timer and return immediately; by the time it fires,
+  // plannotator's own session_start handlers have completed.
+  pi.on("session_start", () => {
+    void (async () => {
+      await sleep(250); // let plannotator's session_start handlers settle first
+      await runSessionStart();
+    })();
   });
 
   // Keep the tracked phase fresh so a manual /plannotator exit during
@@ -251,29 +266,32 @@ export default function plannotatorEnhancer(pi: ExtensionAPI): void {
     lastPhase = phase;
   });
 
-  pi.on("agent_end", async () => {
+  pi.on("agent_end", () => {
     if (consecutiveNulls >= 3) return;
     const prev = lastPhase;
-    // Let plannotator's own (earlier-registered) agent_end handler finish:
-    // its completion does await restoreSavedState() then persistState() (idle),
-    // and Node invokes our handler in the same emit tick before those awaits
-    // settle. A short delay makes the order deterministic.
-    await sleep(60);
-    const phase = await probePhaseOnce(pi, "agent_end");
-    if (prev === "executing" && phase === "idle") {
-      // Plan just completed: plannotator restored its entry-time snapshot
-      // (possibly dropping tools) and stripped plan tools. Re-assert the full
-      // tool set, then re-enter planning so the next task starts ready.
-      assertFullToolSet(pi, { excludeSubmit: true });
-      log(`agent_end: executing→idle, assertTools, reenter=${config.reenterAfterPlanComplete}`);
-      if (config.reenterAfterPlanComplete) {
-        await enterPlanning();
-        const after = await probePhaseOnce(pi, "agent_end:after-reenter");
-        log(`agent_end: after re-enter → ${after ?? "unknown"}`);
+    // Same ordering constraint as session_start: our agent_end handler runs
+    // BEFORE plannotator's. Plannotator's agent_end is what completes the plan
+    // (phase executing → idle + restoreSavedState + persistState). Probing
+    // synchronously here would still see "executing" and miss the transition.
+    // Defer: by the time the timer fires, plannotator's agent_end has finished.
+    void (async () => {
+      await sleep(150);
+      const phase = await probePhaseOnce(pi, "agent_end");
+      if (prev === "executing" && phase === "idle") {
+        // Plan just completed: plannotator restored its entry-time snapshot
+        // (possibly dropping tools) and stripped plan tools. Re-assert the full
+        // tool set, then re-enter planning so the next task starts ready.
+        assertFullToolSet(pi, { excludeSubmit: true });
+        log(`agent_end: executing→idle, assertTools, reenter=${config.reenterAfterPlanComplete}`);
+        if (config.reenterAfterPlanComplete) {
+          await enterPlanning();
+          const after = await probePhaseOnce(pi, "agent_end:after-reenter");
+          log(`agent_end: after re-enter → ${after ?? "unknown"}`);
+        }
+      } else if (phase) {
+        lastPhase = phase;
       }
-    } else if (phase) {
-      lastPhase = phase;
-    }
+    })();
   });
 
   pi.registerCommand("plannotator-auto", {
