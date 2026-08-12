@@ -15,8 +15,6 @@
     "npm:@juicesharp/rpiv-todo",
     "npm:@tintinweb/pi-subagents",
     "npm:pi-rtk-optimizer",
-    "npm:pi-tool-display",
-    "npm:pi-speeed",
     "npm:pi-mcp-adapter"
   ],
   "skills": [
