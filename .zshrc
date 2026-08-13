@@ -46,7 +46,7 @@ safe_load "fzf"      'source <(fzf --zsh)'
 setopt append_history inc_append_history share_history 
 export KEYTIMEOUT=1
 export EDITOR="nvim"
-export PI_OFFLINE=1
+# export PI_OFFLINE=1  # disabled 2026-08-12 (revert to re-enable offline)
 source "$HOME/.config/zsh/fzf.zsh"
 export PATH=$PATH:$(go env GOPATH)/bin
 
