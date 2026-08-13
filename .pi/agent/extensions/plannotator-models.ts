@@ -2,9 +2,11 @@
  * plannotator-models — separate models for plannotator's planning and
  * executing phases, configured via an interactive TUI.
  *
- * - `/plannotator-models` opens two selectors (plan model, exec model) and
- *   writes the choices to ~/.pi/agent/plannotator.json — plannotator's global
- *   config layer — merging with any existing fields (thinking, tools, ...).
+ * - `/plannotator-models` opens two-stage pickers (provider → keyword-filtered
+ *   model list, capped at ~20 rows) so the selector never overflows the
+ *   terminal, then writes the choices to ~/.pi/agent/plannotator.json —
+ *   plannotator's global config layer — merging with any existing fields
+ *   (thinking, tools, ...).
  * - The configured model for the CURRENT phase is applied immediately via
  *   pi.setModel, so no reload is needed for the phase you're in.
  * - On phase transitions the configured model for the incoming phase is
@@ -70,6 +72,48 @@ function currentPhase(entries: PlnEntry[]): string | null {
 const phaseModel = (cfg: PlnConfig, phase: string): PhaseModelRef | null | undefined =>
   phase === "planning" ? cfg.phases?.planning?.model : phase === "executing" ? cfg.phases?.executing?.model : undefined;
 
+interface ModelLike {
+  id: string;
+  name: string;
+  provider: string;
+}
+
+// The extension selector renders EVERY option as a row with no scrolling or
+// search (ExtensionSelectorComponent), so a huge model list overflows the
+// terminal. Pick in two stages: choose a provider first, then narrow the
+// model list with a keyword until it fits (~20 rows), then select.
+async function pickModel(
+  ctx: ExtensionContext,
+  title: string,
+  all: ModelLike[],
+  currentRef: PhaseModelRef | null,
+): Promise<ModelLike | undefined> {
+  const providers = [...new Set(all.map((m) => m.provider))];
+  const providerOptions = ["(全部)", ...providers.map((p) => (p === currentRef?.provider ? `${p} ★` : p))];
+  const providerChoice = await ctx.ui.select(`${title} — 选择模型来源`, providerOptions);
+  if (providerChoice === undefined) return undefined;
+  const provider = providerChoice === "(全部)" ? null : providerChoice.replace(/ ★$/, "");
+  let pool = provider === null ? all : all.filter((m) => m.provider === provider);
+
+  while (pool.length > 20) {
+    const kw = await ctx.ui.input(`${title} — ${pool.length} 个模型,输入关键词过滤`, "如 deepseek / glm / flash");
+    if (kw === undefined) return undefined;
+    const q = kw.trim().toLowerCase();
+    if (!q) break; // 留空 → 截断显示
+    const filtered = pool.filter((m) => `${m.name} ${m.id} ${m.provider}`.toLowerCase().includes(q));
+    if (filtered.length === 0) {
+      ctx.ui.notify("无匹配模型,请重试", "warning");
+      continue;
+    }
+    pool = filtered;
+  }
+
+  const shown = pool.slice(0, 20);
+  const pick = await ctx.ui.select(`${title} — 共 ${pool.length} 个`, shown.map((m) => m.name));
+  if (pick === undefined) return undefined;
+  return shown.find((m) => m.name === pick) ?? all.find((m) => m.name === pick);
+}
+
 // ── extension ─────────────────────────────────────────────────────
 
 export default function (pi: ExtensionAPI) {
@@ -122,25 +166,16 @@ export default function (pi: ExtensionAPI) {
       const cur = ctx.model;
       const curLabel = cur ? `${cur.name} (current)` : "current";
 
-      const labels = models.map((m) => m.name);
       const fmt = (ref: PhaseModelRef | null) => (ref ? `${ref.provider}/${ref.id}` : `default (${curLabel})`);
 
-      const planName = await ctx.ui.select(`Plan phase model — now: ${fmt(planRef)}`, labels);
-      if (planName === undefined) {
+      const planModel = await pickModel(ctx, "Plan phase model — now: " + fmt(planRef), models, planRef);
+      if (planModel === undefined) {
         ctx.ui.notify("Plannotator: cancelled", "info");
         return;
       }
-      const execName = await ctx.ui.select(`Exec phase model — now: ${fmt(execRef)}`, labels);
-      if (execName === undefined) {
+      const execModel = await pickModel(ctx, "Exec phase model — now: " + fmt(execRef), models, execRef);
+      if (execModel === undefined) {
         ctx.ui.notify("Plannotator: cancelled", "info");
-        return;
-      }
-
-      const byName = (name: string) => models.find((m) => m.name === name);
-      const planModel = byName(planName);
-      const execModel = byName(execName);
-      if (!planModel || !execModel) {
-        ctx.ui.notify("Plannotator: model lookup failed", "error");
         return;
       }
 
