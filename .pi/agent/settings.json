@@ -5,6 +5,7 @@
   "defaultProvider": "opencode-go",
   "defaultModel": "deepseek-v4-flash",
   "defaultThinkingLevel": "high",
+  "externalEditor": "tmux display-popup -w 90% -h 85% -E nvim",
   "packages": [
     "npm:pi-lean-ctx",
     "npm:@plannotator/pi-extension",

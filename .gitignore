@@ -14,3 +14,4 @@
 .pi/agent/models-store.json
 .pi/agent/plannotator-enhancer.log
 .pi/agent/pi-speeed-stats.json
+.pi/rules/
