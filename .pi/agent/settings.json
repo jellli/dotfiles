@@ -1,6 +1,6 @@
 {
   "quietStartup": true,
-  "lastChangelogVersion": "0.83.0",
+  "lastChangelogVersion": "0.84.1",
   "theme": "gruvbox-material",
   "defaultProvider": "opencode-go",
   "defaultModel": "deepseek-v4-flash",
@@ -9,14 +9,12 @@
   "packages": [
     "npm:pi-lean-ctx",
     "npm:@plannotator/pi-extension",
-    "npm:@aliou/pi-neuralwatt",
     "npm:pi-observational-memory",
-    "git:github.com/elpapi42/pi-fork",
     "npm:@juicesharp/rpiv-ask-user-question",
     "npm:@juicesharp/rpiv-todo",
-    "npm:@tintinweb/pi-subagents",
     "npm:pi-rtk-optimizer",
-    "npm:pi-mcp-adapter"
+    "npm:pi-mcp-adapter",
+    "npm:pi-tool-display"
   ],
   "skills": [
     "-skills/caveman-commit/SKILL.md",
