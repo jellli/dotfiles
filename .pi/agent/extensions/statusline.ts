@@ -1,11 +1,19 @@
 /**
  * Custom statusline — nvim-style footer with per-session token usage.
  *
- * Footer:  pct% [bar]  ↑in ↓out    git-root / branch
+ * Footer:  git-root / branch 🐱 t/s    plan-chip pct% [bar] ↑in ↓out
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+
+// ── RunCat cat frames (private-use glyphs from runcat.ttf) ─────────
+
+const RUNCAT_FRAMES = ["\ue900 ", "\ue901 ", "\ue902 ", "\ue903 ", "\ue904 "];
+const RUNCAT_SCALE = 6000;
+const RUNCAT_MIN_MS = 50;
+const RUNCAT_MAX_MS = 250;
+const RUNCAT_DEFAULT_MS = 167;
 
 // ── helpers ───────────────────────────────────────────────────────
 
@@ -73,6 +81,18 @@ export default function (pi: ExtensionAPI) {
     liveTokS: null as number | null,
   };
 
+  // ── RunCat animation state (frame advances on a speed-driven interval) ──
+  let catFrame = 0;
+  let catLastTick = 0;
+
+  const currentSpeed = () =>
+    speed.streaming ? speed.liveTokS : speed.lastTokS;
+
+  const runcatInterval = (v: number | null): number =>
+    v === null || !Number.isFinite(v) || v <= 0
+      ? RUNCAT_DEFAULT_MS
+      : Math.max(RUNCAT_MIN_MS, Math.min(RUNCAT_MAX_MS, Math.round(RUNCAT_SCALE / v)));
+
   pi.on("message_start", (event) => {
     if (event.message.role !== "assistant") return;
     speed.streaming = true;
@@ -122,8 +142,21 @@ export default function (pi: ExtensionAPI) {
         tui.requestRender();
       });
 
+      // Advance the cat frame on a speed-driven interval, then re-render the
+      // footer. Fixed 50ms tick (= RUNCAT_MIN_MS) so a faster speed can pick
+      // up a shorter interval promptly; cleared in dispose().
+      const catTimer = setInterval(() => {
+        const interval = runcatInterval(currentSpeed());
+        const now = Date.now();
+        if (now - catLastTick >= interval) {
+          catFrame = (catFrame + 1) % RUNCAT_FRAMES.length;
+          catLastTick = now;
+        }
+        tui.requestRender();
+      }, RUNCAT_MIN_MS);
+
       return {
-        dispose() { unsub(); },
+        dispose() { clearInterval(catTimer); unsub(); },
         invalidate() {},
         render(w: number): string[] {
           // ── token usage and context bar ─────────────
@@ -153,26 +186,30 @@ export default function (pi: ExtensionAPI) {
             ? theme.fg("dim", "↑? ↓?")
             : theme.fg("muted", `↑${ft(tin)} ↓${ft(tout)}`);
 
-          // token-per-sec: live during streaming, last completed otherwise
+          // RunCat cat frame + token-per-sec form one unit (left, after
+          // branch): 🐱 45t/s. Live during streaming, last completed otherwise.
+          const cat = theme.fg("accent", RUNCAT_FRAMES[catFrame]);
           const spd = speed.streaming && speed.liveTokS !== null
-            ? theme.fg("accent", ` ⚡${speed.liveTokS.toFixed(0)}t/s`)
+            ? theme.fg("accent", `${speed.liveTokS.toFixed(0)}t/s`)
             : speed.lastTokS !== null
-            ? theme.fg("muted", ` ⚡${speed.lastTokS.toFixed(0)}t/s`)
-            : theme.fg("dim", " ⚡--");
+            ? theme.fg("muted", `${speed.lastTokS.toFixed(0)}t/s`)
+            : theme.fg("dim", "--");
 
-          const left = `${theme.fg("muted", pl)} ${bc(bar(r, 6))} ${ts}${spd}`;
-
-          // ── right: git ──────────────────────────────
+          // ── left: git + cat + speed ─────────────────
           const br = fd.getGitBranch();
-          let right = "";
+          let left = "";
           if (gitRoot || br)
-            right = `${gitRoot ? theme.fg("text", gitRoot) : ""}${theme.fg("dim", " / ")}${br ? theme.fg("muted", br) : ""}`;
+            left = `${gitRoot ? theme.fg("text", gitRoot) : ""}${theme.fg("dim", " / ")}${br ? theme.fg("muted", br) : ""}`;
+          left = left ? `${left} ${cat}${spd}` : `${cat}${spd}`;
 
-          // ── plannotator phase chip ────────────────────
+          // ── right: plan chip + token usage ───────────
+          const tokenBlock = `${theme.fg("muted", pl)} ${bc(bar(r, 6))} ${ts}`;
           const pln = plannotatorPhase(ctx.sessionManager.getEntries() as PlnEntry[]);
-          if (pln === "planning") right += theme.fg("warning", " ⏸plan");
-          else if (pln === "executing") right += theme.fg("accent", " ▶exec");
-          else if (pln === "idle") right += theme.fg("dim", " ∘off");
+          let right = "";
+          if (pln === "planning") right = theme.fg("warning", "⏸ PLAN");
+          else if (pln === "executing") right = theme.fg("accent", "▶ EXEC");
+          else if (pln === "idle") right = theme.fg("dim", "∘ OFF");
+          right = right ? `${right} ${tokenBlock}` : tokenBlock;
 
           const lw = visibleWidth(left), rw = visibleWidth(right);
           return ["", truncateToWidth(left + " ".repeat(Math.max(1, w - lw - rw)) + right, w)];
