@@ -153,3 +153,15 @@ keymap("n", "<leader>lg", function()
 	local current_dir = vim.fs.root(0, ".git") or "."
 	vim.system({ "tmux", "display-popup", "-w 100%", "-h 95%", "-E", "lazygit", "-p", current_dir })
 end, "LazyGit")
+
+local yank_path = function(modifier)
+	local path = vim.fn.expand(modifier)
+	vim.fn.setreg(vim.v.register, path)
+end
+
+keymap("n", "gy", function()
+	yank_path("%:.")
+end)
+keymap("n", "gY", function()
+	yank_path("%:p")
+end)
