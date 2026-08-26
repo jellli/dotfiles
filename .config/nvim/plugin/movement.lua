@@ -12,4 +12,10 @@ later(function()
 			opts = require("leap.user").with_traversal_keys("R", "r"),
 		})
 	end)
+	keymap({ "n", "o" }, "gs", "<Plug>(leap-visit)")
+	keymap({ "n", "o" }, "gS", "<Plug>(leap-visit-linewise)")
+	-- Mnemonic: "remote (text object)".
+	keymap({ "x", "o" }, "ar", "<Plug>(leap-visit-text-object)")
+	keymap({ "x", "o" }, "ir", "<Plug>(leap-visit-inner-text-object)")
+	keymap({ "o" }, "rr", "<Plug>(leap-visit-line)")
 end)
