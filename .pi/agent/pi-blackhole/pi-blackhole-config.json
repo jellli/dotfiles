@@ -1,0 +1,104 @@
+{
+  "debug": false,
+  "sessionFallback": true,
+  "compaction": "auto",
+  "compactionEngine": "blackhole",
+  "compactionSummaryMode": "default",
+  "skipForProviders": [],
+  "tailBehavior": "minimal",
+  "midRunCompaction": "off",
+  "observeAfterTokens": 15000,
+  "reflectAfterTokens": 25000,
+  "compactAfterTokens": 81000,
+  "observationsPoolMaxTokens": 20000,
+  "fullFoldAlways": true,
+  "observationsPoolTargetTokens": 10000,
+  "reflectorInputMaxTokens": 80000,
+  "dropperInputMaxTokens": 80000,
+  "dropperPressureThreshold": 0.7,
+  "dropperPoolFullnessThreshold": 0.1,
+  "observerChunkMaxTokens": 40000,
+  "observerPreambleMaxTokens": 0,
+  "agentMaxTurns": 16,
+  "memory": true,
+  "debugLog": false,
+  "model": {
+    "_comment": "Shared last-resort fallback before session model — MiMo cheapest tier, direct xiaomi API.",
+    "provider": "xiaomi",
+    "id": "mimo-v2.5",
+    "thinking": "low",
+    "cooldownHours": 1
+  },
+  "observerModel": {
+    "_comment": "Observer (most frequent): reads new conversation, extracts timestamped facts. MiMo V2.5 = $0.14/$0.28 per MTok, 1M ctx.",
+    "provider": "xiaomi",
+    "id": "mimo-v2.5",
+    "thinking": "low",
+    "cooldownHours": 1
+  },
+  "observerFallbackModels": [
+    {
+      "_comment": "Cross-vendor fallback 1: deepseek direct (same price tier, different gateway than xiaomi).",
+      "provider": "deepseek",
+      "id": "deepseek-v4-flash",
+      "thinking": "low",
+      "cooldownHours": 1
+    },
+    {
+      "_comment": "Cross-vendor fallback 2: session model's provider route (commandcode deepseek flash) — same model family via commandcode gateway. Last cheap option before session fallback.",
+      "provider": "commandcode",
+      "id": "deepseek/deepseek-v4-flash",
+      "thinking": "low",
+      "cooldownHours": 1
+    }
+  ],
+  "reflectorModel": {
+    "_comment": "Reflector (low frequency): distills observations into durable reflections. Needs decent reasoning — MiMo V2.5 fine.",
+    "provider": "xiaomi",
+    "id": "mimo-v2.5",
+    "thinking": "low",
+    "cooldownHours": 1
+  },
+  "reflectorFallbackModels": [
+    {
+      "provider": "deepseek",
+      "id": "deepseek-v4-flash",
+      "thinking": "low",
+      "cooldownHours": 1
+    },
+    {
+      "provider": "commandcode",
+      "id": "deepseek/deepseek-v4-flash",
+      "thinking": "low",
+      "cooldownHours": 1
+    }
+  ],
+  "dropperModel": {
+    "_comment": "Dropper (low frequency): prunes low-value observations. MiMo V2.5.",
+    "provider": "xiaomi",
+    "id": "mimo-v2.5",
+    "thinking": "low",
+    "cooldownHours": 1
+  },
+  "dropperFallbackModels": [
+    {
+      "provider": "deepseek",
+      "id": "deepseek-v4-flash",
+      "thinking": "low",
+      "cooldownHours": 1
+    },
+    {
+      "provider": "commandcode",
+      "id": "deepseek/deepseek-v4-flash",
+      "thinking": "low",
+      "cooldownHours": 1
+    }
+  ],
+  "_notes": [
+    "Auto compaction at 81k tokens (blackhole default).",
+    "All three memory workers: xiaomi/mimo-v2.5 primary (cheap $0.14/$0.28, 1M ctx, direct xiaomi key).",
+    "Fallbacks cross-vendor: deepseek direct → commandcode deepseek — avoid single-gateway outage.",
+    "zai-coding-cn/glm NOT used as free worker — package plan expired, now billable.",
+    "sessionFallback true: session model is always the absolute last resort."
+  ]
+}
