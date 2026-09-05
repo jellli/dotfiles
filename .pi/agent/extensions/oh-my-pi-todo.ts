@@ -76,7 +76,6 @@ type State = {
   lastAssistantText?: string;
 };
 const states = new Map<string, State>();
-let activeContext: ExtensionContext | undefined;
 
 type SpinnerState = { timer?: ReturnType<typeof setInterval>; frame?: number };
 
@@ -333,11 +332,16 @@ function syncHudClear(ctx: ExtensionContext, state: State): void {
 
   const key = state.sessionKey;
   state.clearTimer = setTimeout(() => {
-    // Guard stale contexts after session switches, reloads, or shutdown.
-    if (states.get(key) !== state || !activeContext || sessionKey(activeContext) !== key) return;
-    activeContext.ui.setWidget(WIDGET_KEY, undefined);
+    // A replaced session owns a different state object, so its HUD must not be cleared.
+    if (states.get(key) !== state) return;
     state.clearTimer = undefined;
+    try {
+      ctx.ui.setWidget(WIDGET_KEY, undefined);
+    } catch {
+      // The replacement session will restore its own widget and clear timer.
+    }
   }, HUD_CLEAR_DELAY_MS);
+  state.clearTimer.unref();
 }
 
 function renderWidget(ctx: ExtensionContext, phases: Phase[], expanded = false): void {
@@ -548,13 +552,11 @@ export default function (pi: ExtensionAPI): void {
       reminderCount: 0,
       awaitingProgress: false,
     });
-    activeContext = ctx;
     renderWidget(ctx, phases);
     syncHudClear(ctx, getState(ctx));
   });
 
   pi.on("session_compact", async (_event, ctx) => {
-    activeContext = ctx;
     const state = getState(ctx);
     renderWidget(ctx, state.phases, state.expanded);
     syncHudClear(ctx, state);
@@ -622,9 +624,6 @@ export default function (pi: ExtensionAPI): void {
     const state = states.get(sessionKey(ctx));
     if (state) cancelHudClear(state);
     states.delete(sessionKey(ctx));
-    if (activeContext && sessionKey(activeContext) === sessionKey(ctx)) {
-      ctx.ui.setWidget(WIDGET_KEY, undefined);
-      activeContext = undefined;
-    }
+    ctx.ui.setWidget(WIDGET_KEY, undefined);
   });
 }

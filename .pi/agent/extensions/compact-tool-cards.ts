@@ -1,4 +1,5 @@
 import {
+  CompactionSummaryMessageComponent,
   createBashToolDefinition,
   createEditToolDefinition,
   createFindToolDefinition,
@@ -6,6 +7,7 @@ import {
   createLsToolDefinition,
   createReadToolDefinition,
   createWriteToolDefinition,
+  keyText,
   type ExtensionAPI,
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
@@ -19,6 +21,82 @@ const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", 
 const SPINNER_INTERVAL_MS = 80;
 const EDIT_PREVIEW_LIMIT = 6;
 const WRITE_PREVIEW_LIMIT = 4;
+const BASH_COMMAND_MAX_WIDTH = 96;
+const COMPACTION_RENDER_PATCH = "__dotfilesCompactCompactionRender";
+const PI_THEME_KEY = Symbol.for("@earendil-works/pi-coding-agent:theme");
+
+type CompactionTheme = {
+  fg(color: "accent" | "customMessageLabel" | "customMessageText" | "dim", text: string): string;
+};
+
+type CompactionRenderPrototype = {
+  expanded: boolean;
+  message: { tokensBefore: number };
+  render(width: number): string[];
+  [COMPACTION_RENDER_PATCH]?: (this: CompactionRenderPrototype, width: number) => string[];
+};
+
+function compactionTheme(): CompactionTheme | undefined {
+  return (globalThis as unknown as Record<symbol, CompactionTheme | undefined>)[PI_THEME_KEY];
+}
+
+function compactionColor(
+  color: "accent" | "customMessageLabel" | "customMessageText" | "dim",
+  text: string,
+): string {
+  const theme = compactionTheme();
+  if (theme) return theme.fg(color, text);
+
+  const fallback = {
+    accent: "36",
+    customMessageLabel: "35",
+    customMessageText: "37",
+    dim: "2",
+  }[color];
+  const reset = color === "dim" ? "22" : "39";
+  return `\x1b[${fallback}m${text}\x1b[${reset}m`;
+}
+
+function installCompactCompactionRenderer(componentClass: typeof CompactionSummaryMessageComponent): void {
+  const prototype = componentClass.prototype as unknown as CompactionRenderPrototype;
+  if (prototype[COMPACTION_RENDER_PATCH]) return;
+
+  const originalRender = prototype.render;
+  prototype[COMPACTION_RENDER_PATCH] = originalRender;
+  prototype.render = function (width: number): string[] {
+    if (this.expanded) return originalRender.call(this, width);
+
+    const tokenCount = this.message.tokensBefore.toLocaleString();
+    const hint = keyText("app.tools.expand") || "Ctrl+O";
+    const line = `${compactionColor("customMessageLabel", "[compaction]")} ${compactionColor("customMessageText", "Compacted from")} ${compactionColor("accent", `${tokenCount} tokens`)} ${compactionColor("customMessageText", `(${compactionColor("dim", `${hint} to expand`)})`)}`;
+    return [truncateToWidth(line, Math.max(1, width), "", false)];
+  };
+}
+
+async function installBundleCompactionRenderer(): Promise<void> {
+  try {
+    const packageEntry = import.meta.resolve("@earendil-works/pi-coding-agent");
+    const bundle = await import(new URL("./bundle/index.js", packageEntry).href) as {
+      CompactionSummaryMessageComponent?: typeof CompactionSummaryMessageComponent;
+    };
+    if (bundle.CompactionSummaryMessageComponent) {
+      installCompactCompactionRenderer(bundle.CompactionSummaryMessageComponent);
+    }
+  } catch {
+    // The unbundled class is still patched when no bundle is available.
+  }
+}
+
+// Compact collapsed summaries while leaving Pi's expanded summary untouched.
+installCompactCompactionRenderer(CompactionSummaryMessageComponent);
+
+// Keep command previews readable on narrow terminals while bounding wide cards.
+function bashCommandWidth(width: number): number {
+  if (width < 80) return 32;
+  if (width < 120) return 56;
+  if (width < 160) return 80;
+  return BASH_COMMAND_MAX_WIDTH;
+}
 
 function stringArg(args: ToolArgs, key: string, fallback = ""): string {
   const value = args[key];
@@ -42,6 +120,67 @@ type RenderedSuccess = string | { body: string; footer?: string };
 
 function fitLine(line: string, width: number): string {
   return visibleWidth(line) <= width ? line : truncateToWidth(line, Math.max(0, width), "", false);
+}
+
+type HeaderFactory = (
+  args: ToolArgs,
+  theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1],
+  context: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[2],
+) => Component;
+
+class BashHeader implements Component {
+  private command = "";
+  private theme!: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1];
+  private context!: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[2];
+
+  update(
+    command: string,
+    theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1],
+    context: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[2],
+  ): void {
+    this.command = command;
+    this.theme = theme;
+    this.context = context;
+    this.syncSpinner();
+  }
+
+  invalidate(): void {}
+
+  render(width: number): string[] {
+    this.syncSpinner();
+    const spinner = this.context.state as SpinnerState;
+    const marker = this.context.isError
+      ? this.theme.fg("error", "×")
+      : this.context.isPartial
+        ? this.theme.fg("muted", SPINNER_FRAMES[spinner.frame ?? 0])
+        : this.theme.fg("success", "√");
+    const prefix = `${marker} ${this.theme.fg("toolTitle", this.theme.bold("bash"))} `;
+    const availableWidth = Math.max(
+      0,
+      Math.min(bashCommandWidth(width), width - visibleWidth(prefix)),
+    );
+    const command = truncateToWidth(this.command, availableWidth, "...", false);
+    const lines = [`${prefix}${this.theme.fg("toolOutput", command)}`];
+    return lines.map((line) => fitLine(line, width));
+  }
+
+  private syncSpinner(): void {
+    const spinner = this.context.state as SpinnerState;
+    if (this.context.isPartial) {
+      spinner.frame ??= 0;
+      if (!spinner.timer) {
+        // Spinner state is scoped to this tool execution and never keeps Pi alive.
+        spinner.timer = setInterval(() => {
+          spinner.frame = ((spinner.frame ?? 0) + 1) % SPINNER_FRAMES.length;
+          this.context.invalidate();
+        }, SPINNER_INTERVAL_MS);
+        spinner.timer.unref();
+      }
+    } else if (spinner.timer) {
+      clearInterval(spinner.timer);
+      spinner.timer = undefined;
+    }
+  }
 }
 
 class DimFrame implements Component {
@@ -168,6 +307,7 @@ function compactDefinition(
   formatHeader: HeaderFormatter,
   renderSuccess?: (args: ToolArgs, result: { details?: unknown }, expanded: boolean, theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderResult"]>>[2]) => RenderedSuccess,
   framed = false,
+  createHeader?: HeaderFactory,
 ): ToolDefinition<any, any, any> {
   // Spread the built-in definition so its schema, prompt, and execution stay unchanged.
   return {
@@ -175,6 +315,7 @@ function compactDefinition(
     // Self-rendering bypasses Pi's colored Box shell.
     renderShell: "self",
     renderCall(args: ToolArgs, theme, context) {
+      if (createHeader) return createHeader(args, theme, context);
       if (framed) {
         const frame = (context.lastComponent as DimFrame | undefined) ?? new DimFrame(theme);
         renderHeader(frame.header, tool.name, formatHeader(args, theme), theme, context);
@@ -212,7 +353,9 @@ function compactDefinition(
   };
 }
 
-export default function (pi: ExtensionAPI) {
+export default async function (pi: ExtensionAPI) {
+  installCompactCompactionRenderer(CompactionSummaryMessageComponent);
+  await installBundleCompactionRenderer();
   const cwd = process.cwd();
 
   // Registering matching names replaces only the built-in renderers above.
@@ -228,9 +371,19 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool(compactDefinition(createLsToolDefinition(cwd), (args, theme) => (
     theme.fg("toolOutput", shorten(stringArg(args, "path", ".")))
   )));
-  pi.registerTool(compactDefinition(createBashToolDefinition(cwd), (args, theme) => (
-    theme.fg("toolOutput", shorten(stringArg(args, "command", "<missing command>")))
-  )));
+  pi.registerTool(compactDefinition(
+    createBashToolDefinition(cwd),
+    () => "",
+    undefined,
+    false,
+    (args, theme, context) => {
+      const header = context.lastComponent instanceof BashHeader
+        ? context.lastComponent
+        : new BashHeader();
+      header.update(stringArg(args, "command", "<missing command>"), theme, context);
+      return header;
+    },
+  ));
   pi.registerTool(compactDefinition(createEditToolDefinition(cwd), (args, theme) => {
     const edits = Array.isArray(args.edits) ? args.edits.length : 0;
     return `${coloredPath(args, theme)} ${theme.fg("toolOutput", `(${edits} edit${edits === 1 ? "" : "s"})`)}`;
