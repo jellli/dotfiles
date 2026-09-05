@@ -4,8 +4,9 @@
  * Keeps only the session todo tool, `/todo` command, persistence, and HUD.
  * Adapted to pi's public ExtensionAPI; OMP's core-only imports are not used.
  */
+import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@earendil-works/pi-coding-agent";
 
 const TOOL_NAME = "todo";
 const ENTRY_TYPE = "oh-my-pi-todo";
@@ -14,6 +15,10 @@ const WIDGET_KEY = "oh-my-pi-todo";
 const REMINDER_LIMIT = 3;
 const HUD_ACTIVE_TASK_LIMIT = 5;
 const HUD_FOLLOWING_PHASE_LIMIT = 3;
+// Keep completed HUDs visible briefly without removing persisted session state.
+const HUD_CLEAR_DELAY_MS = 60_000;
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+const SPINNER_INTERVAL_MS = 80;
 
 const TodoStatus = Type.Union([
   Type.Literal("pending"),
@@ -67,10 +72,44 @@ type State = {
   expanded: boolean;
   reminderCount: number;
   awaitingProgress: boolean;
+  clearTimer?: ReturnType<typeof setTimeout>;
   lastAssistantText?: string;
 };
 const states = new Map<string, State>();
 let activeContext: ExtensionContext | undefined;
+
+type SpinnerState = { timer?: ReturnType<typeof setInterval>; frame?: number };
+
+function renderToolHeader(
+  text: Text,
+  params: Params,
+  theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1],
+  context: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[2],
+): void {
+  const spinner = context.state as SpinnerState;
+  if (context.isPartial) {
+    spinner.frame ??= 0;
+    if (!spinner.timer) {
+      // Spinner state is scoped to this tool execution and never keeps Pi alive.
+      spinner.timer = setInterval(() => {
+        spinner.frame = ((spinner.frame ?? 0) + 1) % SPINNER_FRAMES.length;
+        renderToolHeader(text, params, theme, context);
+        context.invalidate();
+      }, SPINNER_INTERVAL_MS);
+      spinner.timer.unref();
+    }
+  } else if (spinner.timer) {
+    clearInterval(spinner.timer);
+    spinner.timer = undefined;
+  }
+  const marker = context.isError
+    ? theme.fg("error", "×")
+    : context.isPartial
+      ? theme.fg("muted", SPINNER_FRAMES[spinner.frame ?? 0])
+      : theme.fg("success", "√");
+  const target = params.task ?? params.phase ?? params.items?.join(", ") ?? "";
+  text.setText(`${marker} ${theme.fg("toolTitle", theme.bold("todo"))} ${theme.fg("toolOutput", `${params.op}${target ? ` ${target}` : ""}`)}`);
+}
 
 function clone(phases: Phase[]): Phase[] {
   return phases.map((phase) => ({
@@ -98,6 +137,7 @@ function getState(ctx: ExtensionContext): State {
 function normalize(phases: Phase[]): void {
   const tasks = phases.flatMap((phase) => phase.tasks);
   const active = tasks.filter((task) => task.status === "in_progress");
+  // A todo list has one active task; advance to the first pending task when needed.
   for (const task of active.slice(1)) task.status = "pending";
   if (active.length === 0) {
     const next = tasks.find((task) => task.status === "pending");
@@ -280,6 +320,26 @@ function isClosed(task: Item): boolean {
   return task.status === "completed" || task.status === "abandoned";
 }
 
+function cancelHudClear(state: State): void {
+  if (state.clearTimer !== undefined) clearTimeout(state.clearTimer);
+  state.clearTimer = undefined;
+}
+
+function syncHudClear(ctx: ExtensionContext, state: State): void {
+  cancelHudClear(state);
+  if (ctx.mode !== "tui") return;
+  const tasks = state.phases.flatMap((phase) => phase.tasks);
+  if (tasks.length === 0 || !tasks.every(isClosed)) return;
+
+  const key = state.sessionKey;
+  state.clearTimer = setTimeout(() => {
+    // Guard stale contexts after session switches, reloads, or shutdown.
+    if (states.get(key) !== state || !activeContext || sessionKey(activeContext) !== key) return;
+    activeContext.ui.setWidget(WIDGET_KEY, undefined);
+    state.clearTimer = undefined;
+  }, HUD_CLEAR_DELAY_MS);
+}
+
 function renderWidget(ctx: ExtensionContext, phases: Phase[], expanded = false): void {
   const tasks = phases.flatMap((phase) => phase.tasks);
   if (tasks.length === 0) {
@@ -287,7 +347,7 @@ function renderWidget(ctx: ExtensionContext, phases: Phase[], expanded = false):
     return;
   }
   const done = tasks.filter((task) => task.status === "completed" || task.status === "abandoned").length;
-  const lines = [ctx.ui.theme.fg("accent", `☑ Todos ${done}/${tasks.length}`)];
+  const lines = [ctx.ui.theme.fg("accent", `Todos ${done}/${tasks.length}`)];
   const activePhaseIndex = Math.max(0, phases.findIndex((phase) => phase.tasks.some(isOpen)));
   const visiblePhases = expanded
     ? phases.map((phase, index) => ({ phase, index }))
@@ -337,6 +397,7 @@ function renderWidget(ctx: ExtensionContext, phases: Phase[], expanded = false):
 }
 
 function restore(ctx: ExtensionContext): Phase[] {
+  // Read the most recent snapshot from the active session branch.
   const entries = ctx.sessionManager.getBranch();
   for (let index = entries.length - 1; index >= 0; index -= 1) {
     const entry = entries[index] as { type?: string; customType?: string; data?: { phases?: Phase[] } };
@@ -352,8 +413,10 @@ function save(pi: ExtensionAPI, ctx: ExtensionContext, phases: Phase[]): void {
   state.phases = clone(phases);
   state.reminderCount = 0;
   state.awaitingProgress = false;
+  // Persist immutable snapshots so restore works across compaction and resume.
   pi.appendEntry(ENTRY_TYPE, { phases: state.phases });
   renderWidget(ctx, state.phases, state.expanded);
+  syncHudClear(ctx, state);
 }
 
 function current(ctx: ExtensionContext): Phase[] {
@@ -399,6 +462,22 @@ export default function (pi: ExtensionAPI): void {
       "Never make todo the turn's only tool call; batch it with real work.",
     ],
     parameters: TodoParams,
+    // Use the same unframed, status-prefixed treatment as built-in compact cards.
+    renderShell: "self",
+    renderCall: (params, theme, context) => {
+      const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+      renderToolHeader(text, params as Params, theme, context);
+      return text;
+    },
+    renderResult: (result, options, theme, context) => {
+      const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+      if (options.isPartial || !context.isError) {
+        text.setText("");
+      } else {
+        text.setText(theme.fg("error", result.content.filter((content) => content.type === "text").map((content) => content.text ?? "").join("\n")));
+      }
+      return text;
+    },
     execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
       const state = getState(ctx);
       const result = apply(state.phases, params as Params);
@@ -459,6 +538,8 @@ export default function (pi: ExtensionAPI): void {
   });
 
   pi.on("session_start", async (_event, ctx) => {
+    const previous = states.get(sessionKey(ctx));
+    if (previous) cancelHudClear(previous);
     const phases = restore(ctx);
     states.set(sessionKey(ctx), {
       phases,
@@ -469,12 +550,14 @@ export default function (pi: ExtensionAPI): void {
     });
     activeContext = ctx;
     renderWidget(ctx, phases);
+    syncHudClear(ctx, getState(ctx));
   });
 
   pi.on("session_compact", async (_event, ctx) => {
     activeContext = ctx;
     const state = getState(ctx);
     renderWidget(ctx, state.phases, state.expanded);
+    syncHudClear(ctx, state);
   });
 
   pi.on("input", async (_event, ctx) => {
@@ -499,6 +582,7 @@ export default function (pi: ExtensionAPI): void {
   pi.on("agent_settled", async (_event, ctx) => {
     const state = getState(ctx);
     const open = incomplete(state.phases);
+    // Only continue idle interactive turns; queued work and user questions must win.
     if (
       open.length === 0 ||
       state.awaitingProgress ||
@@ -530,10 +614,13 @@ export default function (pi: ExtensionAPI): void {
       "</system-reminder>",
     ].join("\n");
     ctx.ui.notify(`Todo reminder ${state.reminderCount}/${REMINDER_LIMIT}: ${open.length} incomplete task${open.length === 1 ? "" : "s"}.`, "warning");
+    // Store the reminder in history but keep this control message out of the transcript.
     pi.sendMessage({ customType: REMINDER_TYPE, content: reminder, display: false }, { triggerTurn: true, deliverAs: "followUp" });
   });
 
   pi.on("session_shutdown", async (_event, ctx) => {
+    const state = states.get(sessionKey(ctx));
+    if (state) cancelHudClear(state);
     states.delete(sessionKey(ctx));
     if (activeContext && sessionKey(activeContext) === sessionKey(ctx)) {
       ctx.ui.setWidget(WIDGET_KEY, undefined);
