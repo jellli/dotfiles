@@ -7,3 +7,4 @@ tsconfig.json
 # Memory DBs (SQLite, high-churn, machine-local)
 /agent/pi-hermes-memory/
 /agent/projects-memory/
+/agent/pi-blackhole/
