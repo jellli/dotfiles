@@ -7,6 +7,7 @@ later(function()
 		"https://github.com/nvim-mini/mini.input",
 		"https://github.com/kylechui/nvim-surround",
 		"https://github.com/gbprod/yanky.nvim",
+		"https://github.com/nvim-mini/mini.statuscolumn",
 	})
 
 	local miniai = require("mini.ai")
@@ -26,6 +27,7 @@ later(function()
 	})
 	require("mini.input").setup({})
 	require("mini.pairs").setup({})
+  require("mini.statuscolumn").setup({})
 	require("nvim-surround").setup({})
 	require("yanky").setup({
 		system_clipboard = {

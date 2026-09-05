@@ -1,10 +1,10 @@
+local now = require("queue").now
 local later = require("queue").later
 
-later(function()
+now(function()
 	vim.pack.add({
-
-		"https://github.com/rafamadriz/friendly-snippets",
 		{ src = "https://github.com/saghen/blink.cmp", version = vim.version.range("^1") },
+		"https://github.com/rafamadriz/friendly-snippets",
 	})
 	require("blink-cmp").setup({
 		keymap = {

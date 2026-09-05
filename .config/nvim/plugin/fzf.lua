@@ -1,6 +1,7 @@
+local now = require("queue").now
 local later = require("queue").later
 
-later(function()
+now(function()
 	vim.pack.add({
 		"https://github.com/ibhagwan/fzf-lua",
 	})
@@ -100,20 +101,20 @@ later(function()
 	})
 	local keymap = Jili.keymap
 
-	keymap("n", "<leader><leader>", fzf.files)
-	keymap("n", "<leader>so", fzf.oldfiles)
-	keymap("n", "<leader>sh", fzf.help_tags)
-	keymap("n", "<leader>sg", fzf.live_grep)
-	keymap("n", "<leader>sR", fzf.resume)
-	keymap("n", "<leader>sB", fzf.buffers)
-	keymap("n", "<leader>sb", fzf.blines)
-	keymap("n", "<leader>sk", fzf.keymaps)
-	keymap("n", "<leader>ss", fzf.lsp_document_symbols)
-	keymap("n", "<leader>sS", fzf.lsp_workspace_symbols)
-	keymap("n", "<leader>sd", fzf.diagnostics_document)
-	keymap("n", "<leader>sD", fzf.diagnostics_workspace)
-	keymap("n", "<c-m>", fzf.marks)
-	keymap("i", "<c-x>p", fzf.complete_path)
+	keymap("n", "<leader><leader>", fzf.files, "Find files")
+	keymap("n", "<leader>so", fzf.oldfiles, "Recent files")
+	keymap("n", "<leader>sh", fzf.help_tags, "Help tags")
+	keymap("n", "<leader>sg", fzf.live_grep, "Grep project")
+	keymap("n", "<leader>sR", fzf.resume, "Resume last picker")
+	keymap("n", "<leader>sB", fzf.buffers, "Open buffers")
+	keymap("n", "<leader>sb", fzf.blines, "Lines in buffer")
+	keymap("n", "<leader>sk", fzf.keymaps, "Keymaps")
+	keymap("n", "<leader>ss", fzf.lsp_document_symbols, "Document symbols")
+	keymap("n", "<leader>sS", fzf.lsp_workspace_symbols, "Workspace symbols")
+	keymap("n", "<leader>sd", fzf.diagnostics_document, "Document diagnostics")
+	keymap("n", "<leader>sD", fzf.diagnostics_workspace, "Workspace diagnostics")
+	keymap("n", "<c-m>", fzf.marks, "Marks")
+	keymap("i", "<c-x>p", fzf.complete_path, "Complete path")
 end)
 
 later(function()

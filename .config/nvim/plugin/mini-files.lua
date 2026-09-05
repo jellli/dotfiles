@@ -1,8 +1,8 @@
-local later = require("queue").later
+local now = require("queue").now
 local autocmd = Jili.autocmd
 local keymap = Jili.keymap
 
-later(function()
+now(function()
 	vim.pack.add({
 		"https://github.com/nvim-mini/mini.files",
 	})

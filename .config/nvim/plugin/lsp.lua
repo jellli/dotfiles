@@ -189,13 +189,11 @@ autocmd({ "BufReadPost", "BufNewFile" }, {
 
 		vim.lsp.enable({
 			"emmylua_ls",
-			"tsgo",
-			"cssls",
+			"tsc",
 			"cssmodules_ls",
 			"emmet_ls",
-			"vimdoc_ls",
 			"zls",
-			"bashls",
+			"clangd",
 		})
 	end,
 })
