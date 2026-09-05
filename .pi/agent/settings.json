@@ -1,19 +1,19 @@
 {
   "quietStartup": true,
-  "lastChangelogVersion": "0.84.1",
+  "lastChangelogVersion": "0.85.0",
   "theme": "gruvbox-material",
-  "defaultProvider": "opencode-go",
-  "defaultModel": "deepseek-v4-flash",
+  "defaultProvider": "commandcode",
+  "defaultModel": "deepseek/deepseek-v4-flash",
   "defaultThinkingLevel": "high",
   "externalEditor": "tmux display-popup -w 90% -h 85% -E nvim",
   "packages": [
     "npm:pi-lean-ctx",
     "npm:@plannotator/pi-extension",
-    "npm:pi-observational-memory",
     "npm:@juicesharp/rpiv-ask-user-question",
     "npm:pi-rtk-optimizer",
     "npm:pi-mcp-adapter",
-    "npm:pi-tool-display"
+    "npm:pi-tool-display",
+    "npm:pi-blackhole"
   ],
   "skills": [
     "-skills/caveman-commit/SKILL.md",
@@ -22,9 +22,21 @@
     "-skills/question-distiller.disabled/SKILL.md",
     "-skills/plan-mode/SKILL.md"
   ],
-  "extensions": [],
-  "hideThinkingBlock": true,
+  "extensions": [
+    "-extensions/plannotator-enhancer.ts",
+    "-extensions/plannotator-models.ts"
+  ],
+  "hideThinkingBlock": false,
   "compaction": {
     "enabled": true
-  }
+  },
+  "doubleEscapeAction": "none",
+  "tuiMode": "regular",
+  "enabledModels": [
+    "commandcode/deepseek/deepseek-v4-flash",
+    "deepseek/deepseek-v4-flash",
+    "commandcode/z-ai/glm-5.3-flash",
+    "jiji/gpt-5.6-sol",
+    "jiji/gpt-5.6-luna"
+  ]
 }

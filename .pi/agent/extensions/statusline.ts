@@ -23,7 +23,11 @@ const bar = (r: number, w = 6): string => {
 };
 
 const ft = (n: number): string =>
-  n < 1_000 ? `${n}` : n < 1_000_000 ? `${(n / 1000).toFixed(1)}k` : `${(n / 1e6).toFixed(1)}M`;
+  n < 1_000
+    ? `${n}`
+    : n < 1_000_000
+      ? `${(n / 1000).toFixed(1)}k`
+      : `${(n / 1e6).toFixed(1)}M`;
 
 // ── plannotator phase (from persisted session entries) ─────────────
 
@@ -36,7 +40,11 @@ interface PlnEntry {
 function plannotatorPhase(entries: PlnEntry[]): string | null {
   for (let i = entries.length - 1; i >= 0; i--) {
     const e = entries[i];
-    if (e?.type === "custom" && e.customType === "plannotator" && typeof e.data?.phase === "string") {
+    if (
+      e?.type === "custom" &&
+      e.customType === "plannotator" &&
+      typeof e.data?.phase === "string"
+    ) {
       return e.data.phase;
     }
   }
@@ -66,9 +74,13 @@ export default function (pi: ExtensionAPI) {
 
   async function gitName(cwd: string) {
     try {
-      const r = await pi.exec("git", ["rev-parse", "--show-toplevel"], { timeout: 3000 });
+      const r = await pi.exec("git", ["rev-parse", "--show-toplevel"], {
+        timeout: 3000,
+      });
       if (r.code === 0) gitRoot = r.stdout.trim().split("/").pop() ?? "";
-    } catch { gitRoot = ""; }
+    } catch {
+      gitRoot = "";
+    }
   }
 
   // ── token-per-sec state (live while streaming, last completed after) ──
@@ -91,7 +103,10 @@ export default function (pi: ExtensionAPI) {
   const runcatInterval = (v: number | null): number =>
     v === null || !Number.isFinite(v) || v <= 0
       ? RUNCAT_DEFAULT_MS
-      : Math.max(RUNCAT_MIN_MS, Math.min(RUNCAT_MAX_MS, Math.round(RUNCAT_SCALE / v)));
+      : Math.max(
+          RUNCAT_MIN_MS,
+          Math.min(RUNCAT_MAX_MS, Math.round(RUNCAT_SCALE / v)),
+        );
 
   pi.on("message_start", (event) => {
     if (event.message.role !== "assistant") return;
@@ -105,7 +120,8 @@ export default function (pi: ExtensionAPI) {
   pi.on("message_update", (event) => {
     if (!speed.streaming || event.message.role !== "assistant") return;
     const ev = event.assistantMessageEvent;
-    if (!ev || (ev.type !== "text_delta" && ev.type !== "thinking_delta")) return;
+    if (!ev || (ev.type !== "text_delta" && ev.type !== "thinking_delta"))
+      return;
     const usageOut = ev.partial?.usage?.output;
     if (typeof usageOut === "number" && usageOut > speed.lastUsageOut) {
       speed.tokens += usageOut - speed.lastUsageOut;
@@ -156,7 +172,10 @@ export default function (pi: ExtensionAPI) {
       }, RUNCAT_MIN_MS);
 
       return {
-        dispose() { clearInterval(catTimer); unsub(); },
+        dispose() {
+          clearInterval(catTimer);
+          unsub();
+        },
         invalidate() {},
         render(w: number): string[] {
           // ── token usage and context bar ─────────────
@@ -165,11 +184,15 @@ export default function (pi: ExtensionAPI) {
           const tok = u?.tokens ?? null;
           const pct = u?.percent ?? null;
 
-          let tin = 0, tout = 0;
+          let tin = 0,
+            tout = 0;
           for (const e of ctx.sessionManager.getEntries()) {
             if (e.type === "message" && e.message.role === "assistant") {
               const ug = e.message.usage;
-              if (ug) { tin += ug.input; tout += ug.output; }
+              if (ug) {
+                tin += ug.input;
+                tout += ug.output;
+              }
             }
           }
 
@@ -177,23 +200,28 @@ export default function (pi: ExtensionAPI) {
           const r = ok ? Math.min(tok! / win, 1) : 0;
           const pl = pct !== null ? `${Math.round(pct)}%` : "?%";
 
-          const bc = !ok ? ((s: string) => theme.fg("dim", s))
-            : r < 0.5 ? ((s: string) => theme.fg("success", s))
-            : r < 0.8 ? ((s: string) => theme.fg("warning", s))
-            : ((s: string) => theme.fg("error", s));
+          const bc = !ok
+            ? (s: string) => theme.fg("dim", s)
+            : r < 0.5
+              ? (s: string) => theme.fg("success", s)
+              : r < 0.8
+                ? (s: string) => theme.fg("warning", s)
+                : (s: string) => theme.fg("error", s);
 
-          const ts = tin === 0 && tout === 0
-            ? theme.fg("dim", "↑? ↓?")
-            : theme.fg("muted", `↑${ft(tin)} ↓${ft(tout)}`);
+          const ts =
+            tin === 0 && tout === 0
+              ? theme.fg("dim", "输入? 输出?")
+              : theme.fg("muted", `输入${ft(tin)} 输出${ft(tout)}`);
 
           // RunCat cat frame + token-per-sec form one unit (left, after
           // branch): 🐱 45t/s. Live during streaming, last completed otherwise.
-          const cat = theme.fg("accent", RUNCAT_FRAMES[catFrame]);
-          const spd = speed.streaming && speed.liveTokS !== null
-            ? theme.fg("accent", `${speed.liveTokS.toFixed(0)}t/s`)
-            : speed.lastTokS !== null
-            ? theme.fg("muted", `${speed.lastTokS.toFixed(0)}t/s`)
-            : theme.fg("dim", "--");
+          const cat = theme.fg("accent", `${RUNCAT_FRAMES[catFrame]} `);
+          const spd =
+            speed.streaming && speed.liveTokS !== null
+              ? theme.fg("accent", `${speed.liveTokS.toFixed(0)}t/s`)
+              : speed.lastTokS !== null
+                ? theme.fg("muted", `${speed.lastTokS.toFixed(0)}t/s`)
+                : "";
 
           // ── left: git + cat + speed ─────────────────
           const br = fd.getGitBranch();
@@ -204,15 +232,25 @@ export default function (pi: ExtensionAPI) {
 
           // ── right: plan chip + token usage ───────────
           const tokenBlock = `${theme.fg("muted", pl)} ${bc(bar(r, 6))} ${ts}`;
-          const pln = plannotatorPhase(ctx.sessionManager.getEntries() as PlnEntry[]);
+          const pln = plannotatorPhase(
+            ctx.sessionManager.getEntries() as PlnEntry[],
+          );
           let right = "";
-          if (pln === "planning") right = theme.fg("warning", "⏸ PLAN");
-          else if (pln === "executing") right = theme.fg("accent", "▶ EXEC");
-          else if (pln === "idle") right = theme.fg("dim", "∘ OFF");
+          if (pln === "planning") right = theme.fg("warning", "⏸ 计划模式");
+          else if (pln === "executing")
+            right = theme.fg("accent", "▶ 执行模式");
+          else if (pln === "idle") right = theme.fg("dim", "∘ 空闲模式");
           right = right ? `${right} ${tokenBlock}` : tokenBlock;
 
-          const lw = visibleWidth(left), rw = visibleWidth(right);
-          return ["", truncateToWidth(left + " ".repeat(Math.max(1, w - lw - rw)) + right, w)];
+          const lw = visibleWidth(left),
+            rw = visibleWidth(right);
+          return [
+            "",
+            truncateToWidth(
+              left + " ".repeat(Math.max(1, w - lw - rw)) + right,
+              w,
+            ),
+          ];
         },
       };
     });

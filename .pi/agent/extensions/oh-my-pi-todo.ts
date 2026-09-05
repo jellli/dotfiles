@@ -9,7 +9,11 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 
 const TOOL_NAME = "todo";
 const ENTRY_TYPE = "oh-my-pi-todo";
+const REMINDER_TYPE = "oh-my-pi-todo-reminder";
 const WIDGET_KEY = "oh-my-pi-todo";
+const REMINDER_LIMIT = 3;
+const HUD_ACTIVE_TASK_LIMIT = 5;
+const HUD_FOLLOWING_PHASE_LIMIT = 3;
 
 const TodoStatus = Type.Union([
   Type.Literal("pending"),
@@ -57,7 +61,14 @@ type Params = {
   reason?: string;
 };
 
-type State = { phases: Phase[]; sessionKey: string };
+type State = {
+  phases: Phase[];
+  sessionKey: string;
+  expanded: boolean;
+  reminderCount: number;
+  awaitingProgress: boolean;
+  lastAssistantText?: string;
+};
 const states = new Map<string, State>();
 let activeContext: ExtensionContext | undefined;
 
@@ -78,7 +89,7 @@ function getState(ctx: ExtensionContext): State {
   const key = sessionKey(ctx);
   let state = states.get(key);
   if (!state) {
-    state = { phases: [], sessionKey: key };
+    state = { phases: [], sessionKey: key, expanded: false, reminderCount: 0, awaitingProgress: false };
     states.set(key, state);
   }
   return state;
@@ -126,7 +137,7 @@ function apply(current: Phase[], params: Params): { phases: Phase[]; errors: str
 
   switch (params.op) {
     case "init": {
-      const list = params.list ?? (params.items ? [{ phase: params.phase ?? "Tasks", items: params.items }] : undefined);
+      const list = params.list && params.list.length > 0 ? params.list : (params.items ? [{ phase: params.phase ?? "Tasks", items: params.items }] : undefined);
       if (!list || list.length === 0) errors.push("Missing list for init operation");
       else {
         const phaseNames = new Set<string>();
@@ -261,7 +272,15 @@ function mutationText(params: Params, phases: Phase[]): string {
   return summary(phases, []);
 }
 
-function renderWidget(ctx: ExtensionContext, phases: Phase[]): void {
+function isOpen(task: Item): boolean {
+  return task.status === "pending" || task.status === "in_progress";
+}
+
+function isClosed(task: Item): boolean {
+  return task.status === "completed" || task.status === "abandoned";
+}
+
+function renderWidget(ctx: ExtensionContext, phases: Phase[], expanded = false): void {
   const tasks = phases.flatMap((phase) => phase.tasks);
   if (tasks.length === 0) {
     ctx.ui.setWidget(WIDGET_KEY, undefined);
@@ -269,17 +288,50 @@ function renderWidget(ctx: ExtensionContext, phases: Phase[]): void {
   }
   const done = tasks.filter((task) => task.status === "completed" || task.status === "abandoned").length;
   const lines = [ctx.ui.theme.fg("accent", `☑ Todos ${done}/${tasks.length}`)];
-  for (const [phaseIndex, phase] of phases.entries()) {
-    const phaseIsLast = phaseIndex === phases.length - 1;
+  const activePhaseIndex = Math.max(0, phases.findIndex((phase) => phase.tasks.some(isOpen)));
+  const visiblePhases = expanded
+    ? phases.map((phase, index) => ({ phase, index }))
+    : phases.slice(activePhaseIndex, activePhaseIndex + HUD_FOLLOWING_PHASE_LIMIT + 1).map((phase, offset) => ({ phase, index: activePhaseIndex + offset }));
+
+  if (!expanded && activePhaseIndex > 0) {
+    lines.push(ctx.ui.theme.fg("dim", `… ${activePhaseIndex} earlier phase${activePhaseIndex === 1 ? "" : "s"}`));
+  }
+
+  for (const [visibleIndex, entry] of visiblePhases.entries()) {
+    const { phase, index: phaseIndex } = entry;
+    const phaseIsLast = visibleIndex === visiblePhases.length - 1;
     const phaseBranch = phaseIsLast ? "└─" : "├─";
     const childPrefix = phaseIsLast ? "   " : "│  ";
-    lines.push(ctx.ui.theme.fg("dim", `${phaseBranch} ${phase.name}`));
-    for (const [taskIndex, task] of phase.tasks.entries()) {
-      const branch = taskIndex === phase.tasks.length - 1 ? "└─" : "├─";
+    const phaseDone = phase.tasks.filter(isClosed).length;
+    const phaseColor = phaseDone === phase.tasks.length ? "dim" : "text";
+    lines.push(ctx.ui.theme.fg(phaseColor, `${phaseBranch} ${phase.name} (${phaseDone}/${phase.tasks.length})`));
+
+    if (!expanded && phaseIndex !== activePhaseIndex) continue;
+
+    const activeTaskIndex = phase.tasks.findIndex(isOpen);
+    const firstTask = expanded ? 0 : Math.max(0, activeTaskIndex - 1);
+    const lastTask = expanded ? phase.tasks.length : Math.min(phase.tasks.length, firstTask + HUD_ACTIVE_TASK_LIMIT);
+    const shownTasks = phase.tasks.slice(firstTask, lastTask);
+    const hiddenTasks = phase.tasks.length - lastTask;
+    const rows: Array<Item | string> = [...shownTasks];
+    if (hiddenTasks > 0) rows.push(`… ${hiddenTasks} more task${hiddenTasks === 1 ? "" : "s"}`);
+
+    for (const [taskIndex, row] of rows.entries()) {
+      const branch = taskIndex === rows.length - 1 ? "└─" : "├─";
+      if (typeof row === "string") {
+        lines.push(`${childPrefix}${ctx.ui.theme.fg("dim", branch)} ${ctx.ui.theme.fg("dim", row)}`);
+        continue;
+      }
+      const task = row;
       const marker = task.status === "completed" ? "✓" : task.status === "abandoned" ? "-" : task.status === "in_progress" ? "●" : task.status === "blocked" ? "!" : "○";
-      const color = task.status === "completed" ? "success" : task.status === "blocked" ? "warning" : task.status === "in_progress" ? "accent" : "muted";
-      lines.push(`${childPrefix}${ctx.ui.theme.fg("dim", branch)} ${ctx.ui.theme.fg(color, marker)} ${task.content}`);
+      const markerColor = isClosed(task) ? "dim" : task.status === "blocked" ? "warning" : task.status === "in_progress" ? "text" : "muted";
+      const textColor = isClosed(task) ? "dim" : task.status === "in_progress" ? "text" : "muted";
+      lines.push(`${childPrefix}${ctx.ui.theme.fg("dim", branch)} ${ctx.ui.theme.fg(markerColor, marker)} ${ctx.ui.theme.fg(textColor, task.content)}`);
     }
+  }
+  const hiddenPhases = phases.length - activePhaseIndex - visiblePhases.length;
+  if (!expanded && hiddenPhases > 0) {
+    lines.push(ctx.ui.theme.fg("dim", `… ${hiddenPhases} more phase${hiddenPhases === 1 ? "" : "s"}`));
   }
   ctx.ui.setWidget(WIDGET_KEY, lines, { placement: "aboveEditor" });
 }
@@ -298,8 +350,10 @@ function restore(ctx: ExtensionContext): Phase[] {
 function save(pi: ExtensionAPI, ctx: ExtensionContext, phases: Phase[]): void {
   const state = getState(ctx);
   state.phases = clone(phases);
+  state.reminderCount = 0;
+  state.awaitingProgress = false;
   pi.appendEntry(ENTRY_TYPE, { phases: state.phases });
-  renderWidget(ctx, state.phases);
+  renderWidget(ctx, state.phases, state.expanded);
 }
 
 function current(ctx: ExtensionContext): Phase[] {
@@ -308,6 +362,28 @@ function current(ctx: ExtensionContext): Phase[] {
 
 function tokenize(text: string): string[] {
   return text.trim().split(/\s+/).filter(Boolean);
+}
+
+function incomplete(phases: Phase[]): Array<{ phase: string; task: Item }> {
+  return phases.flatMap((phase) => phase.tasks.filter(isOpen).map((task) => ({ phase: phase.name, task })));
+}
+
+function assistantText(messages: unknown[]): string | undefined {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index] as { role?: string; content?: unknown };
+    if (message.role !== "assistant") continue;
+    if (typeof message.content === "string") return message.content;
+    if (!Array.isArray(message.content)) continue;
+    return message.content
+      .filter((part): part is { type?: string; text: string } => typeof part === "object" && part !== null && typeof (part as { text?: unknown }).text === "string")
+      .map((part) => part.text)
+      .join("\n");
+  }
+  return undefined;
+}
+
+function awaitsUserReply(text: string | undefined): boolean {
+  return text?.trim().endsWith("?") || text?.trim().endsWith("？") || false;
 }
 
 export default function (pi: ExtensionAPI): void {
@@ -346,7 +422,10 @@ export default function (pi: ExtensionAPI): void {
         return;
       }
       if (verb === "expand" || verb === "collapse") {
-        ctx.ui.notify("Use the todo HUD above the editor.", "info");
+        const state = getState(ctx);
+        state.expanded = verb === "expand";
+        renderWidget(ctx, state.phases, state.expanded);
+        ctx.ui.notify(`Todo HUD ${state.expanded ? "expanded" : "collapsed"}.`, "info");
         return;
       }
       if (verb === "append") {
@@ -381,14 +460,77 @@ export default function (pi: ExtensionAPI): void {
 
   pi.on("session_start", async (_event, ctx) => {
     const phases = restore(ctx);
-    states.set(sessionKey(ctx), { phases, sessionKey: sessionKey(ctx) });
+    states.set(sessionKey(ctx), {
+      phases,
+      sessionKey: sessionKey(ctx),
+      expanded: false,
+      reminderCount: 0,
+      awaitingProgress: false,
+    });
     activeContext = ctx;
     renderWidget(ctx, phases);
   });
 
   pi.on("session_compact", async (_event, ctx) => {
     activeContext = ctx;
-    renderWidget(ctx, current(ctx));
+    const state = getState(ctx);
+    renderWidget(ctx, state.phases, state.expanded);
+  });
+
+  pi.on("input", async (_event, ctx) => {
+    const state = getState(ctx);
+    state.reminderCount = 0;
+    state.awaitingProgress = false;
+    state.lastAssistantText = undefined;
+  });
+
+  pi.on("agent_start", async (_event, ctx) => {
+    getState(ctx).lastAssistantText = undefined;
+  });
+
+  pi.on("tool_execution_end", async (_event, ctx) => {
+    getState(ctx).awaitingProgress = false;
+  });
+
+  pi.on("agent_end", async (event, ctx) => {
+    getState(ctx).lastAssistantText = assistantText(event.messages);
+  });
+
+  pi.on("agent_settled", async (_event, ctx) => {
+    const state = getState(ctx);
+    const open = incomplete(state.phases);
+    if (
+      open.length === 0 ||
+      state.awaitingProgress ||
+      state.reminderCount >= REMINDER_LIMIT ||
+      awaitsUserReply(state.lastAssistantText) ||
+      !ctx.isIdle() ||
+      ctx.hasPendingMessages() ||
+      ctx.mode !== "tui"
+    ) {
+      return;
+    }
+
+    state.reminderCount += 1;
+    state.awaitingProgress = true;
+    const byPhase = new Map<string, string[]>();
+    for (const { phase, task } of open) {
+      const tasks = byPhase.get(phase) ?? [];
+      tasks.push(task.content);
+      byPhase.set(phase, tasks);
+    }
+    const list = [...byPhase.entries()].map(([phase, tasks]) => `- ${phase}\n${tasks.map((task) => `  - ${task}`).join("\n")}`).join("\n");
+    const reminder = [
+      "<system-reminder>",
+      `You stopped with ${open.length} incomplete todo item(s):`,
+      list,
+      "",
+      "Continue working on these tasks or mark them complete if finished.",
+      `(Reminder ${state.reminderCount}/${REMINDER_LIMIT})`,
+      "</system-reminder>",
+    ].join("\n");
+    ctx.ui.notify(`Todo reminder ${state.reminderCount}/${REMINDER_LIMIT}: ${open.length} incomplete task${open.length === 1 ? "" : "s"}.`, "warning");
+    pi.sendMessage({ customType: REMINDER_TYPE, content: reminder, display: false }, { triggerTurn: true, deliverAs: "followUp" });
   });
 
   pi.on("session_shutdown", async (_event, ctx) => {
