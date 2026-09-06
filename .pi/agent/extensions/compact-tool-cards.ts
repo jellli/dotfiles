@@ -1,12 +1,10 @@
 import {
   CompactionSummaryMessageComponent,
   createBashToolDefinition,
-  createEditToolDefinition,
   createFindToolDefinition,
   createGrepToolDefinition,
   createLsToolDefinition,
   createReadToolDefinition,
-  createWriteToolDefinition,
   keyText,
   type ExtensionAPI,
   type ToolDefinition,
@@ -19,8 +17,6 @@ type SpinnerState = { timer?: ReturnType<typeof setInterval>; frame?: number };
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const SPINNER_INTERVAL_MS = 80;
-const EDIT_PREVIEW_LIMIT = 6;
-const WRITE_PREVIEW_LIMIT = 4;
 const BASH_COMMAND_MAX_WIDTH = 96;
 const COMPACTION_RENDER_PATCH = "__dotfilesCompactCompactionRender";
 const PI_THEME_KEY = Symbol.for("@earendil-works/pi-coding-agent:theme");
@@ -116,8 +112,6 @@ function coloredPath(args: ToolArgs, theme: Parameters<NonNullable<ToolDefinitio
   return theme.fg("accent", shorten(stringArg(args, "path", "<missing path>"), max));
 }
 
-type RenderedSuccess = string | { body: string; footer?: string };
-
 function fitLine(line: string, width: number): string {
   return visibleWidth(line) <= width ? line : truncateToWidth(line, Math.max(0, width), "", false);
 }
@@ -183,54 +177,6 @@ class BashHeader implements Component {
   }
 }
 
-class DimFrame implements Component {
-  readonly header = new Text("", 0, 0);
-  private body = new Text("", 0, 0);
-  private footer = "";
-  private hasBody = false;
-  private theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderResult"]>>[2];
-
-  constructor(theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderResult"]>>[2]) {
-    this.theme = theme;
-  }
-
-  setText(text: string): void {
-    this.footer = "";
-    this.hasBody = text.length > 0;
-    this.body.setText(text);
-  }
-
-  setResult(result: RenderedSuccess): void {
-    if (typeof result === "string") {
-      this.setText(result);
-      return;
-    }
-    this.footer = result.footer ?? "";
-    this.hasBody = result.body.length > 0;
-    this.body.setText(result.body);
-  }
-
-  invalidate(): void {
-    this.header.invalidate();
-    this.body.invalidate();
-  }
-
-  render(width: number): string[] {
-    const headerLines = this.header.render(Math.max(1, width)).map((line) => fitLine(line, width));
-    if (!this.hasBody) return headerLines;
-
-    const contentWidth = Math.max(1, width - 3);
-    const bodyLines = this.body.render(contentWidth).map((line) => line.trimEnd());
-    const border = (value: string) => this.theme.fg("dim", value);
-    return [
-      ...headerLines,
-      `${border("┌─ ")}${bodyLines[0] ?? ""}`,
-      ...bodyLines.slice(1).map((line) => `${border("│ ")}${line}`),
-      `${border("└─")}${this.footer ? ` ${this.footer}` : ""}`,
-    ].map((line) => fitLine(line, width));
-  }
-}
-
 function lineRange(args: ToolArgs): string {
   const offset = numberArg(args, "offset");
   const limit = numberArg(args, "limit");
@@ -245,29 +191,6 @@ function textOutput(result: { content: Array<{ type: string; text?: string }> })
     .map((content) => content.text ?? "")
     .join("\n")
     .trim();
-}
-
-function diffLines(result: { details?: unknown }): string[] {
-  const details = result.details;
-  if (!details || typeof details !== "object" || !("diff" in details) || typeof details.diff !== "string") return [];
-  return details.diff.split("\n");
-}
-
-function renderDiff(lines: string[], expanded: boolean, theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderResult"]>>[2]): RenderedSuccess {
-  const additions = lines.filter((line) => line.startsWith("+") && !line.startsWith("+++"));
-  const removals = lines.filter((line) => line.startsWith("-") && !line.startsWith("---"));
-  const changed = lines.filter((line) => additions.includes(line) || removals.includes(line));
-  const visible = expanded ? lines : changed.slice(0, EDIT_PREVIEW_LIMIT);
-  const stats = `${theme.fg("success", `+${additions.length}`)} ${theme.fg("error", `-${removals.length}`)}`;
-  const preview = visible.map((line) => {
-    if (line.startsWith("+") && !line.startsWith("+++")) return theme.fg("success", line);
-    if (line.startsWith("-") && !line.startsWith("---")) return theme.fg("error", line);
-    return theme.fg("muted", line);
-  });
-  const footer = !expanded && changed.length > visible.length
-    ? theme.fg("muted", `... ${changed.length - visible.length} more changed lines`)
-    : undefined;
-  return { body: [stats, ...preview].join("\n"), footer };
 }
 
 function renderHeader(
@@ -305,8 +228,6 @@ function renderHeader(
 function compactDefinition(
   tool: ToolDefinition<any, any, any>,
   formatHeader: HeaderFormatter,
-  renderSuccess?: (args: ToolArgs, result: { details?: unknown }, expanded: boolean, theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderResult"]>>[2]) => RenderedSuccess,
-  framed = false,
   createHeader?: HeaderFactory,
 ): ToolDefinition<any, any, any> {
   // Spread the built-in definition so its schema, prompt, and execution stay unchanged.
@@ -316,19 +237,12 @@ function compactDefinition(
     renderShell: "self",
     renderCall(args: ToolArgs, theme, context) {
       if (createHeader) return createHeader(args, theme, context);
-      if (framed) {
-        const frame = (context.lastComponent as DimFrame | undefined) ?? new DimFrame(theme);
-        renderHeader(frame.header, tool.name, formatHeader(args, theme), theme, context);
-        return frame;
-      }
       const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
       renderHeader(text, tool.name, formatHeader(args, theme), theme, context);
       return text;
     },
     renderResult(result, options, theme, context) {
-      const text = framed
-        ? (context.lastComponent as DimFrame | undefined) ?? new DimFrame(theme)
-        : (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+      const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
       const output = textOutput(result);
 
       // Successful output remains available on expand; errors retain a collapsed preview.
@@ -339,10 +253,6 @@ function compactDefinition(
         const preview = options.expanded ? output : lines[0];
         const suffix = !options.expanded && lines.length > 1 ? theme.fg("muted", " ...") : "";
         text.setText(theme.fg("error", preview) + suffix);
-      } else if (renderSuccess) {
-        const rendered = renderSuccess(context.args, result, options.expanded, theme);
-        if (text instanceof DimFrame) text.setResult(rendered);
-        else text.setText(typeof rendered === "string" ? rendered : rendered.body);
       } else if (options.expanded) {
         text.setText(theme.fg("toolOutput", output));
       } else {
@@ -374,8 +284,6 @@ export default async function (pi: ExtensionAPI) {
   pi.registerTool(compactDefinition(
     createBashToolDefinition(cwd),
     () => "",
-    undefined,
-    false,
     (args, theme, context) => {
       const header = context.lastComponent instanceof BashHeader
         ? context.lastComponent
@@ -384,26 +292,4 @@ export default async function (pi: ExtensionAPI) {
       return header;
     },
   ));
-  pi.registerTool(compactDefinition(createEditToolDefinition(cwd), (args, theme) => {
-    const edits = Array.isArray(args.edits) ? args.edits.length : 0;
-    return `${coloredPath(args, theme)} ${theme.fg("toolOutput", `(${edits} edit${edits === 1 ? "" : "s"})`)}`;
-  }, (args, result, expanded, theme) => {
-    const lines = diffLines(result);
-    return lines.length > 0
-      ? renderDiff(lines, expanded, theme)
-      : theme.fg("success", "Applied");
-  }, true));
-  pi.registerTool(compactDefinition(createWriteToolDefinition(cwd), (args, theme) => {
-    const content = stringArg(args, "content");
-    const lines = content === "" ? 0 : content.split("\n").length;
-    return `${coloredPath(args, theme)} ${theme.fg("toolOutput", `(${lines} lines)`)}`;
-  }, (args, _result, expanded, theme) => {
-    const lines = stringArg(args, "content").split("\n");
-    const visible = expanded ? lines : lines.slice(0, WRITE_PREVIEW_LIMIT);
-    const preview = visible.map((line) => theme.fg("toolOutput", line));
-    const footer = !expanded && lines.length > visible.length
-      ? theme.fg("muted", `... ${lines.length - visible.length} more lines`)
-      : undefined;
-    return { body: preview.join("\n"), footer };
-  }, true));
 }
