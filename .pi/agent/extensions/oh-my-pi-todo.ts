@@ -72,6 +72,8 @@ type State = {
   awaitingProgress: boolean;
   clearTimer?: ReturnType<typeof setTimeout>;
   lastAssistantText?: string;
+  // Set when the HUD was auto-cleared once; suppresses re-render while all tasks stay closed.
+  hudAutoCleared: boolean;
 };
 const states = new Map<string, State>();
 function clone(phases: Phase[]): Phase[] {
@@ -91,7 +93,7 @@ function getState(ctx: ExtensionContext): State {
   const key = sessionKey(ctx);
   let state = states.get(key);
   if (!state) {
-    state = { phases: [], sessionKey: key, expanded: false, reminderCount: 0, awaitingProgress: false };
+    state = { phases: [], sessionKey: key, expanded: false, reminderCount: 0, awaitingProgress: false, hudAutoCleared: false };
     states.set(key, state);
   }
   return state;
@@ -288,7 +290,7 @@ function cancelHudClear(state: State): void {
   state.clearTimer = undefined;
 }
 
-function syncHudClear(ctx: ExtensionContext, state: State): void {
+function syncHudClear(pi: ExtensionAPI, ctx: ExtensionContext, state: State): void {
   cancelHudClear(state);
   if (ctx.mode !== "tui") return;
   const tasks = state.phases.flatMap((phase) => phase.tasks);
@@ -301,6 +303,9 @@ function syncHudClear(ctx: ExtensionContext, state: State): void {
     state.clearTimer = undefined;
     try {
       ctx.ui.setWidget(WIDGET_KEY, undefined);
+      // Persist the flag so a reload does not resurrect an already-cleared HUD.
+      state.hudAutoCleared = true;
+      pi.appendEntry(ENTRY_TYPE, { phases: state.phases, hudAutoCleared: true });
     } catch {
       // The replacement session will restore its own widget and clear timer.
     }
@@ -309,11 +314,14 @@ function syncHudClear(ctx: ExtensionContext, state: State): void {
 }
 
 function renderWidget(ctx: ExtensionContext, phases: Phase[], expanded = false): void {
+  const state = getState(ctx);
   const tasks = phases.flatMap((phase) => phase.tasks);
   if (tasks.length === 0) {
     ctx.ui.setWidget(WIDGET_KEY, undefined);
     return;
   }
+  // Already auto-cleared once and nothing reopened: keep it hidden (e.g. after /reload).
+  if (tasks.every(isClosed) && state.hudAutoCleared) return;
   const done = tasks.filter((task) => task.status === "completed" || task.status === "abandoned").length;
   const lines = [ctx.ui.theme.fg("accent", `Todos ${done}/${tasks.length}`)];
   const activePhaseIndex = Math.max(0, phases.findIndex((phase) => phase.tasks.some(isOpen)));
@@ -376,15 +384,28 @@ function restore(ctx: ExtensionContext): Phase[] {
   return [];
 }
 
+function restoreHudAutoCleared(ctx: ExtensionContext): boolean {
+  const entries = ctx.sessionManager.getBranch();
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index] as { type?: string; customType?: string; data?: { hudAutoCleared?: boolean } };
+    if (entry.type === "custom" && entry.customType === ENTRY_TYPE && typeof entry.data?.hudAutoCleared === "boolean") {
+      return entry.data.hudAutoCleared;
+    }
+  }
+  return false;
+}
+
 function save(pi: ExtensionAPI, ctx: ExtensionContext, phases: Phase[]): void {
   const state = getState(ctx);
   state.phases = clone(phases);
   state.reminderCount = 0;
   state.awaitingProgress = false;
+  // New open work must bring the HUD back even if it was auto-cleared before.
+  if (phases.flatMap((phase) => phase.tasks).some(isOpen)) state.hudAutoCleared = false;
   // Persist immutable snapshots so restore works across compaction and resume.
-  pi.appendEntry(ENTRY_TYPE, { phases: state.phases });
+  pi.appendEntry(ENTRY_TYPE, { phases: state.phases, hudAutoCleared: state.hudAutoCleared });
   renderWidget(ctx, state.phases, state.expanded);
-  syncHudClear(ctx, state);
+  syncHudClear(pi, ctx, state);
 }
 
 function current(ctx: ExtensionContext): Phase[] {
@@ -507,15 +528,16 @@ export default function (pi: ExtensionAPI): void {
       expanded: false,
       reminderCount: 0,
       awaitingProgress: false,
+      hudAutoCleared: restoreHudAutoCleared(ctx),
     });
     renderWidget(ctx, phases);
-    syncHudClear(ctx, getState(ctx));
+    syncHudClear(pi, ctx, getState(ctx));
   });
 
   pi.on("session_compact", async (_event, ctx) => {
     const state = getState(ctx);
     renderWidget(ctx, state.phases, state.expanded);
-    syncHudClear(ctx, state);
+    syncHudClear(pi, ctx, state);
   });
 
   pi.on("input", async (_event, ctx) => {
