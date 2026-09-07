@@ -78,9 +78,10 @@ const CAPTURE_REGISTRY = Symbol.for("dotfiles.pi-diff.captures");
 type GlobalState = typeof globalThis & { [key: symbol]: Map<string, Capture> };
 const globalState = globalThis as GlobalState;
 const captures = globalState[CAPTURE_REGISTRY] ?? (globalState[CAPTURE_REGISTRY] = new Map());
+const SHIKI_THEME = "gruvbox-dark-medium";
 const highlightedTokens = new Map<string, Promise<HighlightToken[]>>();
 const highlighterPromise = createHighlighter({
-  themes: ["github-dark"],
+  themes: [SHIKI_THEME],
   langs: ["typescript", "tsx", "javascript", "jsx", "json", "markdown", "bash", "python", "text"],
 });
 
@@ -276,7 +277,7 @@ async function highlightTokens(text: string, language: Language): Promise<Highli
   const cached = highlightedTokens.get(key);
   if (cached) return cached;
   const pending = highlighterPromise.then((highlighter) => {
-    const tokens = highlighter.codeToTokens(text, { lang: language, theme: "github-dark" }).tokens[0] ?? [];
+    const tokens = highlighter.codeToTokens(text, { lang: language, theme: SHIKI_THEME }).tokens[0] ?? [];
     return tokens.map((token) => ({ content: token.content, color: token.color }));
   }).catch(() => [{ content: text }]);
   highlightedTokens.set(key, pending);
