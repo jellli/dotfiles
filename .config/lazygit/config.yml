@@ -4,31 +4,29 @@ gui:
   language: zh-CN
   showIcons: true
   nerdFontsVersion: "3"
-
   # ── Gruvbox Material Hard Dark ─────────────────────────────────
   # Extracted from nvim colors/ex-gruvbox-material.lua
   theme:
     activeBorderColor:
-      - '#e78a4e'   # orange
+      - '#e78a4e' # orange
       - bold
     inactiveBorderColor:
-      - '#928374'   # grey
+      - '#928374' # grey
     optionsTextColor:
-      - '#7daea3'   # blue
+      - '#7daea3' # blue
     selectedLineBgColor:
-      - '#3c3836'   # selection bg
+      - '#3c3836' # selection bg
     cherryPickedCommitBgColor:
-      - '#504945'   # surface1
+      - '#504945' # surface1
     cherryPickedCommitFgColor:
-      - '#d8a657'   # yellow
+      - '#d8a657' # yellow
     unstagedChangesColor:
-      - '#ea6962'   # red
+      - '#ea6962' # red
     defaultFgColor:
-      - '#d4be98'   # fg text
+      - '#d4be98' # fg text
     searchingActiveBorderColor:
-      - '#d8a657'   # yellow
-
+      - '#d8a657' # yellow
 git:
-  pagers:
+  diffRenderers:
     - colorArg: always
-      pager: "delta --dark --paging=never --line-numbers --hyperlinks --hyperlinks-file-link-format='lazygit-edit://{path}:{line}' --syntax-theme gruvbox-dark --plus-style 'syntax #323d2a' --minus-style 'syntax #3c2626' --plus-emph-style '#a9b665 bold' --minus-emph-style '#ea6962 bold' --file-style '#e78a4e' --file-decoration-style '#e78a4e ul' --hunk-header-style '#7daea3 bold' --hunk-header-decoration-style '#7daea3 box' --commit-style raw --commit-decoration-style '#d8a657 ul' --line-numbers-left-style '#928374' --line-numbers-right-style '#928374' --line-numbers-zero-style '#504945'"
+      command: "delta --dark --paging=never --line-numbers --hyperlinks --hyperlinks-file-link-format='lazygit-edit://{path}:{line}' --syntax-theme gruvbox-dark --plus-style 'syntax #323d2a' --minus-style 'syntax #3c2626' --plus-emph-style '#a9b665 bold' --minus-emph-style '#ea6962 bold' --file-style '#e78a4e' --file-decoration-style '#e78a4e ul' --hunk-header-style '#7daea3 bold' --hunk-header-decoration-style '#7daea3 box' --commit-style raw --commit-decoration-style '#d8a657 ul' --line-numbers-left-style '#928374' --line-numbers-right-style '#928374' --line-numbers-zero-style '#504945'"
