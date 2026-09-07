@@ -93,7 +93,6 @@ function spawnProxy(port: number, defaultUpstream: string): void {
     );
     child.unref();
     writeFileSync(PID_PATH, String(child.pid));
-    console.log(`[headroom] spawned proxy pid ${child.pid} on port ${port} (log: ${LOG_PATH})`);
   } catch (error) {
     console.warn(`[headroom] failed to spawn proxy: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -132,7 +131,6 @@ export default async function (pi: ExtensionAPI) {
           baseUrl: proxyBase,
           headers: { "x-headroom-base-url": route.upstream },
         });
-        console.log(`[headroom] ${id} → ${proxyBase} (upstream ${route.upstream})`);
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         // Stale ctx happens when the session is replaced (print mode / reload)
