@@ -101,6 +101,11 @@ function registerEntry(toolName: string, single: string, row: string, context: A
   const existing = store.entries.get(context.toolCallId);
   if (existing) {
     existing.invalidate = context.invalidate;
+    // Streaming / replay invokes renderCall repeatedly with progressively more
+    // complete args; always refresh header/row text so a first frame with an
+    // incomplete path (e.g. "<missing path>") is overwritten by the real one.
+    existing.single = single;
+    existing.row = row;
     if (existing.group.ownerId === existing.id) existing.group.expanded = context.expanded;
     return existing;
   }

@@ -11,7 +11,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Text, type Component, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { createToolAggregation } from "./lib/aggregation.js";
-import { fitLine, padLine, statusMarker, toolHeader } from "./lib/pi-ui.js";
+import { fitLine, fitPath, padLine, statusMarker, toolHeader } from "./lib/pi-ui.js";
 import { highlightBashLines } from "./pi-diff.js";
 
 type ToolArgs = Record<string, unknown>;
@@ -296,7 +296,7 @@ function lineRange(args: ToolArgs): string {
   return limit === undefined ? `lines ${start}+` : `lines ${start}-${start + limit - 1}`;
 }
 
-const READ_PATH_COLUMN = 20;
+const READ_PATH_COLUMN = 46;
 
 function readCallLine(args: ToolArgs, theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1]): string {
   const path = theme.fg("accent", stringArg(args, "path", "<missing path>"));
@@ -305,7 +305,10 @@ function readCallLine(args: ToolArgs, theme: Parameters<NonNullable<ToolDefiniti
 }
 
 function readCallRow(args: ToolArgs, theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1]): string {
-  const path = padLine(theme.fg("accent", stringArg(args, "path", "<missing path>")), READ_PATH_COLUMN, "");
+  // Keep the trailing filename (and as many leading dirs as fit) instead of
+  // chopping long paths down to the cwd prefix.
+  const raw = stringArg(args, "path", "<missing path>");
+  const path = padLine(theme.fg("accent", fitPath(raw, READ_PATH_COLUMN)), READ_PATH_COLUMN, "");
   const range = lineRange(args);
   return `${path}${range ? ` ${theme.fg("toolOutput", range)}` : ""}`;
 }
