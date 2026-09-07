@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
-import { diffLines } from "../npm/node_modules/diff/libesm/index.js";
+import { diffLines, diffWordsWithSpace } from "../npm/node_modules/diff/libesm/index.js";
 import { createHighlighter } from "../npm/node_modules/shiki/dist/index.mjs";
 import {
   createEditToolDefinition,
@@ -19,16 +19,39 @@ type RenderResultTheme = Parameters<NonNullable<ToolDefinition<any, any, any>["r
 type Language = string;
 
 type Capture = { oldText: string; newText: string };
-type DiffState = { capture?: Capture; lines?: string[]; renderWidth?: number; renderPromise?: Promise<void>; invalidate?: () => void };
+type DiffState = {
+  capture?: Capture;
+  rows?: DiffRow[];
+  rendered?: string[];
+  renderedKey?: string;
+  renderPromise?: Promise<void>;
+  renderPromiseKey?: string;
+  totalLines?: number;
+  invalidate?: () => void;
+};
 
 type DiffRow = {
   kind: "add" | "del" | "context";
   number: number;
   text: string;
+  wordRanges?: WordRange[];
 };
 
-const captures = new Map<string, Capture>();
-const highlighted = new Map<string, Promise<string>>();
+type WordRange = { start: number; end: number };
+
+type DiffWindow = {
+  rows: DiffRow[];
+  start: number;
+};
+
+type HighlightToken = { content: string; color?: string };
+
+const COLLAPSED_DIFF_LINES = 8;
+const CAPTURE_REGISTRY = Symbol.for("dotfiles.pi-diff.captures");
+type GlobalState = typeof globalThis & { [key: symbol]: Map<string, Capture> };
+const globalState = globalThis as GlobalState;
+const captures = globalState[CAPTURE_REGISTRY] ?? (globalState[CAPTURE_REGISTRY] = new Map());
+const highlightedTokens = new Map<string, Promise<HighlightToken[]>>();
 const highlighterPromise = createHighlighter({
   themes: ["github-dark"],
   langs: ["typescript", "tsx", "javascript", "jsx", "json", "markdown", "bash", "python", "text"],
@@ -89,6 +112,60 @@ function changedRows(oldText: string, newText: string): DiffRow[] {
   return rows;
 }
 
+function wordRanges(oldText: string, newText: string): { oldRanges: WordRange[]; newRanges: WordRange[] } {
+  const oldRanges: WordRange[] = [];
+  const newRanges: WordRange[] = [];
+  let oldOffset = 0;
+  let newOffset = 0;
+  for (const part of diffWordsWithSpace(oldText, newText)) {
+    const length = part.value.length;
+    if (part.removed) oldRanges.push({ start: oldOffset, end: oldOffset + length });
+    if (part.added) newRanges.push({ start: newOffset, end: newOffset + length });
+    if (!part.added) oldOffset += length;
+    if (!part.removed) newOffset += length;
+  }
+  return { oldRanges, newRanges };
+}
+
+function addWordRanges(rows: DiffRow[]): DiffRow[] {
+  const result = rows.map((row) => ({ ...row }));
+  for (let index = 0; index < result.length - 1; index++) {
+    const left = result[index];
+    const right = result[index + 1];
+    if (left.kind !== "del" || right.kind !== "add") continue;
+    const ranges = wordRanges(left.text, right.text);
+    left.wordRanges = ranges.oldRanges;
+    right.wordRanges = ranges.newRanges;
+    index++;
+  }
+  return result;
+}
+
+function parseDisplayDiff(diff: string): DiffRow[] {
+  const rows: DiffRow[] = [];
+  let fallbackNumber = 1;
+  for (const line of diff.split("\n")) {
+    if (!line || !["+", "-", " "].includes(line[0])) continue;
+    const kind = line[0] === "+" ? "add" : line[0] === "-" ? "del" : "context";
+    const body = line.slice(1);
+    const numbered = body.match(/^\s*(\d+)\s(.*)$/);
+    if (numbered) {
+      const number = Number(numbered[1]);
+      rows.push({ kind, number, text: numbered[2] });
+      fallbackNumber = number + 1;
+    } else if (kind === "context" && body.trim() === "...") {
+      rows.push({ kind, number: fallbackNumber++, text: "..." });
+    }
+  }
+  return rows;
+}
+
+function resultDiff(details: unknown): string | undefined {
+  if (!details || typeof details !== "object" || !("diff" in details)) return undefined;
+  const diff = details.diff;
+  return typeof diff === "string" ? diff : undefined;
+}
+
 function languageFor(path: string): Language {
   return LANGUAGE_BY_EXTENSION[extname(path).toLowerCase()] ?? "text";
 }
@@ -101,16 +178,51 @@ function ansiColor(hex: string, text: string): string {
   return `\x1b[38;2;${r};${g};${b}m${text}\x1b[39m`;
 }
 
-async function highlightLine(text: string, language: Language): Promise<string> {
+async function highlightTokens(text: string, language: Language): Promise<HighlightToken[]> {
   const key = `${language}\0${text}`;
-  const cached = highlighted.get(key);
+  const cached = highlightedTokens.get(key);
   if (cached) return cached;
   const pending = highlighterPromise.then((highlighter) => {
     const tokens = highlighter.codeToTokens(text, { lang: language, theme: "github-dark" }).tokens[0] ?? [];
-    return tokens.map((token) => ansiColor(token.color ?? "#E1E4E8", token.content)).join("");
-  }).catch(() => text);
-  highlighted.set(key, pending);
+    return tokens.map((token) => ({ content: token.content, color: token.color }));
+  }).catch(() => [{ content: text }]);
+  highlightedTokens.set(key, pending);
   return pending;
+}
+
+function emphasizeWord(text: string, row: DiffRow, theme: RenderResultTheme): string {
+  const color = row.kind === "add" ? "toolDiffAdded" : "toolDiffRemoved";
+  return theme.bold(theme.underline(theme.fg(color, text)));
+}
+
+async function highlightCode(row: DiffRow, language: Language, theme: RenderResultTheme): Promise<string> {
+  const tokens = await highlightTokens(row.text, language);
+  if (!row.wordRanges?.length) {
+    return tokens.map((token) => ansiColor(token.color ?? "#E1E4E8", token.content)).join("");
+  }
+  const output: string[] = [];
+  let offset = 0;
+  for (const token of tokens) {
+    const tokenEnd = offset + token.content.length;
+    let cursor = 0;
+    for (const range of row.wordRanges) {
+      const start = Math.max(range.start, offset);
+      const end = Math.min(range.end, tokenEnd);
+      if (start >= end) continue;
+      const relativeStart = start - offset;
+      const relativeEnd = end - offset;
+      if (relativeStart > cursor) {
+        output.push(ansiColor(token.color ?? "#E1E4E8", token.content.slice(cursor, relativeStart)));
+      }
+      output.push(emphasizeWord(token.content.slice(relativeStart, relativeEnd), row, theme));
+      cursor = relativeEnd;
+    }
+    if (cursor < token.content.length) {
+      output.push(ansiColor(token.color ?? "#E1E4E8", token.content.slice(cursor)));
+    }
+    offset = tokenEnd;
+  }
+  return output.join("");
 }
 
 function rowNumberWidth(rows: DiffRow[]): number {
@@ -136,21 +248,29 @@ function styleStats(rows: DiffRow[], theme: RenderResultTheme): string {
   return `${theme.fg("toolDiffAdded", `+${added}`)} ${theme.fg("toolDiffRemoved", `-${removed}`)}`;
 }
 
+function selectCollapsedRows(rows: DiffRow[], limit: number): DiffWindow {
+  const lastChanged = rows.findLastIndex((row) => row.kind !== "context");
+  if (lastChanged < 0) return { rows: [], start: 0 };
+
+  let start = Math.max(0, lastChanged - Math.max(1, limit) + 1);
+  let end = lastChanged + 1;
+
+  // Keep a replacement pair together when the tail starts between delete/add rows.
+  if (rows[start]?.kind === "add" && rows[start - 1]?.kind === "del") start--;
+  if (rows[end - 1]?.kind === "del" && rows[end]?.kind === "add") end++;
+
+  return { rows: rows.slice(start, end), start };
+}
+
 async function renderUnified(rows: DiffRow[], path: string, width: number, theme: RenderResultTheme): Promise<string[]> {
   const language = languageFor(path);
   const output: string[] = [];
   const numberWidth = rowNumberWidth(rows);
-  const gutterWidth = numberWidth + 3;
-  const codeWidth = Math.max(1, width - gutterWidth);
-  for (const row of rows.slice(0, 150)) {
-    const code = await highlightLine(row.text, language);
-    const line = padLine(`${rowPrefix(row, theme, numberWidth)}${code}`, width);
+  for (const row of rows) {
+    const code = await highlightCode(row, language, theme);
+    const line = padLine(`${rowPrefix(row, theme, numberWidth)}${code}`, width, "", 0);
     output.push(styleRow(row, line, theme));
-    if (visibleWidth(row.text) > codeWidth) {
-      // fitLine() keeps long source lines on one stable terminal row.
-    }
   }
-  if (rows.length > 150) output.push(theme.fg("muted", `... ${rows.length - 150} more lines`));
   return output;
 }
 
@@ -161,40 +281,50 @@ async function renderSplit(rows: DiffRow[], path: string, width: number, theme: 
   const leftWidth = Math.max(1, half - 1);
   const rightWidth = Math.max(1, width - half - 1);
   const output: string[] = [];
-  for (let index = 0; index < rows.length && output.length < 80; index++) {
+  for (let index = 0; index < rows.length; index++) {
     const row = rows[index];
     const next = rows[index + 1];
     const isReplacement = row.kind === "del" && next?.kind === "add";
     const left = row.kind === "add" ? undefined : row;
     const right = row.kind === "del" ? (isReplacement ? next : undefined) : row;
     if (isReplacement) index++;
-    const leftText = left ? await highlightLine(left.text, language) : "";
-    const rightText = right ? await highlightLine(right.text, language) : "";
+    const leftText = left ? await highlightCode(left, language, theme) : "";
+    const rightText = right ? await highlightCode(right, language, theme) : "";
     const leftLine = left
-      ? padLine(`${rowPrefix(left, theme, numberWidth)}${leftText}`, leftWidth)
+      ? padLine(`${rowPrefix(left, theme, numberWidth)}${leftText}`, leftWidth, "", 0)
       : " ".repeat(leftWidth);
     const rightLine = right
-      ? padLine(`${rowPrefix(right, theme, numberWidth)}${rightText}`, rightWidth)
+      ? padLine(`${rowPrefix(right, theme, numberWidth)}${rightText}`, rightWidth, "", 0)
       : " ".repeat(rightWidth);
     output.push(styleRow(left, leftLine, theme) + theme.fg("dim", "│") + styleRow(right, rightLine, theme));
   }
-  if (rows.length > 80) output.push(theme.fg("muted", `... ${rows.length - 80} more lines`));
   return output;
 }
 
-function boxed(lines: string[], width: number, theme: RenderResultTheme): string[] {
-  if (width < 4) return lines.map((line) => fitLine(line, width));
+function padToWidth(line: string, width: number): string {
+  const fitted = fitLine(line, width, "", 0);
+  return fitted + " ".repeat(Math.max(0, width - visibleWidth(fitted)));
+}
+
+function viewerFooter(totalLines: number, width: number, theme: RenderResultTheme): string {
+  const label = `└─ ${totalLines} lines`;
+  if (width < 4) return fitLine(theme.fg("dim", label), width, "", 0);
+  const fill = Math.max(0, width - visibleWidth(label) - 1);
+  return fitLine(theme.fg("dim", `${label}${"─".repeat(fill)}┘`), width, "", 0);
+}
+
+function boxed(lines: string[], width: number, totalLines: number, theme: RenderResultTheme): string[] {
+  if (width < 4) return [...lines.map((line) => fitLine(line, width, "", 0)), viewerFooter(totalLines, width, theme)];
   const innerWidth = width - 2;
-  const border = "─";
   const side = theme.fg("dim", "│");
   return [
-    theme.fg("dim", `┌${border.repeat(innerWidth)}┐`),
-    ...lines.map((line) => `${side}${padLine(line, innerWidth)}${side}`),
-    theme.fg("dim", `└${border.repeat(innerWidth)}┘`),
+    theme.fg("dim", `┌${"─".repeat(innerWidth)}┐`),
+    ...lines.map((line) => `${side}${padToWidth(line, innerWidth)}${side}`),
+    viewerFooter(totalLines, width, theme),
   ];
 }
 
-class DiffComponent implements Component {
+class MutationDiffViewer implements Component {
   private state: DiffState;
   private path = "";
   private theme!: RenderResultTheme;
@@ -205,43 +335,72 @@ class DiffComponent implements Component {
     this.path = path;
     this.theme = theme;
     this.expanded = expanded;
-    this.ensureRender();
+    this.ensureRender(80);
+  }
+
+  setExpanded(expanded: boolean): void {
+    this.expanded = expanded;
   }
 
   invalidate(): void {}
 
   render(width: number): string[] {
-    this.ensureRender(width);
-    const rows = this.state.lines ?? [this.theme.fg("muted", "Rendering diff...")];
-    return boxed(rows, width, this.theme);
+    const targetWidth = Math.max(1, width);
+    this.ensureRender(targetWidth);
+    const lines = this.state.rendered ?? [this.theme.fg("muted", "Rendering diff...")];
+    return boxed(lines, targetWidth, this.state.totalLines ?? 0, this.theme);
   }
 
   private ensureRender(width: number): void {
-    const targetWidth = Math.max(1, width);
-    if (this.state.lines && this.state.renderWidth === targetWidth) return;
-    if (this.state.renderPromise) return;
+    const innerWidth = Math.max(1, width - 2);
+    const key = `${innerWidth}:${this.expanded ? "expanded" : "collapsed"}`;
+    if (this.state.renderedKey === key) return;
+    if (this.state.renderPromiseKey === key) return;
+
     const capture = this.state.capture;
-    if (!capture) {
-      this.state.lines = [this.theme.fg("muted", "No changes")];
+    const hasSource = Boolean(capture) || this.state.rows !== undefined;
+    const sourceRows = this.state.rows ?? (capture ? changedRows(capture.oldText, capture.newText) : []);
+    if (!hasSource) {
+      this.state.rendered = [this.theme.fg("warning", "Diff unavailable after reload")];
+      this.state.totalLines = 0;
+      this.state.renderedKey = key;
       return;
     }
-    this.state.renderPromise = (async () => {
-      const rows = changedRows(capture.oldText, capture.newText);
-      const changed = rows.some((row) => row.kind !== "context");
-      if (!changed) {
-        this.state.lines = [this.theme.fg("muted", "No changes")];
-        this.state.renderWidth = targetWidth;
-        this.state.invalidate?.();
-        return;
-      }
-      const renderWidth = Math.max(1, targetWidth - 2);
-      const rendered = renderWidth >= 150
-        ? await renderSplit(rows, this.path, renderWidth, this.theme)
-        : await renderUnified(rows, this.path, renderWidth, this.theme);
-      this.state.lines = [styleStats(rows, this.theme), ...rendered];
-      this.state.renderWidth = renderWidth;
+    const rows = addWordRanges(sourceRows);
+    this.state.rows = rows;
+    const changed = rows.some((row) => row.kind !== "context");
+    if (!changed) {
+      this.state.rendered = [this.theme.fg("muted", "No changes")];
+      this.state.totalLines = 0;
+      this.state.renderedKey = key;
+      return;
+    }
+
+    const window = this.expanded ? { rows, start: 0 } : selectCollapsedRows(rows, COLLAPSED_DIFF_LINES);
+    const pending = (async () => {
+      const rendered = innerWidth >= 150
+        ? await renderSplit(window.rows, this.path, innerWidth, this.theme)
+        : await renderUnified(window.rows, this.path, innerWidth, this.theme);
+      const prefix = !this.expanded && window.start > 0
+        ? [this.theme.fg("muted", `... ${window.start} earlier lines`)]
+        : [];
+      if (this.state.renderPromiseKey !== key || this.currentKey(width) !== key) return;
+      this.state.rendered = [styleStats(rows, this.theme), ...prefix, ...rendered];
+      this.state.totalLines = rows.length;
+      this.state.renderedKey = key;
       this.state.invalidate?.();
-    })();
+    })().finally(() => {
+      if (this.state.renderPromiseKey === key) {
+        this.state.renderPromise = undefined;
+        this.state.renderPromiseKey = undefined;
+      }
+    });
+    this.state.renderPromise = pending;
+    this.state.renderPromiseKey = key;
+  }
+
+  private currentKey(width: number): string {
+    return `${Math.max(1, width - 2)}:${this.expanded ? "expanded" : "collapsed"}`;
   }
 }
 
@@ -277,9 +436,14 @@ function wrapMutation<T extends ToolDefinition<any, any, any>>(tool: T, cwd: str
       const state = (context.state as DiffState) ?? {};
       state.invalidate = context.invalidate;
       state.capture ??= captures.get(context.toolCallId);
-      const component = context.lastComponent instanceof DiffComponent
+      if (!state.capture && state.rows === undefined) {
+        const nativeDiff = resultDiff(result.details);
+        if (nativeDiff !== undefined) state.rows = addWordRanges(parseDisplayDiff(nativeDiff));
+      }
+      const component = context.lastComponent instanceof MutationDiffViewer
         ? context.lastComponent
-        : new DiffComponent(state, stringArg(context.args, "path", "<missing path>"), theme, options.expanded);
+        : new MutationDiffViewer(state, stringArg(context.args, "path", "<missing path>"), theme, options.expanded);
+      component.setExpanded(options.expanded);
       captures.delete(context.toolCallId);
       return component;
     },
