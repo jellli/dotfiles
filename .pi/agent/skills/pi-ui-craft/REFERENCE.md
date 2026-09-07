@@ -114,6 +114,34 @@ Resolution should be deterministic: environment > project config > global config
 
 `pi-facelift` statusline uses normalized ordered block IDs, enabled flags, sub-toggles, and a validated separator. A renderer walks the order, drops empty blocks, and joins visible blocks. Settings overlays use dedicated modal primitives and immediately persist sanitized state. This model scales better than adding independent booleans scattered through render code.
 
+### 11. Aggregated rows and replay safety
+
+When one card aggregates multiple calls (consecutive reads, todos), the per-row path matters:
+
+- Use **tail-first truncation** for file paths, never a hard `padLine(path, 20)` cut: a long path with no ellipsis gets chopped to the cwd prefix and the filename disappears. Shared helper `fitPath(path, budget)` keeps the basename plus as many parent segments as fit, joined by `…/`.
+- **Partial first-frame args get frozen**: during streaming/replay `renderCall` may fire with incomplete args (missing `path`). If the aggregation store does not update an existing entry's row text, `<missing path>` is permanently cemented. Refresh single/row text on every register/renderCall, not just on first registration.
+- Keep the aggregation store on `globalThis[Symbol.for(...)]` so it survives `/reload` module rebuilds; reset it on `session_shutdown`.
+- Consecutive-call grouping lives in `extensions/ui/lib/aggregation.ts` (`createToolAggregation`), shared by read and todo cards.
+
+### 12. Persisting UI flags across reload
+
+Module-level globals are rebuilt on `/reload` (session_shutdown → session_start), so any UI state that must outlive a reload (e.g. "HUD already auto-cleared") has to ride along with the session:
+
+- Persist the flag via `ctx.appendEntry` on change; read it back in `session_start`.
+- Reset it when the triggering condition disappears (e.g. an open task reappears clears the HUD-cleared flag).
+- In timer callbacks never reference a module-level `ctx`; capture the context parameter and guard with a state-identity check, wrap `setWidget` in try/catch (session may have been replaced), and call `.unref()` on the timer handle.
+
+## Session and Token Debugging
+
+When asked "why is every request Nk input tokens", the answer lives in the session archive:
+
+- Session JSONL is at `~/.pi/agent/sessions/<project>/<id>.jsonl`; each assistant message records `message.usage.input` — that is the real per-request input size.
+- `type: "compaction"` entries carry `summary`, `tokensBefore`, and `firstKeptEntryId`. **The compaction summary is re-sent in full on every request** and grows without bound — accumulated observation/reflection records get appended wholesale and can inflate it to 150k+ chars (~60k tokens).
+- Compaction triggers at roughly `contextWindow − compaction.reserveTokens` (default reserve 16384). E.g. deepseek-v4-flash has a 128k window → fires around ~111k.
+- After compaction the baseline is `summary + keepRecentTokens (default 20000) + system prompt`. If it is still huge after compacting, the summary is the culprit, not keepRecentTokens.
+- A brand-new session's first request input ≈ pure system prompt size — useful baseline for comparison.
+- Levers: lower `compaction.keepRecentTokens` (thinner post-compact), raise `compaction.reserveTokens` (compact earlier), trigger a one-off compaction with `customInstructions` that tells the model to drop historical observations, or start a fresh session (resets everything).
+
 ## Local Adaptation
 
 Current dotfiles intentionally use a smaller composition:
@@ -140,3 +168,7 @@ Before accepting a Pi UI change, verify:
 - timers/widgets are disposed on reload/end
 - config is sanitized and precedence is documented
 - focused tests cover the pure layout and risky wrapper behavior
+- cross-reload UI flags persist via session entries, not module globals
+- aggregated rows show real tail-first paths, never `<missing path>`
+
+Context bloat diagnosis (input-token questions): see the "Session and Token Debugging" section — compaction summaries are the usual fixed per-request cost.

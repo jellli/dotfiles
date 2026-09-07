@@ -56,6 +56,11 @@ Use precedence `environment > project config > global config > defaults`. Saniti
 - Inspect at narrow and wide widths, with ANSI stripped and visible width measured.
 - Confirm async highlighting eventually invalidates and no renderer ownership conflict exists.
 - Reload Pi before judging a changed extension in an existing session.
+- Confirm aggregated rows show real tail-first paths (`fitPath`), and cross-reload flags (e.g. HUD auto-cleared) persist via session entries, not module globals.
+
+## Session & Token Debugging (when asked about input-token bloat)
+
+Session JSONL (`~/.pi/agent/sessions/<project>/<id>.jsonl`) exposes per-request `message.usage.input`; compaction entries carry a `summary` that is re-sent in full every request and grows without bound (observations accumulate). Compaction fires near `contextWindow − reserveTokens` (deepseek-v4-flash: 128k → ~111k). Levers: `keepRecentTokens` (post-compact thinness), `reserveTokens` (earlier trigger), one-off compact with `customInstructions`, or a fresh session. Details in [REFERENCE.md](REFERENCE.md).
 
 ## Local Map
 
