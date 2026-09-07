@@ -4,9 +4,9 @@
  * Keeps only the session todo tool, `/todo` command, persistence, and HUD.
  * Adapted to pi's public ExtensionAPI; OMP's core-only imports are not used.
  */
-import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { createToolAggregation } from "./lib/aggregation.js";
 
 const TOOL_NAME = "todo";
 const ENTRY_TYPE = "oh-my-pi-todo";
@@ -17,8 +17,6 @@ const HUD_ACTIVE_TASK_LIMIT = 5;
 const HUD_FOLLOWING_PHASE_LIMIT = 3;
 // Keep completed HUDs visible briefly without removing persisted session state.
 const HUD_CLEAR_DELAY_MS = 60_000;
-const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-const SPINNER_INTERVAL_MS = 80;
 
 const TodoStatus = Type.Union([
   Type.Literal("pending"),
@@ -76,40 +74,6 @@ type State = {
   lastAssistantText?: string;
 };
 const states = new Map<string, State>();
-
-type SpinnerState = { timer?: ReturnType<typeof setInterval>; frame?: number };
-
-function renderToolHeader(
-  text: Text,
-  params: Params,
-  theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1],
-  context: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[2],
-): void {
-  const spinner = context.state as SpinnerState;
-  if (context.isPartial) {
-    spinner.frame ??= 0;
-    if (!spinner.timer) {
-      // Spinner state is scoped to this tool execution and never keeps Pi alive.
-      spinner.timer = setInterval(() => {
-        spinner.frame = ((spinner.frame ?? 0) + 1) % SPINNER_FRAMES.length;
-        renderToolHeader(text, params, theme, context);
-        context.invalidate();
-      }, SPINNER_INTERVAL_MS);
-      spinner.timer.unref();
-    }
-  } else if (spinner.timer) {
-    clearInterval(spinner.timer);
-    spinner.timer = undefined;
-  }
-  const marker = context.isError
-    ? theme.fg("error", "×")
-    : context.isPartial
-      ? theme.fg("muted", SPINNER_FRAMES[spinner.frame ?? 0])
-      : theme.fg("success", "√");
-  const target = params.task ?? params.phase ?? params.items?.join(", ") ?? "";
-  text.setText(`${marker} ${theme.fg("toolTitle", theme.bold("todo"))} ${theme.fg("toolOutput", `${params.op}${target ? ` ${target}` : ""}`)}`);
-}
-
 function clone(phases: Phase[]): Phase[] {
   return phases.map((phase) => ({
     name: phase.name,
@@ -454,7 +418,9 @@ function awaitsUserReply(text: string | undefined): boolean {
 }
 
 export default function (pi: ExtensionAPI): void {
-  pi.registerTool({
+  const aggregation = createToolAggregation(pi);
+
+  pi.registerTool(aggregation.wrap({
     name: TOOL_NAME,
     label: "Todo",
     description: "Manage a phased task list. Use one operation at a time: init, start, done, drop, block, unblock, rm, append, or view.",
@@ -466,22 +432,6 @@ export default function (pi: ExtensionAPI): void {
       "Never make todo the turn's only tool call; batch it with real work.",
     ],
     parameters: TodoParams,
-    // Use the same unframed, status-prefixed treatment as built-in compact cards.
-    renderShell: "self",
-    renderCall: (params, theme, context) => {
-      const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-      renderToolHeader(text, params as Params, theme, context);
-      return text;
-    },
-    renderResult: (result, options, theme, context) => {
-      const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-      if (options.isPartial || !context.isError) {
-        text.setText("");
-      } else {
-        text.setText(theme.fg("error", result.content.filter((content) => content.type === "text").map((content) => content.text ?? "").join("\n")));
-      }
-      return text;
-    },
     execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
       const state = getState(ctx);
       const result = apply(state.phases, params as Params);
@@ -492,7 +442,13 @@ export default function (pi: ExtensionAPI): void {
         isError: result.errors.length > 0 ? true : undefined,
       };
     },
-  });
+  }, {
+    line: (args, theme) => {
+      const params = args as Params;
+      const target = params.task ?? params.phase ?? params.items?.join(", ") ?? "";
+      return theme.fg("toolOutput", `${params.op}${target ? ` ${target}` : ""}`);
+    },
+  }));
 
   pi.registerCommand("todo", {
     description: "Show or edit the current todo list",

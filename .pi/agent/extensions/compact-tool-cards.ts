@@ -10,7 +10,8 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Text, type Component, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { fitLine, statusMarker, toolHeader } from "./lib/pi-ui.js";
+import { createToolAggregation } from "./lib/aggregation.js";
+import { fitLine, padLine, statusMarker, toolHeader } from "./lib/pi-ui.js";
 
 type ToolArgs = Record<string, unknown>;
 type HeaderFormatter = (args: ToolArgs, theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1]) => string;
@@ -175,7 +176,21 @@ function lineRange(args: ToolArgs): string {
   const limit = numberArg(args, "limit");
   if (offset === undefined && limit === undefined) return "";
   const start = offset ?? 1;
-  return limit === undefined ? `:${start}` : `:${start}-${start + limit - 1}`;
+  return limit === undefined ? `lines ${start}+` : `lines ${start}-${start + limit - 1}`;
+}
+
+const READ_PATH_COLUMN = 20;
+
+function readCallLine(args: ToolArgs, theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1]): string {
+  const path = theme.fg("accent", stringArg(args, "path", "<missing path>"));
+  const range = lineRange(args);
+  return `${path}${range ? ` ${theme.fg("toolOutput", range)}` : ""}`;
+}
+
+function readCallRow(args: ToolArgs, theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1]): string {
+  const path = padLine(theme.fg("accent", stringArg(args, "path", "<missing path>")), READ_PATH_COLUMN, "");
+  const range = lineRange(args);
+  return `${path}${range ? ` ${theme.fg("toolOutput", range)}` : ""}`;
 }
 
 function textOutput(result: { content: Array<{ type: string; text?: string }> }): string {
@@ -262,13 +277,18 @@ export default async function (pi: ExtensionAPI) {
   await installBundleCompactionRenderer();
   const cwd = process.cwd();
 
+  const aggregation = createToolAggregation(pi);
+
   // Registering matching names replaces only the built-in renderers above.
-  pi.registerTool(compactDefinition(createReadToolDefinition(cwd), (args, theme) => (
-    `${coloredPath(args, theme)}${theme.fg("toolOutput", lineRange(args))}`
-  )));
-  pi.registerTool(compactDefinition(createGrepToolDefinition(cwd), (args, theme) => (
-    theme.fg("toolOutput", `/${shorten(stringArg(args, "pattern"), 48)}/ in ${shorten(stringArg(args, "path", "."), 48)}`)
-  )));
+  pi.registerTool(aggregation.wrap(createReadToolDefinition(cwd), {
+    line: readCallLine,
+    row: readCallRow,
+  }));
+  pi.registerTool(aggregation.wrap(createGrepToolDefinition(cwd), {
+    line: (args, theme) => (
+      theme.fg("toolOutput", `/${shorten(stringArg(args, "pattern"), 48)}/ in ${shorten(stringArg(args, "path", "."), 48)}`)
+    ),
+  }));
   pi.registerTool(compactDefinition(createFindToolDefinition(cwd), (args, theme) => (
     theme.fg("toolOutput", `${shorten(stringArg(args, "pattern"), 56)} in ${shorten(stringArg(args, "path", "."), 48)}`)
   )));
