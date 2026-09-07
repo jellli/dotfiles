@@ -274,7 +274,8 @@ class BashResult implements Component {
       rows.push("─".repeat(innerWidth));
     }
     rows.push(...this.outputRows);
-    const body = rows.map((line) => border(`│${padLine(line, innerWidth)}│`));
+    const dimAnsi = (this.theme as any).getFgAnsi?.("dim") ?? "\x1b[38;2;102;92;84m";
+    const body = rows.map((line) => border(`│${padLine(line, innerWidth)}${dimAnsi}│`));
 
     const stats = this.outputRows.length > 0
       ? `${this.exitText}${this.elapsedText ? ` · ${this.elapsedText}` : ""}`
