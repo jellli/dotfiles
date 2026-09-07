@@ -283,6 +283,17 @@ async function highlightTokens(text: string, language: Language): Promise<Highli
   return pending;
 }
 
+/** Shared bash command highlighting for the compact bash card.
+ * Returns one ANSI string per line so the `$ cd … &&` prefix can be
+ * applied only to the first row (OMP convention). */
+export async function highlightBashLines(text: string): Promise<string[]> {
+  const tokens = await highlightTokens(text, "bash");
+  return tokens
+    .map((token) => ansiFg(token.color ?? DEFAULT_FG, token.content))
+    .join("")
+    .split("\n");
+}
+
 /** Word-level emphasis: swaps the diff bg to the brighter highlight bg, but the
  * Shiki syntax fg is preserved (pi-diff injectBg style — no underline). */
 function emphasizeWord(text: string, wordBg: string, bodyBg: string): string {

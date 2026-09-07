@@ -12,6 +12,7 @@ import {
 import { Text, type Component, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { createToolAggregation } from "./lib/aggregation.js";
 import { fitLine, padLine, statusMarker, toolHeader } from "./lib/pi-ui.js";
+import { highlightBashLines } from "./pi-diff.js";
 
 type ToolArgs = Record<string, unknown>;
 type HeaderFormatter = (args: ToolArgs, theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1]) => string;
@@ -125,6 +126,8 @@ class BashHeader implements Component {
     this.command = command;
     this.theme = theme;
     this.context = context;
+    // Shared rendererState: mark tool start so the result card can show wall time.
+    (context.state as SpinnerState & { startedAt?: number }).startedAt ??= Date.now();
     this.syncSpinner();
   }
 
@@ -159,10 +162,35 @@ class BashHeader implements Component {
 
 const BASH_PREVIEW_LINES = 3;
 
+function bashExitText(result: { content: Array<{ type: string; text?: string }> }, isError: boolean): string {
+  const output = textOutput(result);
+  const exit = output.match(/exit(?:ed with)? code (\d+)/);
+  if (exit) return `exit ${exit[1]}`;
+  const timeout = output.match(/timed out after (\d+) seconds/);
+  if (timeout) return `timeout ${timeout[1]}s`;
+  return isError ? "err" : "exit 0";
+}
+
+function bashElapsedText(state: SpinnerState & { startedAt?: number }): string {
+  const startedAt = state?.startedAt;
+  if (!startedAt) return "";
+  const seconds = (Date.now() - startedAt) / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  return `${Math.floor(seconds / 60)}m${Math.round(seconds % 60)}s`;
+}
+
 class BashResult implements Component {
-  private lines: string[] = [];
+  private commandRows: string[] = [];
+  private outputRows: string[] = [];
   private border: "accent" | "dim" | "error" = "dim";
   private theme!: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1];
+  private context!: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[2];
+  private exitText = "";
+  private elapsedText = "";
+  private command = "";
+  private cwd = "";
+  private highlightKey = "";
+  private highlightedLines: string[] | undefined;
 
   update(
     result: { content: Array<{ type: string; text?: string }> },
@@ -171,36 +199,61 @@ class BashResult implements Component {
     context: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[2],
   ): void {
     this.theme = theme;
+    this.context = context;
     this.border = context.isError ? "error" : options.isPartial ? "accent" : "dim";
+    this.command = stringArg(context.args, "command", "");
+    this.cwd = typeof context.cwd === "string" ? context.cwd : "";
+    this.exitText = bashExitText(result, Boolean(context.isError));
+    this.elapsedText = bashElapsedText(context.state as SpinnerState & { startedAt?: number });
 
-    const body: string[] = [];
-    const command = stringArg(context.args, "command", "");
-    const cwd = typeof context.cwd === "string" ? context.cwd : "";
-    body.push(
-      `${theme.fg("dim", "$ cd ")}${theme.fg("accent", shorten(cwd, 24))}${theme.fg("dim", " && ")}${theme.fg("toolOutput", command)}`,
-    );
+    this.commandRows = this.command ? this.buildCommandRows() : [];
+    this.maybeHighlight();
 
     const output = textOutput(result);
+    this.outputRows = [];
     if (!options.isPartial && output) {
       if (context.isError) {
         const lines = output.split("\n");
         const preview = options.expanded ? output : lines[0];
         const suffix = !options.expanded && lines.length > 1 ? theme.fg("muted", " ...") : "";
-        body.push(theme.fg("error", preview) + suffix);
+        this.outputRows.push(theme.fg("error", preview) + suffix);
       } else if (options.expanded) {
-        body.push(...output.split("\n").map((line) => theme.fg("toolOutput", line)));
+        this.outputRows.push(...output.split("\n").map((line) => theme.fg("toolOutput", line)));
       } else {
         const lines = output.split("\n");
         const tail = lines.slice(-BASH_PREVIEW_LINES);
         const hidden = lines.length - tail.length;
-        body.push(...tail.map((line) => theme.fg("toolOutput", line)));
+        this.outputRows.push(...tail.map((line) => theme.fg("toolOutput", line)));
         if (hidden > 0) {
           const hint = keyText("app.tools.expand") || "ctrl+o";
-          body.push(theme.fg("muted", `… ${hidden} more lines (${hint} to expand)`));
+          this.outputRows.push(theme.fg("muted", `… ${hidden} more lines (${hint} to expand)`));
         }
       }
     }
-    this.lines = body;
+  }
+
+  private buildCommandRows(): string[] {
+    const prefix = `${this.theme.fg("dim", "$ cd ")}${this.theme.fg("accent", shorten(this.cwd, 24))}${this.theme.fg("dim", " && ")}`;
+    if (this.highlightedLines) {
+      return this.highlightedLines.map((line, i) => (i === 0 ? prefix + line : line));
+    }
+    return this.command.split("\n").map((line, i) =>
+      i === 0 ? prefix + this.theme.fg("toolOutput", line) : this.theme.fg("toolOutput", line),
+    );
+  }
+
+  private maybeHighlight(): void {
+    if (!this.command || this.highlightKey === this.command) return;
+    this.highlightKey = this.command;
+    this.highlightedLines = undefined;
+    highlightBashLines(this.command)
+      .then((lines) => {
+        if (this.highlightKey === this.command) {
+          this.highlightedLines = lines;
+          this.context?.invalidate?.();
+        }
+      })
+      .catch(() => {});
   }
 
   invalidate(): void {}
@@ -209,8 +262,21 @@ class BashResult implements Component {
     const innerWidth = Math.max(1, width - 2);
     const border = (line: string) => this.theme.fg(this.border, line);
     const top = border(`┌${"─".repeat(innerWidth)}┐`);
-    const body = this.lines.map((line) => border(`│${padLine(line, innerWidth)}│`));
-    const bottom = border(`└${"─".repeat(innerWidth)}┘`);
+
+    const rows = [...this.commandRows];
+    if (this.commandRows.length > 0 && this.outputRows.length > 0) {
+      rows.push("─".repeat(innerWidth));
+    }
+    rows.push(...this.outputRows);
+    const body = rows.map((line) => border(`│${padLine(line, innerWidth)}│`));
+
+    const stats = this.outputRows.length > 0
+      ? `${this.exitText}${this.elapsedText ? ` · ${this.elapsedText}` : ""}`
+      : "";
+    const left = stats ? `└─ ${stats} ` : "└";
+    const pad = "─".repeat(Math.max(0, innerWidth + 2 - visibleWidth(left) - 1));
+    const bottom = border(`${left}${pad}┘`);
+
     return [top, ...body, bottom].map((line) => fitLine(line, width, "", 0));
   }
 }
