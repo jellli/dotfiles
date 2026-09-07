@@ -517,7 +517,7 @@ class MutationDiffViewer implements Component {
       ? renderSplitLayout(window.rows, this.state.highlighted, window.start, innerWidth, this.colors)
       : renderUnifiedLayout(window.rows, this.state.highlighted, window.start, innerWidth, this.colors);
     const prefix = !this.expanded && window.start > 0
-      ? [this.colors.bgBase + this.theme.fg("muted", ` ... ${window.start} earlier lines`) + RST]
+      ? [this.theme.fg("muted", ` ... ${window.start} earlier lines`)]
       : [];
     return [...prefix, ...rendered];
   }
