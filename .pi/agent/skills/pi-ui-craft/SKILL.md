@@ -59,8 +59,8 @@ Use precedence `environment > project config > global config > defaults`. Saniti
 
 ## Local Map
 
-- `extensions/compact-tool-cards.ts`: compact `read`, `grep`, `find`, `ls`, `bash` cards.
-- `extensions/pi-diff.ts`: local `write`/`edit` diff owner, Shiki, unified/split rendering.
+- `extensions/ui/compact-tool-cards.ts`: compact `read`, `grep`, `find`, `ls`, `bash` cards.
+- `extensions/ui/pi-diff.ts`: local `write`/`edit` diff owner, Shiki, unified/split rendering.
 - `extensions/oh-my-pi-todo.ts`: task HUD and live widget patterns.
 - `extensions/statusline.ts`: statusline/widget customization.
 - `extensions/vim-mode/`: editor-level TUI customization.

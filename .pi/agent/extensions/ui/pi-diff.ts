@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
-import { diffLines, diffWordsWithSpace } from "../npm/node_modules/diff/libesm/index.js";
-import { createHighlighter } from "../npm/node_modules/shiki/dist/index.mjs";
+import { diffLines, diffWordsWithSpace } from "../../npm/node_modules/diff/libesm/index.js";
+import { createHighlighter } from "../../npm/node_modules/shiki/dist/index.mjs";
 import {
   createEditToolDefinition,
   createWriteToolDefinition,
@@ -588,7 +588,7 @@ function wrapMutation<T extends ToolDefinition<any, any, any>>(tool: T, cwd: str
   } as T;
 }
 
-export default function (pi: ExtensionAPI): void {
+export function registerPiDiff(pi: ExtensionAPI): void {
   const cwd = process.cwd();
   pi.registerTool(wrapMutation(createEditToolDefinition(cwd), cwd));
   pi.registerTool(wrapMutation(createWriteToolDefinition(cwd), cwd));

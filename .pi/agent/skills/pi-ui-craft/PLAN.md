@@ -6,7 +6,7 @@ Scope: improve local Pi transcript/tool UI while preserving native tool executio
 
 ### 1. Extract Shared UI Primitives
 
-Create a small internal UI helper module shared by `pi-diff.ts` and `compact-tool-cards.ts`.
+Create a small internal UI helper module shared by `ui/pi-diff.ts` and `ui/compact-tool-cards.ts`.
 
 Initial scope:
 
@@ -91,8 +91,8 @@ For every rendered line, assert `visibleWidth(line) <= width`.
 
 ## Explicit Constraints
 
-- `compact-tool-cards.ts` owns `read`, `grep`, `find`, `ls`, and `bash`.
-- `pi-diff.ts` owns `write` and `edit`.
+- `ui/compact-tool-cards.ts` owns `read`, `grep`, `find`, `ls`, and `bash`.
+- `ui/pi-diff.ts` owns `write` and `edit`.
 - `oh-my-pi-todo.ts` owns the todo HUD.
 - Do not load full `pi-pretty` or `pi-facelift` on top of these owners.
 - Pi extensions cannot reliably filter arbitrary core transcript rows; use tool renderers, widgets, custom entries, or isolated patches only.

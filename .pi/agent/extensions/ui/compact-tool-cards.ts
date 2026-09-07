@@ -272,7 +272,7 @@ function compactDefinition(
   };
 }
 
-export default async function (pi: ExtensionAPI) {
+export async function registerCompactToolCards(pi: ExtensionAPI) {
   installCompactCompactionRenderer(CompactionSummaryMessageComponent);
   await installBundleCompactionRenderer();
   const cwd = process.cwd();

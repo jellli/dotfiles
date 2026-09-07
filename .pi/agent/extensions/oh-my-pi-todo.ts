@@ -6,7 +6,7 @@
  */
 import { Type } from "typebox";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@earendil-works/pi-coding-agent";
-import { createToolAggregation } from "./lib/aggregation.js";
+import { createToolAggregation } from "./ui/lib/aggregation.js";
 
 const TOOL_NAME = "todo";
 const ENTRY_TYPE = "oh-my-pi-todo";
