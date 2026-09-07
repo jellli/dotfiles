@@ -1,0 +1,18 @@
+{
+  "port": 8787,
+  "defaultUpstream": "https://www.jiji.cc",
+  "providers": {
+    "jiji": {
+      "upstream": "https://www.jiji.cc",
+      "api": "openai-responses"
+    },
+    "deepseek": {
+      "upstream": "https://api.deepseek.com",
+      "api": "openai-completions"
+    },
+    "ollama-cloud": {
+      "upstream": "https://ollama.com",
+      "api": "openai-completions"
+    }
+  }
+}
