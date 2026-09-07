@@ -24,7 +24,9 @@ if [[ ! -d "$ANTIDOTE_DIR" ]]; then
 fi
 
 source "$ANTIDOTE_DIR/antidote.zsh"
+export all_proxy=http://127.0.0.1:7890
 antidote load
+unset all_proxy
 
 TPM_HOME="${DATA_HOME}/.tmux/plugins/tpm"
 if [ ! -d "$TPM_HOME" ]; then
