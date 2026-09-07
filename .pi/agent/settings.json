@@ -9,9 +9,9 @@
   "packages": [
     "npm:@plannotator/pi-extension",
     "npm:@juicesharp/rpiv-ask-user-question",
-    "npm:pi-rtk-optimizer",
     "npm:pi-mcp-adapter",
-    "npm:pi-blackhole"
+    "npm:pi-blackhole",
+    "npm:pi-ollama-cloud"
   ],
   "skills": [
     "-skills/caveman-commit/SKILL.md",
@@ -31,7 +31,8 @@
   "tuiMode": "regular",
   "enabledModels": [
     "deepseek/deepseek-v4-flash",
-    "jiji/gpt-5.6-luna"
+    "jiji/gpt-5.6-luna",
+    "ollama-cloud/deepseek-v4-flash:0731"
   ],
   "outputPad": 1,
   "terminal": {
