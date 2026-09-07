@@ -9,7 +9,7 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Text, type Component, visibleWidth } from "@earendil-works/pi-tui";
-import { fitLine, padLine, toolHeader } from "./lib/pi-ui.js";
+import { fitLine, toolHeader } from "./lib/pi-ui.js";
 
 type ToolArgs = Record<string, unknown>;
 type Theme = Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1];
@@ -22,10 +22,9 @@ type Capture = { oldText: string; newText: string };
 type DiffState = {
   capture?: Capture;
   rows?: DiffRow[];
-  rendered?: string[];
-  renderedKey?: string;
-  renderPromise?: Promise<void>;
-  renderPromiseKey?: string;
+  highlighted?: string[];
+  highlightPending?: boolean;
+  stats?: string;
   totalLines?: number;
   invalidate?: () => void;
 };
@@ -46,7 +45,35 @@ type DiffWindow = {
 
 type HighlightToken = { content: string; color?: string };
 
+type Rgb = { r: number; g: number; b: number };
+
+/**
+ * Resolved diff palette built from the pi theme (like pi-diff's auto-derive):
+ * line backgrounds mix the tool-state base bg with the diff fg accent at low
+ * intensity; word-level highlights use a brighter mix; gutters use a subtle
+ * mix. Foregrounds keep the theme's diff colors.
+ */
+type DiffColors = {
+  fgAdd: string;
+  fgDel: string;
+  fgCtx: string;
+  fgLnum: string;
+  bgBase: string; // context/empty bg (toolSuccessBg)
+  bgGutterAdd: string;
+  bgGutterDel: string;
+  bgAdd: string; // added line bg
+  bgDel: string; // deleted line bg
+  bgAddW: string; // word-level add highlight
+  bgDelW: string; // word-level del highlight
+};
+
 const COLLAPSED_DIFF_LINES = 8;
+const SPLIT_MIN_WIDTH = 150;
+const DIM = "\x1b[2m";
+const RST = "\x1b[0m";
+const DEFAULT_FG = "#E1E4E8";
+const FALLBACK_LNUM = "\x1b[38;2;102;92;84m";
+
 const CAPTURE_REGISTRY = Symbol.for("dotfiles.pi-diff.captures");
 type GlobalState = typeof globalThis & { [key: symbol]: Map<string, Capture> };
 const globalState = globalThis as GlobalState;
@@ -170,11 +197,77 @@ function languageFor(path: string): Language {
   return LANGUAGE_BY_EXTENSION[extname(path).toLowerCase()] ?? "text";
 }
 
-function ansiColor(hex: string, text: string): string {
-  const value = hex.slice(1);
-  const r = Number.parseInt(value.slice(0, 2), 16);
-  const g = Number.parseInt(value.slice(2, 4), 16);
-  const b = Number.parseInt(value.slice(4, 6), 16);
+// ---------------------------------------------------------------------------
+// Diff colors — auto-derived from the pi theme (pi-diff mixBg approach)
+// ---------------------------------------------------------------------------
+
+function parseAnsiRgb(ansi: string): Rgb | null {
+  const match = ansi.match(/\x1b\[(?:38|48);2;(\d+);(\d+);(\d+)m/);
+  return match ? { r: Number(match[1]), g: Number(match[2]), b: Number(match[3]) } : null;
+}
+
+/** Mix an accent color into a base bg at the given intensity (0.0–1.0). */
+function mixBg(base: Rgb, accent: Rgb, intensity: number): string {
+  const r = Math.round(base.r + (accent.r - base.r) * intensity);
+  const g = Math.round(base.g + (accent.g - base.g) * intensity);
+  const b = Math.round(base.b + (accent.b - base.b) * intensity);
+  return `\x1b[48;2;${r};${g};${b}m`;
+}
+
+function themeFg(theme: RenderResultTheme, name: string, fallback: string): string | null {
+  const get = (theme as unknown as { getFgAnsi?: (c: string) => string }).getFgAnsi;
+  try {
+    const ansi = get?.(name);
+    return ansi ? parseAnsiRgb(ansi) ? ansi : fallback : null;
+  } catch {
+    return null;
+  }
+}
+
+function themeBg(theme: RenderResultTheme, name: string): Rgb | null {
+  const get = (theme as unknown as { getBgAnsi?: (c: string) => string }).getBgAnsi;
+  try {
+    const ansi = get?.(name);
+    return ansi ? parseAnsiRgb(ansi) : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveDiffColors(theme: RenderResultTheme): DiffColors {
+  const fgAdd = themeFg(theme, "toolDiffAdded", "\x1b[38;2;100;180;120m") ?? "\x1b[38;2;100;180;120m";
+  const fgDel = themeFg(theme, "toolDiffRemoved", "\x1b[38;2;200;100;100m") ?? "\x1b[38;2;200;100;100m";
+  const addRgb = parseAnsiRgb(fgAdd) ?? { r: 100, g: 180, b: 120 };
+  const delRgb = parseAnsiRgb(fgDel) ?? { r: 200, g: 100, b: 100 };
+
+  const successBg = themeBg(theme, "toolSuccessBg") ?? { r: 26, g: 42, b: 32 };
+  const errorBg = themeBg(theme, "toolErrorBg") ?? { r: 61, g: 32, b: 32 };
+
+  // Line backgrounds — visible accent mixed into the tool-state base (15–18%)
+  const bgAdd = mixBg(successBg, addRgb, 0.15);
+  const bgDel = mixBg(errorBg, delRgb, 0.18);
+  // Word-level highlights — more prominent (30–35%)
+  const bgAddW = mixBg(successBg, addRgb, 0.3);
+  const bgDelW = mixBg(errorBg, delRgb, 0.35);
+  // Gutters — subtler than lines (10–12%)
+  const bgGutterAdd = mixBg(successBg, addRgb, 0.1);
+  const bgGutterDel = mixBg(errorBg, delRgb, 0.12);
+
+  const bgBase = mixBg(successBg, successBg, 0); // raw toolSuccessBg
+  const fgCtx = themeFg(theme, "toolDiffContext", "\x1b[38;2;120;120;120m") ?? "\x1b[38;2;120;120;120m";
+  const fgLnum = themeFg(theme, "dim", null) ?? FALLBACK_LNUM;
+  return { fgAdd, fgDel, fgCtx, fgLnum, bgBase, bgGutterAdd, bgGutterDel, bgAdd, bgDel, bgAddW, bgDelW };
+}
+
+// ---------------------------------------------------------------------------
+// Shiki highlighting + word-level background injection
+// ---------------------------------------------------------------------------
+
+function ansiFg(hex: string, text: string): string {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return text;
+  const r = Number.parseInt(hex.slice(1, 3), 16);
+  const g = Number.parseInt(hex.slice(3, 5), 16);
+  const b = Number.parseInt(hex.slice(5, 7), 16);
   return `\x1b[38;2;${r};${g};${b}m${text}\x1b[39m`;
 }
 
@@ -190,15 +283,18 @@ async function highlightTokens(text: string, language: Language): Promise<Highli
   return pending;
 }
 
-function emphasizeWord(text: string, row: DiffRow, theme: RenderResultTheme): string {
-  const color = row.kind === "add" ? "toolDiffAdded" : "toolDiffRemoved";
-  return theme.bold(theme.underline(theme.fg(color, text)));
+/** Word-level emphasis: swaps the diff bg to the brighter highlight bg, but the
+ * Shiki syntax fg is preserved (pi-diff injectBg style — no underline). */
+function emphasizeWord(text: string, wordBg: string, bodyBg: string): string {
+  return `${wordBg}${text}${bodyBg}`;
 }
 
-async function highlightCode(row: DiffRow, language: Language, theme: RenderResultTheme): Promise<string> {
+async function highlightCode(row: DiffRow, language: Language, colors: DiffColors): Promise<string> {
   const tokens = await highlightTokens(row.text, language);
-  if (!row.wordRanges?.length) {
-    return tokens.map((token) => ansiColor(token.color ?? "#E1E4E8", token.content)).join("");
+  const wordBg = row.kind === "add" ? colors.bgAddW : row.kind === "del" ? colors.bgDelW : "";
+  const bodyBg = row.kind === "add" ? colors.bgAdd : row.kind === "del" ? colors.bgDel : "";
+  if (!row.wordRanges?.length || !wordBg) {
+    return tokens.map((token) => ansiFg(token.color ?? DEFAULT_FG, token.content)).join("");
   }
   const output: string[] = [];
   let offset = 0;
@@ -212,34 +308,219 @@ async function highlightCode(row: DiffRow, language: Language, theme: RenderResu
       const relativeStart = start - offset;
       const relativeEnd = end - offset;
       if (relativeStart > cursor) {
-        output.push(ansiColor(token.color ?? "#E1E4E8", token.content.slice(cursor, relativeStart)));
+        output.push(ansiFg(token.color ?? DEFAULT_FG, token.content.slice(cursor, relativeStart)));
       }
-      output.push(emphasizeWord(token.content.slice(relativeStart, relativeEnd), row, theme));
+      output.push(emphasizeWord(ansiFg(token.color ?? DEFAULT_FG, token.content.slice(relativeStart, relativeEnd)), wordBg, bodyBg));
       cursor = relativeEnd;
     }
     if (cursor < token.content.length) {
-      output.push(ansiColor(token.color ?? "#E1E4E8", token.content.slice(cursor)));
+      output.push(ansiFg(token.color ?? DEFAULT_FG, token.content.slice(cursor)));
     }
     offset = tokenEnd;
   }
   return output.join("");
 }
 
+async function highlightAll(rows: DiffRow[], path: string, colors: DiffColors): Promise<string[]> {
+  const language = languageFor(path);
+  return Promise.all(rows.map((row) => highlightCode(row, language, colors)));
+}
+
+// ---------------------------------------------------------------------------
+// Layout — fully synchronous: consumes already-highlighted code + palette
+// ---------------------------------------------------------------------------
+
 function rowNumberWidth(rows: DiffRow[]): number {
-  return Math.max(1, ...rows.map((row) => String(row.number).length));
+  return Math.max(2, ...rows.map((row) => String(row.number).length));
 }
 
-function styleRow(row: DiffRow | undefined, text: string, theme: RenderResultTheme): string {
-  if (row?.kind === "add") return theme.bg("toolSuccessBg", theme.fg("toolDiffAdded", text));
-  if (row?.kind === "del") return theme.bg("toolErrorBg", theme.fg("toolDiffRemoved", text));
-  return row ? theme.fg("toolDiffContext", text) : text;
+function lnum(number: number, width: number, fg: string): string {
+  const value = String(number);
+  return fg + " ".repeat(Math.max(0, width - value.length)) + value + RST;
 }
 
-function rowPrefix(row: DiffRow, theme: RenderResultTheme, numberWidth: number): string {
-  const sign = row.kind === "add" ? "+" : row.kind === "del" ? "-" : " ";
-  const color = row.kind === "add" ? "toolDiffAdded" : row.kind === "del" ? "toolDiffRemoved" : "toolDiffContext";
-  const number = String(row.number).padStart(numberWidth, " ");
-  return `${theme.fg(color, sign)} ${theme.fg("dim", number)} `;
+/** Gutter per pi-diff: colored ▌ bar + right-aligned lnum + sign on a subtle bg. */
+function gutterFor(row: DiffRow, numberWidth: number, colors: DiffColors): string {
+  const isAdd = row.kind === "add";
+  const isDel = row.kind === "del";
+  const gBg = isAdd ? colors.bgGutterAdd : isDel ? colors.bgGutterDel : colors.bgBase;
+  const signFg = isAdd ? colors.fgAdd : isDel ? colors.fgDel : colors.fgCtx;
+  const numFg = isAdd ? colors.fgAdd : isDel ? colors.fgDel : colors.fgLnum;
+  const sign = isAdd ? "+" : isDel ? "-" : " ";
+  const border = isAdd || isDel ? `${signFg}▌` : `${colors.bgBase}`;
+  return `${border}${gBg}${lnum(row.number, numberWidth, numFg)}${gBg} ${signFg}${sign}${gBg} `;
+}
+
+function bodyBgFor(row: DiffRow | undefined, colors: DiffColors): string {
+  if (row?.kind === "add") return colors.bgAdd;
+  if (row?.kind === "del") return colors.bgDel;
+  return colors.bgBase;
+}
+
+function renderUnifiedLayout(rows: DiffRow[], code: string[], start: number, width: number, colors: DiffColors): string[] {
+  const numberWidth = rowNumberWidth(rows);
+  const output: string[] = [];
+  for (let index = 0; index < rows.length; index++) {
+    const row = rows[index];
+    const highlighted = code[start + index] ?? row.text;
+    const gutter = gutterFor(row, numberWidth, colors);
+    const bodyBg = bodyBgFor(row, colors);
+    const contentW = Math.max(1, width - visibleWidth(gutter));
+    const fitted = fitLine(row.kind === "context" ? `${DIM}${highlighted}` : highlighted, contentW, "", 0);
+    const pad = Math.max(0, contentW - visibleWidth(fitted));
+    output.push(`${gutter}${bodyBg}${fitted}${" ".repeat(pad)}${RST}`);
+  }
+  return output;
+}
+
+function renderSplitLayout(rows: DiffRow[], code: string[], start: number, width: number, colors: DiffColors): string[] {
+  const numberWidth = rowNumberWidth(rows);
+  const half = Math.floor(width / 2);
+  const leftWidth = Math.max(1, half - 1);
+  const rightWidth = Math.max(1, width - half - 1);
+  const output: string[] = [];
+
+  function halfLine(isLeft: boolean, row: DiffRow | undefined, indexInCode: number): string {
+    if (!row) return " ".repeat(isLeft ? leftWidth : rightWidth);
+    const highlighted = code[indexInCode] ?? row.text;
+    const gutter = gutterFor(row, numberWidth, colors);
+    const bodyBg = bodyBgFor(row, colors);
+    const halfW = isLeft ? leftWidth : rightWidth;
+    const gutterWidth = visibleWidth(gutter);
+    const contentW = Math.max(1, halfW - gutterWidth);
+    const fitted = fitLine(row.kind === "context" ? `${DIM}${highlighted}` : highlighted, contentW, "", 0);
+    const pad = Math.max(0, contentW - visibleWidth(fitted));
+    return `${gutter}${bodyBg}${fitted}${" ".repeat(pad)}`;
+  }
+
+  for (let index = 0; index < rows.length; index++) {
+    const row = rows[index];
+    const next = rows[index + 1];
+    const isReplacement = row.kind === "del" && next?.kind === "add";
+    const left = row.kind === "add" ? undefined : row;
+    const right = row.kind === "del" ? (isReplacement ? next : undefined) : row;
+    const leftIndex = start + index;
+    const rightIndex = start + (isReplacement ? index + 1 : index);
+    if (isReplacement) index++;
+    const leftText = halfLine(true, left, leftIndex);
+    const rightText = halfLine(false, right, rightIndex);
+    output.push(`${leftText}${colors.fgLnum}│${RST}${rightText}${RST}`);
+  }
+  return output;
+}
+
+function padToWidth(line: string, width: number): string {
+  const fitted = fitLine(line, width, "", 0);
+  return fitted + " ".repeat(Math.max(0, width - visibleWidth(fitted)));
+}
+
+function viewerTop(stats: string | undefined, width: number, theme: RenderResultTheme): string {
+  const corner = theme.fg("dim", "┌");
+  const dash = theme.fg("dim", "─");
+  if (!stats || width < 10) {
+    return fitLine(`${corner}${dash.repeat(Math.max(1, width - 2))}${theme.fg("dim", "┐")}`, width, "", 0);
+  }
+  const head = `${corner}${dash} ${stats} `;
+  const fill = Math.max(1, width - visibleWidth(head) - 1);
+  return fitLine(`${head}${dash.repeat(fill)}${theme.fg("dim", "┐")}`, width, "", 0);
+}
+
+function viewerFooter(totalLines: number, width: number, theme: RenderResultTheme): string {
+  const label = `└─ ${totalLines} lines`;
+  if (width < 4) return fitLine(theme.fg("dim", label), width, "", 0);
+  const fill = Math.max(0, width - visibleWidth(label) - 1);
+  return fitLine(theme.fg("dim", `${label}${"─".repeat(fill)}┘`), width, "", 0);
+}
+
+function boxed(lines: string[], width: number, totalLines: number, theme: RenderResultTheme, stats?: string): string[] {
+  if (width < 4) return [...lines.map((line) => fitLine(line, width, "", 0)), viewerFooter(totalLines, width, theme)];
+  const innerWidth = width - 2;
+  const side = theme.fg("dim", "│");
+  return [
+    viewerTop(stats, width, theme),
+    ...lines.map((line) => `${side}${padToWidth(line, innerWidth)}${side}`),
+    viewerFooter(totalLines, width, theme),
+  ];
+}
+
+class MutationDiffViewer implements Component {
+  private state: DiffState;
+  private path = "";
+  private theme!: RenderResultTheme;
+  private colors!: DiffColors;
+  private expanded = false;
+
+  constructor(state: DiffState, path: string, theme: RenderResultTheme, expanded: boolean) {
+    this.state = state;
+    this.path = path;
+    this.theme = theme;
+    this.colors = resolveDiffColors(theme);
+    this.expanded = expanded;
+    this.ensureSource();
+    this.kickHighlight();
+  }
+
+  setExpanded(expanded: boolean): void {
+    this.expanded = expanded;
+  }
+
+  invalidate(): void {}
+
+  render(width: number): string[] {
+    const targetWidth = Math.max(1, width);
+    const innerWidth = Math.max(1, targetWidth - 2);
+    this.ensureSource();
+    return boxed(this.layout(innerWidth), targetWidth, this.state.totalLines ?? 0, this.theme, this.state.stats);
+  }
+
+  private ensureSource(): void {
+    if (this.state.rows !== undefined) return;
+    const capture = this.state.capture;
+    if (!capture) {
+      this.state.rows = [];
+      return;
+    }
+    this.state.rows = addWordRanges(changedRows(capture.oldText, capture.newText));
+    this.state.totalLines = this.state.rows.length;
+  }
+
+  private kickHighlight(): void {
+    const rows = this.state.rows;
+    if (!rows || rows.length === 0 || this.state.highlighted !== undefined || this.state.highlightPending) return;
+    this.state.highlightPending = true;
+    highlightAll(rows, this.path, this.colors).then((highlighted) => {
+      if (this.state.highlighted !== undefined) return;
+      this.state.highlighted = highlighted;
+      this.state.invalidate?.();
+    }).finally(() => {
+      this.state.highlightPending = false;
+    });
+  }
+
+  private layout(innerWidth: number): string[] {
+    const rows = this.state.rows;
+    if (rows === undefined || rows.length === 0) {
+      return [this.theme.fg("warning", "Diff unavailable after reload")];
+    }
+    if (this.state.stats === undefined && rows.some((row) => row.kind !== "context")) {
+      this.state.stats = styleStats(rows, this.theme);
+      this.state.totalLines = rows.length;
+    }
+    if (!rows.some((row) => row.kind !== "context")) {
+      return [this.theme.fg("muted", "No changes")];
+    }
+    if (this.state.highlighted === undefined) {
+      return [this.theme.fg("muted", "Rendering diff...")];
+    }
+    const window = this.expanded ? { rows, start: 0 } : selectCollapsedRows(rows, COLLAPSED_DIFF_LINES);
+    const rendered = innerWidth >= SPLIT_MIN_WIDTH
+      ? renderSplitLayout(window.rows, this.state.highlighted, window.start, innerWidth, this.colors)
+      : renderUnifiedLayout(window.rows, this.state.highlighted, window.start, innerWidth, this.colors);
+    const prefix = !this.expanded && window.start > 0
+      ? [this.colors.bgBase + this.theme.fg("muted", ` ... ${window.start} earlier lines`) + RST]
+      : [];
+    return [...prefix, ...rendered];
+  }
 }
 
 function styleStats(rows: DiffRow[], theme: RenderResultTheme): string {
@@ -255,153 +536,10 @@ function selectCollapsedRows(rows: DiffRow[], limit: number): DiffWindow {
   let start = Math.max(0, lastChanged - Math.max(1, limit) + 1);
   let end = lastChanged + 1;
 
-  // Keep a replacement pair together when the tail starts between delete/add rows.
   if (rows[start]?.kind === "add" && rows[start - 1]?.kind === "del") start--;
   if (rows[end - 1]?.kind === "del" && rows[end]?.kind === "add") end++;
 
   return { rows: rows.slice(start, end), start };
-}
-
-async function renderUnified(rows: DiffRow[], path: string, width: number, theme: RenderResultTheme): Promise<string[]> {
-  const language = languageFor(path);
-  const output: string[] = [];
-  const numberWidth = rowNumberWidth(rows);
-  for (const row of rows) {
-    const code = await highlightCode(row, language, theme);
-    const line = padLine(`${rowPrefix(row, theme, numberWidth)}${code}`, width, "", 0);
-    output.push(styleRow(row, line, theme));
-  }
-  return output;
-}
-
-async function renderSplit(rows: DiffRow[], path: string, width: number, theme: RenderResultTheme): Promise<string[]> {
-  const language = languageFor(path);
-  const numberWidth = rowNumberWidth(rows);
-  const half = Math.floor(width / 2);
-  const leftWidth = Math.max(1, half - 1);
-  const rightWidth = Math.max(1, width - half - 1);
-  const output: string[] = [];
-  for (let index = 0; index < rows.length; index++) {
-    const row = rows[index];
-    const next = rows[index + 1];
-    const isReplacement = row.kind === "del" && next?.kind === "add";
-    const left = row.kind === "add" ? undefined : row;
-    const right = row.kind === "del" ? (isReplacement ? next : undefined) : row;
-    if (isReplacement) index++;
-    const leftText = left ? await highlightCode(left, language, theme) : "";
-    const rightText = right ? await highlightCode(right, language, theme) : "";
-    const leftLine = left
-      ? padLine(`${rowPrefix(left, theme, numberWidth)}${leftText}`, leftWidth, "", 0)
-      : " ".repeat(leftWidth);
-    const rightLine = right
-      ? padLine(`${rowPrefix(right, theme, numberWidth)}${rightText}`, rightWidth, "", 0)
-      : " ".repeat(rightWidth);
-    output.push(styleRow(left, leftLine, theme) + theme.fg("dim", "│") + styleRow(right, rightLine, theme));
-  }
-  return output;
-}
-
-function padToWidth(line: string, width: number): string {
-  const fitted = fitLine(line, width, "", 0);
-  return fitted + " ".repeat(Math.max(0, width - visibleWidth(fitted)));
-}
-
-function viewerFooter(totalLines: number, width: number, theme: RenderResultTheme): string {
-  const label = `└─ ${totalLines} lines`;
-  if (width < 4) return fitLine(theme.fg("dim", label), width, "", 0);
-  const fill = Math.max(0, width - visibleWidth(label) - 1);
-  return fitLine(theme.fg("dim", `${label}${"─".repeat(fill)}┘`), width, "", 0);
-}
-
-function boxed(lines: string[], width: number, totalLines: number, theme: RenderResultTheme): string[] {
-  if (width < 4) return [...lines.map((line) => fitLine(line, width, "", 0)), viewerFooter(totalLines, width, theme)];
-  const innerWidth = width - 2;
-  const side = theme.fg("dim", "│");
-  return [
-    theme.fg("dim", `┌${"─".repeat(innerWidth)}┐`),
-    ...lines.map((line) => `${side}${padToWidth(line, innerWidth)}${side}`),
-    viewerFooter(totalLines, width, theme),
-  ];
-}
-
-class MutationDiffViewer implements Component {
-  private state: DiffState;
-  private path = "";
-  private theme!: RenderResultTheme;
-  private expanded = false;
-
-  constructor(state: DiffState, path: string, theme: RenderResultTheme, expanded: boolean) {
-    this.state = state;
-    this.path = path;
-    this.theme = theme;
-    this.expanded = expanded;
-    this.ensureRender(80);
-  }
-
-  setExpanded(expanded: boolean): void {
-    this.expanded = expanded;
-  }
-
-  invalidate(): void {}
-
-  render(width: number): string[] {
-    const targetWidth = Math.max(1, width);
-    this.ensureRender(targetWidth);
-    const lines = this.state.rendered ?? [this.theme.fg("muted", "Rendering diff...")];
-    return boxed(lines, targetWidth, this.state.totalLines ?? 0, this.theme);
-  }
-
-  private ensureRender(width: number): void {
-    const innerWidth = Math.max(1, width - 2);
-    const key = `${innerWidth}:${this.expanded ? "expanded" : "collapsed"}`;
-    if (this.state.renderedKey === key) return;
-    if (this.state.renderPromiseKey === key) return;
-
-    const capture = this.state.capture;
-    const hasSource = Boolean(capture) || this.state.rows !== undefined;
-    const sourceRows = this.state.rows ?? (capture ? changedRows(capture.oldText, capture.newText) : []);
-    if (!hasSource) {
-      this.state.rendered = [this.theme.fg("warning", "Diff unavailable after reload")];
-      this.state.totalLines = 0;
-      this.state.renderedKey = key;
-      return;
-    }
-    const rows = addWordRanges(sourceRows);
-    this.state.rows = rows;
-    const changed = rows.some((row) => row.kind !== "context");
-    if (!changed) {
-      this.state.rendered = [this.theme.fg("muted", "No changes")];
-      this.state.totalLines = 0;
-      this.state.renderedKey = key;
-      return;
-    }
-
-    const window = this.expanded ? { rows, start: 0 } : selectCollapsedRows(rows, COLLAPSED_DIFF_LINES);
-    const pending = (async () => {
-      const rendered = innerWidth >= 150
-        ? await renderSplit(window.rows, this.path, innerWidth, this.theme)
-        : await renderUnified(window.rows, this.path, innerWidth, this.theme);
-      const prefix = !this.expanded && window.start > 0
-        ? [this.theme.fg("muted", `... ${window.start} earlier lines`)]
-        : [];
-      if (this.state.renderPromiseKey !== key || this.currentKey(width) !== key) return;
-      this.state.rendered = [styleStats(rows, this.theme), ...prefix, ...rendered];
-      this.state.totalLines = rows.length;
-      this.state.renderedKey = key;
-      this.state.invalidate?.();
-    })().finally(() => {
-      if (this.state.renderPromiseKey === key) {
-        this.state.renderPromise = undefined;
-        this.state.renderPromiseKey = undefined;
-      }
-    });
-    this.state.renderPromise = pending;
-    this.state.renderPromiseKey = key;
-  }
-
-  private currentKey(width: number): string {
-    return `${Math.max(1, width - 2)}:${this.expanded ? "expanded" : "collapsed"}`;
-  }
 }
 
 function header(path: string, tool: string, theme: Theme, context: RenderContext): Component {
