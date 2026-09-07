@@ -19,7 +19,6 @@ type SpinnerState = { timer?: ReturnType<typeof setInterval>; frame?: number };
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const SPINNER_INTERVAL_MS = 80;
-const BASH_COMMAND_MAX_WIDTH = 96;
 const COMPACTION_RENDER_PATCH = "__dotfilesCompactCompactionRender";
 const PI_THEME_KEY = Symbol.for("@earendil-works/pi-coding-agent:theme");
 
@@ -89,13 +88,6 @@ async function installBundleCompactionRenderer(): Promise<void> {
 installCompactCompactionRenderer(CompactionSummaryMessageComponent);
 
 // Keep command previews readable on narrow terminals while bounding wide cards.
-function bashCommandWidth(width: number): number {
-  if (width < 80) return 32;
-  if (width < 120) return 56;
-  if (width < 160) return 80;
-  return BASH_COMMAND_MAX_WIDTH;
-}
-
 function stringArg(args: ToolArgs, key: string, fallback = ""): string {
   const value = args[key];
   return typeof value === "string" ? value : fallback;
@@ -142,14 +134,8 @@ class BashHeader implements Component {
     this.syncSpinner();
     const spinner = this.context.state as SpinnerState;
     const marker = statusMarker(this.theme, this.context, SPINNER_FRAMES[spinner.frame ?? 0]);
-    const prefix = `${marker} ${this.theme.fg("toolTitle", this.theme.bold("bash"))} `;
-    const availableWidth = Math.max(
-      0,
-      Math.min(bashCommandWidth(width), width - visibleWidth(prefix) - 2),
-    );
-    const command = truncateToWidth(this.command, availableWidth, "...", false);
-    const lines = [`${prefix}${this.theme.fg("dim", "$ ")}${this.theme.fg("toolOutput", command)}`];
-    return lines.map((line) => fitLine(line, width, "", 0));
+    const line = `${marker} ${this.theme.fg("toolTitle", this.theme.bold("bash"))}`;
+    return [fitLine(line, width, "", 0)];
   }
 
   private syncSpinner(): void {
