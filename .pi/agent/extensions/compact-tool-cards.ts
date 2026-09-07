@@ -10,6 +10,7 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Text, type Component, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { fitLine, statusMarker, toolHeader } from "./lib/pi-ui.js";
 
 type ToolArgs = Record<string, unknown>;
 type HeaderFormatter = (args: ToolArgs, theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1]) => string;
@@ -112,10 +113,6 @@ function coloredPath(args: ToolArgs, theme: Parameters<NonNullable<ToolDefinitio
   return theme.fg("accent", shorten(stringArg(args, "path", "<missing path>"), max));
 }
 
-function fitLine(line: string, width: number): string {
-  return visibleWidth(line) <= width ? line : truncateToWidth(line, Math.max(0, width), "", false);
-}
-
 type HeaderFactory = (
   args: ToolArgs,
   theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1],
@@ -143,11 +140,7 @@ class BashHeader implements Component {
   render(width: number): string[] {
     this.syncSpinner();
     const spinner = this.context.state as SpinnerState;
-    const marker = this.context.isError
-      ? this.theme.fg("error", "×")
-      : this.context.isPartial
-        ? this.theme.fg("muted", SPINNER_FRAMES[spinner.frame ?? 0])
-        : this.theme.fg("success", "√");
+    const marker = statusMarker(this.theme, this.context, SPINNER_FRAMES[spinner.frame ?? 0]);
     const prefix = `${marker} ${this.theme.fg("toolTitle", this.theme.bold("bash"))} `;
     const availableWidth = Math.max(
       0,
@@ -155,7 +148,7 @@ class BashHeader implements Component {
     );
     const command = truncateToWidth(this.command, availableWidth, "...", false);
     const lines = [`${prefix}${this.theme.fg("toolOutput", command)}`];
-    return lines.map((line) => fitLine(line, width));
+    return lines.map((line) => fitLine(line, width, "", 0));
   }
 
   private syncSpinner(): void {
@@ -217,12 +210,13 @@ function renderHeader(
     spinner.timer = undefined;
   }
 
-  const marker = context.isError
-    ? theme.fg("error", "×")
-    : context.isPartial
-      ? theme.fg("muted", SPINNER_FRAMES[spinner.frame ?? 0])
-      : theme.fg("success", "√");
-  text.setText(`${marker} ${theme.fg("toolTitle", theme.bold(toolName))} ${theme.fg("toolOutput", header)}`);
+  text.setText(toolHeader(
+    theme,
+    toolName,
+    theme.fg("toolOutput", header),
+    context,
+    SPINNER_FRAMES[spinner.frame ?? 0],
+  ));
 }
 
 function compactDefinition(

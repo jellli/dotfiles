@@ -8,7 +8,8 @@ import {
   type ExtensionAPI,
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import { Text, type Component, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { Text, type Component, visibleWidth } from "@earendil-works/pi-tui";
+import { fitLine, padLine, toolHeader } from "./lib/pi-ui.js";
 
 type ToolArgs = Record<string, unknown>;
 type Theme = Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1];
@@ -112,15 +113,6 @@ async function highlightLine(text: string, language: Language): Promise<string> 
   return pending;
 }
 
-function fit(line: string, width: number): string {
-  return visibleWidth(line) <= width ? line : truncateToWidth(line, Math.max(1, width), "...", false);
-}
-
-function pad(line: string, width: number): string {
-  const fitted = fit(line, width);
-  return fitted + " ".repeat(Math.max(0, width - visibleWidth(fitted)));
-}
-
 function rowNumberWidth(rows: DiffRow[]): number {
   return Math.max(1, ...rows.map((row) => String(row.number).length));
 }
@@ -152,10 +144,10 @@ async function renderUnified(rows: DiffRow[], path: string, width: number, theme
   const codeWidth = Math.max(1, width - gutterWidth);
   for (const row of rows.slice(0, 150)) {
     const code = await highlightLine(row.text, language);
-    const line = pad(`${rowPrefix(row, theme, numberWidth)}${code}`, width);
+    const line = padLine(`${rowPrefix(row, theme, numberWidth)}${code}`, width);
     output.push(styleRow(row, line, theme));
     if (visibleWidth(row.text) > codeWidth) {
-      // fit() keeps long source lines on one stable terminal row.
+      // fitLine() keeps long source lines on one stable terminal row.
     }
   }
   if (rows.length > 150) output.push(theme.fg("muted", `... ${rows.length - 150} more lines`));
@@ -179,10 +171,10 @@ async function renderSplit(rows: DiffRow[], path: string, width: number, theme: 
     const leftText = left ? await highlightLine(left.text, language) : "";
     const rightText = right ? await highlightLine(right.text, language) : "";
     const leftLine = left
-      ? pad(`${rowPrefix(left, theme, numberWidth)}${leftText}`, leftWidth)
+      ? padLine(`${rowPrefix(left, theme, numberWidth)}${leftText}`, leftWidth)
       : " ".repeat(leftWidth);
     const rightLine = right
-      ? pad(`${rowPrefix(right, theme, numberWidth)}${rightText}`, rightWidth)
+      ? padLine(`${rowPrefix(right, theme, numberWidth)}${rightText}`, rightWidth)
       : " ".repeat(rightWidth);
     output.push(styleRow(left, leftLine, theme) + theme.fg("dim", "│") + styleRow(right, rightLine, theme));
   }
@@ -191,13 +183,13 @@ async function renderSplit(rows: DiffRow[], path: string, width: number, theme: 
 }
 
 function boxed(lines: string[], width: number, theme: RenderResultTheme): string[] {
-  if (width < 4) return lines.map((line) => fit(line, width));
+  if (width < 4) return lines.map((line) => fitLine(line, width));
   const innerWidth = width - 2;
   const border = "─";
   const side = theme.fg("dim", "│");
   return [
     theme.fg("dim", `┌${border.repeat(innerWidth)}┐`),
-    ...lines.map((line) => `${side}${pad(line, innerWidth)}${side}`),
+    ...lines.map((line) => `${side}${padLine(line, innerWidth)}${side}`),
     theme.fg("dim", `└${border.repeat(innerWidth)}┘`),
   ];
 }
@@ -255,8 +247,7 @@ class DiffComponent implements Component {
 
 function header(path: string, tool: string, theme: Theme, context: RenderContext): Component {
   const text = new Text("", 0, 0);
-  const marker = context.isPartial ? theme.fg("muted", "·") : theme.fg("success", "√");
-  text.setText(`${marker} ${theme.fg("toolTitle", theme.bold(tool))} ${theme.fg("accent", path)}`);
+  text.setText(toolHeader(theme, tool, theme.fg("accent", path), context));
   return text;
 }
 
