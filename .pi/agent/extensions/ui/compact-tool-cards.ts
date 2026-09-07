@@ -145,10 +145,10 @@ class BashHeader implements Component {
     const prefix = `${marker} ${this.theme.fg("toolTitle", this.theme.bold("bash"))} `;
     const availableWidth = Math.max(
       0,
-      Math.min(bashCommandWidth(width), width - visibleWidth(prefix)),
+      Math.min(bashCommandWidth(width), width - visibleWidth(prefix) - 2),
     );
     const command = truncateToWidth(this.command, availableWidth, "...", false);
-    const lines = [`${prefix}${this.theme.fg("toolOutput", command)}`];
+    const lines = [`${prefix}${this.theme.fg("dim", "$ ")}${this.theme.fg("toolOutput", command)}`];
     return lines.map((line) => fitLine(line, width, "", 0));
   }
 
@@ -168,6 +168,64 @@ class BashHeader implements Component {
       clearInterval(spinner.timer);
       spinner.timer = undefined;
     }
+  }
+}
+
+const BASH_PREVIEW_LINES = 3;
+
+class BashResult implements Component {
+  private lines: string[] = [];
+  private border: "accent" | "dim" | "error" = "dim";
+  private theme!: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1];
+
+  update(
+    result: { content: Array<{ type: string; text?: string }> },
+    options: { isPartial?: boolean; expanded?: boolean },
+    theme: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1],
+    context: Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[2],
+  ): void {
+    this.theme = theme;
+    this.border = context.isError ? "error" : options.isPartial ? "accent" : "dim";
+
+    const body: string[] = [];
+    const command = stringArg(context.args, "command", "");
+    const cwd = typeof context.cwd === "string" ? context.cwd : "";
+    body.push(
+      `${theme.fg("dim", "$ cd ")}${theme.fg("accent", shorten(cwd, 24))}${theme.fg("dim", " && ")}${theme.fg("toolOutput", command)}`,
+    );
+
+    const output = textOutput(result);
+    if (!options.isPartial && output) {
+      if (context.isError) {
+        const lines = output.split("\n");
+        const preview = options.expanded ? output : lines[0];
+        const suffix = !options.expanded && lines.length > 1 ? theme.fg("muted", " ...") : "";
+        body.push(theme.fg("error", preview) + suffix);
+      } else if (options.expanded) {
+        body.push(...output.split("\n").map((line) => theme.fg("toolOutput", line)));
+      } else {
+        const lines = output.split("\n");
+        const tail = lines.slice(-BASH_PREVIEW_LINES);
+        const hidden = lines.length - tail.length;
+        body.push(...tail.map((line) => theme.fg("toolOutput", line)));
+        if (hidden > 0) {
+          const hint = keyText("app.tools.expand") || "ctrl+o";
+          body.push(theme.fg("muted", `… ${hidden} more lines (${hint} to expand)`));
+        }
+      }
+    }
+    this.lines = body;
+  }
+
+  invalidate(): void {}
+
+  render(width: number): string[] {
+    const innerWidth = Math.max(1, width - 2);
+    const border = (line: string) => this.theme.fg(this.border, line);
+    const top = border(`┌${"─".repeat(innerWidth)}┐`);
+    const body = this.lines.map((line) => border(`│${padLine(line, innerWidth)}│`));
+    const bottom = border(`└${"─".repeat(innerWidth)}┘`);
+    return [top, ...body, bottom].map((line) => fitLine(line, width, "", 0));
   }
 }
 
@@ -238,6 +296,7 @@ function compactDefinition(
   tool: ToolDefinition<any, any, any>,
   formatHeader: HeaderFormatter,
   createHeader?: HeaderFactory,
+  createResult?: (result: any, options: any, theme: any, context: any) => Component,
 ): ToolDefinition<any, any, any> {
   // Spread the built-in definition so its schema, prompt, and execution stay unchanged.
   return {
@@ -251,6 +310,7 @@ function compactDefinition(
       return text;
     },
     renderResult(result, options, theme, context) {
+      if (createResult) return createResult(result, options, theme, context);
       const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
       const output = textOutput(result);
 
@@ -304,6 +364,13 @@ export async function registerCompactToolCards(pi: ExtensionAPI) {
         : new BashHeader();
       header.update(stringArg(args, "command", "<missing command>"), theme, context);
       return header;
+    },
+    (result, options, theme, context) => {
+      const card = context.lastComponent instanceof BashResult
+        ? context.lastComponent
+        : new BashResult();
+      card.update(result, options, theme, context);
+      return card;
     },
   ));
 }
