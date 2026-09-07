@@ -233,22 +233,28 @@ class BashResult implements Component {
   }
 
   private buildCommandRows(): string[] {
-    const prefix = `${this.theme.fg("dim", "$ cd ")}${this.theme.fg("accent", shorten(this.cwd, 24))}${this.theme.fg("dim", " && ")}`;
+    const prompt = this.theme.fg("dim", "$ ");
     if (this.highlightedLines) {
-      return this.highlightedLines.map((line, i) => (i === 0 ? prefix + line : line));
+      return this.highlightedLines.map((line, i) => (i === 0 ? prompt + line : line));
     }
-    return this.command.split("\n").map((line, i) =>
-      i === 0 ? prefix + this.theme.fg("toolOutput", line) : this.theme.fg("toolOutput", line),
+    const cmd = this.highlightText();
+    return cmd.split("\n").map((line, i) =>
+      i === 0 ? prompt + this.theme.fg("toolOutput", line) : this.theme.fg("toolOutput", line),
     );
   }
 
+  private highlightText(): string {
+    return this.cwd ? `cd ${this.cwd} && ${this.command}` : this.command;
+  }
+
   private maybeHighlight(): void {
-    if (!this.command || this.highlightKey === this.command) return;
-    this.highlightKey = this.command;
+    const text = this.highlightText();
+    if (!text || this.highlightKey === text) return;
+    this.highlightKey = text;
     this.highlightedLines = undefined;
-    highlightBashLines(this.command)
+    highlightBashLines(text)
       .then((lines) => {
-        if (this.highlightKey === this.command) {
+        if (this.highlightKey === text) {
           this.highlightedLines = lines;
           this.context?.invalidate?.();
         }
