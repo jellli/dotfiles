@@ -2,17 +2,15 @@
   "quietStartup": true,
   "lastChangelogVersion": "0.85.0",
   "theme": "gruvbox-material",
-  "defaultProvider": "commandcode",
-  "defaultModel": "deepseek/deepseek-v4-flash",
+  "defaultProvider": "jiji",
+  "defaultModel": "gpt-5.6-luna",
   "defaultThinkingLevel": "high",
   "externalEditor": "tmux display-popup -w 90% -h 85% -E nvim",
   "packages": [
-    "npm:pi-lean-ctx",
     "npm:@plannotator/pi-extension",
     "npm:@juicesharp/rpiv-ask-user-question",
     "npm:pi-rtk-optimizer",
     "npm:pi-mcp-adapter",
-    "npm:pi-tool-display",
     "npm:pi-blackhole"
   ],
   "skills": [
@@ -23,20 +21,20 @@
     "-skills/plan-mode/SKILL.md"
   ],
   "extensions": [
-    "-extensions/plannotator-enhancer.ts",
-    "-extensions/plannotator-models.ts"
+    "-extensions/commandcode.ts"
   ],
-  "hideThinkingBlock": false,
+  "hideThinkingBlock": true,
   "compaction": {
     "enabled": true
   },
   "doubleEscapeAction": "none",
   "tuiMode": "regular",
   "enabledModels": [
-    "commandcode/deepseek/deepseek-v4-flash",
     "deepseek/deepseek-v4-flash",
-    "commandcode/z-ai/glm-5.3-flash",
-    "jiji/gpt-5.6-sol",
     "jiji/gpt-5.6-luna"
-  ]
+  ],
+  "outputPad": 1,
+  "terminal": {
+    "showTerminalProgress": false
+  }
 }
