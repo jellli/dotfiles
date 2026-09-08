@@ -1,6 +1,6 @@
 {
   "quietStartup": true,
-  "lastChangelogVersion": "0.85.0",
+  "lastChangelogVersion": "0.85.1",
   "theme": "gruvbox-material",
   "defaultProvider": "jiji",
   "defaultModel": "gpt-5.6-luna",
@@ -9,9 +9,10 @@
   "packages": [
     "npm:@plannotator/pi-extension",
     "npm:@juicesharp/rpiv-ask-user-question",
-    "npm:pi-mcp-adapter",
+    "-npm:pi-mcp-adapter",
     "npm:pi-blackhole",
-    "npm:pi-ollama-cloud"
+    "npm:pi-ollama-cloud",
+    "npm:pi-rtk-optimizer"
   ],
   "skills": [
     "-skills/caveman-commit/SKILL.md",
