@@ -1,0 +1,23 @@
+{
+  "name": "codegraph",
+  "private": true,
+  "version": "0.1.0",
+  "description": "CodeGraph knowledge-graph intelligence for pi (SDK integration)",
+  "type": "module",
+  "scripts": {
+    "test": "node test/harness.mjs"
+  },
+  "dependencies": {
+    "@colbymchenry/codegraph": "1.6.0",
+    "typebox": "^1.3.28"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.85.1",
+    "@types/node": "^22.0.0"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

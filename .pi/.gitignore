@@ -3,6 +3,7 @@
 node_modules/
 /agent/auth.json
 tsconfig.json
+!agent/extensions/codegraph/tsconfig.json
 
 # Memory DBs (SQLite, high-churn, machine-local)
 /agent/pi-hermes-memory/
