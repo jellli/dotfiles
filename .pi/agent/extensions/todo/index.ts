@@ -314,13 +314,13 @@ export default function (pi: ExtensionAPI): void {
     ],
     parameters: TodoParams,
     execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
-      const p = params as Params;
+      const todoParams = params as Params;
       const state = getState(ctx);
-      const result = apply(state.phases, p);
-      if (result.errors.length === 0 && p.op !== "view") save(pi, ctx, result.phases);
+      const result = apply(state.phases, todoParams);
+      if (result.errors.length === 0 && todoParams.op !== "view") save(pi, ctx, result.phases);
       return {
-        content: [{ type: "text", text: result.errors.length > 0 ? summary(result.phases, result.errors, p.op) : p.op === "view" ? summary(result.phases, []) : mutationText(p, result.phases) }],
-        details: { phases: clone(result.phases), op: p.op },
+        content: [{ type: "text", text: result.errors.length > 0 ? summary(result.phases, result.errors, todoParams.op) : todoParams.op === "view" ? summary(result.phases, []) : mutationText(todoParams, result.phases) }],
+        details: { phases: clone(result.phases), op: todoParams.op },
         isError: result.errors.length > 0 ? true : undefined,
       };
     },
