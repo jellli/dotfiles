@@ -28,14 +28,17 @@
  * /v1/responses or /v1/chat/completions itself.
  *
  * Behavior:
- *  - On load: spawns the proxy if the port is not already healthy (non-blocking).
- *  - On session_start (all extensions loaded): waits for proxy readiness, then
- *    overrides each provider's baseUrl. Idempotent across /reload and sessions.
+ *  - On extension load: reads configuration only; no proxy process or network
+ *    probe is started.
+ *  - On session_start: preserves/restores direct upstream routes without waiting
+ *    for readiness.
+ *  - Before the first provider request: starts/waits for the proxy while the
+ *    current request remains direct; successful startup routes subsequent
+ *    requests through headroom, and failure leaves direct routes active.
  *  - Single-instance discipline lives in proxy-lifecycle.ts: a healthy /livez
  *    or an open port (even if slow to respond) is always reused, never
- *    re-spawned; once healthy, the pidfile records the true listening pid. A
- *    failed spawn releases the guard so a later session_start can retry.
- *  - If the proxy never becomes ready, providers keep their original baseUrls
+ *    re-spawned; once healthy, the pidfile records the true listening pid.
+ *  - If the proxy never becomes ready, providers use their original upstreams
  *    (pi stays fully usable, just uncompressed).
  *
  * This file only wires config + pi events; all process/fs/network logic is in
@@ -72,49 +75,87 @@ function loadConfig(): HeadroomConfig | null {
   }
 }
 
-export default async function (pi: ExtensionAPI) {
+export function proxyProviderConfig(
+  proxyBase: string,
+  route: ProviderRoute,
+): { baseUrl: string; headers: Record<string, string> } {
+  return {
+    baseUrl: proxyBase,
+    headers: { "x-headroom-base-url": route.upstream },
+  };
+}
+
+export function directProviderConfig(route: ProviderRoute): {
+  baseUrl: string;
+  headers: Record<string, never>;
+} {
+  return { baseUrl: route.upstream, headers: {} };
+}
+
+export default function (pi: ExtensionAPI): void {
   const config = loadConfig();
   if (!config) return;
   const { port, defaultUpstream, providers } = config;
   const proxyBase = `http://127.0.0.1:${port}/v1`;
-
-  // config.bin overrides the PATH-resolved default binary; otherwise the
-  // module's default deps spawn `headroom` from PATH. Computed once so the
-  // load-time kick and session_start share the same deps (and thus the same
-  // in-flight attempt).
   const deps = config.bin ? createDefaultDeps(config.bin) : undefined;
 
-  /** Override each provider's baseUrl to route through the proxy. */
-  async function applyOverrides(): Promise<void> {
+  let proxyReady: Promise<boolean> | undefined;
+  let routeMode: "proxy" | "direct" = "direct";
+
+  /** Register proxy routes without waiting for the process to be ready. */
+  function applyProxyRoutes(): void {
     for (const [id, route] of Object.entries(providers)) {
       try {
-        pi.registerProvider(id, {
-          baseUrl: proxyBase,
-          headers: { "x-headroom-base-url": route.upstream },
-        });
+        pi.registerProvider(id, proxyProviderConfig(proxyBase, route));
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
-        // Stale ctx happens when the session is replaced (print mode / reload)
-        // before the async readiness wait finishes. The next session_start
-        // re-applies the overrides, so skip silently.
         if (msg.includes("stale after session replacement")) continue;
-        console.warn(`[headroom] failed to override ${id}: ${msg}`);
+        console.warn(
+          `[headroom] failed to apply proxy route for ${id}: ${msg}`,
+        );
       }
     }
+    routeMode = "proxy";
   }
 
-  // Kick off the proxy at load time (non-blocking) so it warms up while pi boots.
-  void ensureProxy(port, defaultUpstream, deps);
-
-  // session_start fires after every extension has registered its providers, so
-  // same-name overrides merge over the real registrations (models preserved).
-  pi.on("session_start", () => {
-    void (async () => {
-      if (await ensureProxy(port, defaultUpstream, deps)) {
-        await applyOverrides();
-      } else {
-        console.warn("[headroom] proxy unavailable; keeping original baseUrls");
+  /** Restore direct upstreams after a proxy startup failure. */
+  function applyDirectRoutes(): void {
+    for (const [id, route] of Object.entries(providers)) {
+      try {
+        // Empty headers remove the adapter's proxy header while preserving the
+        // provider's normal auth and model configuration through re-registration.
+        pi.registerProvider(id, directProviderConfig(route));
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        if (msg.includes("stale after session replacement")) continue;
+        console.warn(
+          `[headroom] failed to restore direct route for ${id}: ${msg}`,
+        );
       }
-    })();
+    }
+    routeMode = "direct";
+  }
+
+  async function ensureRoute(): Promise<void> {
+    if (routeMode === "proxy") return;
+    proxyReady ??= ensureProxy(port, defaultUpstream, deps);
+    if (await proxyReady) {
+      applyProxyRoutes();
+      return;
+    }
+    console.warn("[headroom] proxy unavailable; keeping direct upstreams");
+    applyDirectRoutes();
+    // Allow a later request to retry after a transient startup failure.
+    proxyReady = undefined;
+  }
+
+  // The provider URL for the current request is resolved before
+  // before_provider_request runs. Keep direct routes active initially so a
+  // failed lazy startup cannot break that first request.
+  pi.on("session_start", () => {
+    proxyReady = undefined;
+    applyDirectRoutes();
   });
+
+  pi.on("before_provider_request", () => ensureRoute());
 }

@@ -16,7 +16,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerCompactToolCards } from "./compact-tool-cards.js";
 import { registerPiDiff } from "./pi-diff.js";
 
-export default async function (pi: ExtensionAPI): Promise<void> {
-  await registerCompactToolCards(pi);
+export default function (pi: ExtensionAPI): void {
+  registerCompactToolCards(pi);
   registerPiDiff(pi);
 }

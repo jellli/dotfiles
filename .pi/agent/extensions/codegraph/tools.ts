@@ -28,10 +28,18 @@ import type * as CodeGraphModule from "@colbymchenry/codegraph";
 
 // The package is pure CommonJS, and a default import collapses to the
 // CodeGraph class under interop (jiti/ESM). require() yields the real module
-// namespace in every runtime: node ESM, jiti, plain require.
-const require = createRequire(import.meta.url);
-const { CodeGraph, findNearestCodeGraphRoot, isInitialized } =
-  require("@colbymchenry/codegraph") as typeof CodeGraphModule;
+// namespace in every runtime: node ESM, jiti, plain require. Keep this out of
+// the startup path; CodeGraph is only needed when a tool or command runs.
+type CodeGraphRuntime = typeof CodeGraphModule;
+let codeGraphRuntime: CodeGraphRuntime | undefined;
+
+function loadCodeGraph(): CodeGraphRuntime {
+  if (!codeGraphRuntime) {
+    const require = createRequire(import.meta.url);
+    codeGraphRuntime = require("@colbymchenry/codegraph") as CodeGraphRuntime;
+  }
+  return codeGraphRuntime;
+}
 
 type OpenClient = { cg: CodeGraphType; root: string };
 type MissingClient = { missing: true; root: string | null };
@@ -407,6 +415,7 @@ export function truncateOutput(
 }
 
 async function getClient(cwd: string): Promise<OpenClient | MissingClient> {
+  const { CodeGraph, findNearestCodeGraphRoot } = loadCodeGraph();
   const root = findNearestCodeGraphRoot(cwd);
   if (!root) return { missing: true, root: null };
 
@@ -449,6 +458,7 @@ async function resolveClient(
 
   ctx.ui.setStatus("codegraph", `indexing ${root ?? ctx.cwd}…`);
   try {
+    const { CodeGraph } = loadCodeGraph();
     const cg = await CodeGraph.init(root ?? ctx.cwd, {
       index: true,
       onProgress: (p: IndexProgress) =>
@@ -673,6 +683,7 @@ const StatusSchema = Type.Object({
 type StatusParams = Static<typeof StatusSchema>;
 
 async function status(params: StatusParams, ctx: ExtensionContext) {
+  const { CodeGraph, findNearestCodeGraphRoot } = loadCodeGraph();
   const scanRoot = (params.path ?? "").trim() || ctx.cwd;
   const root = findNearestCodeGraphRoot(scanRoot);
   if (!root) {
@@ -801,6 +812,7 @@ export function registerInitCommand(pi: ExtensionAPI): void {
       const target =
         forceArgs.filter((a) => a !== "--force").join(" ") || ctx.cwd;
 
+      const { CodeGraph, isInitialized } = loadCodeGraph();
       if (isInitialized(target)) {
         if (!force) {
           ctx.ui.notify(

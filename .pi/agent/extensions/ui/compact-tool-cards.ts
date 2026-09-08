@@ -394,9 +394,11 @@ function compactDefinition(
   };
 }
 
-export async function registerCompactToolCards(pi: ExtensionAPI) {
+export function registerCompactToolCards(pi: ExtensionAPI) {
   installCompactCompactionRenderer(CompactionSummaryMessageComponent);
-  await installBundleCompactionRenderer();
+  // The bundled renderer is an enhancement; do not hold up extension loading
+  // while its optional bundle is imported.
+  void installBundleCompactionRenderer();
   const cwd = process.cwd();
 
   const aggregation = createToolAggregation(pi);
