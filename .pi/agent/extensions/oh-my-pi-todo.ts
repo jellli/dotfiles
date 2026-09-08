@@ -6,6 +6,7 @@
  */
 import { Type } from "typebox";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { applyTodoState, cloneTodoState, type TodoCommand as Params, type TodoItem as Item, type TodoPhase as Phase } from "./todo/todo-state.js";
 import { createToolAggregation } from "./ui/lib/aggregation.js";
 
 const TOOL_NAME = "todo";
@@ -52,17 +53,6 @@ const TodoParams = Type.Object({
   reason: Type.Optional(Type.String({ description: "Blocker note" })),
 });
 
-type Status = "pending" | "in_progress" | "completed" | "abandoned" | "blocked";
-type Item = { content: string; status: Status; blocker?: string };
-type Phase = { name: string; tasks: Item[] };
-type Params = {
-  op: "init" | "start" | "done" | "drop" | "block" | "unblock" | "rm" | "append" | "view";
-  list?: Array<{ phase: string; items: string[] }>;
-  task?: string;
-  phase?: string;
-  items?: string[];
-  reason?: string;
-};
 
 type State = {
   phases: Phase[];
@@ -77,12 +67,7 @@ type State = {
 };
 const states = new Map<string, State>();
 function clone(phases: Phase[]): Phase[] {
-  return phases.map((phase) => ({
-    name: phase.name,
-    tasks: phase.tasks.map((task) =>
-      task.blocker === undefined ? { ...task } : { ...task, blocker: task.blocker },
-    ),
-  }));
+  return cloneTodoState(phases);
 }
 
 function sessionKey(ctx: ExtensionContext): string {
@@ -99,151 +84,33 @@ function getState(ctx: ExtensionContext): State {
   return state;
 }
 
-function normalize(phases: Phase[]): void {
-  const tasks = phases.flatMap((phase) => phase.tasks);
-  const active = tasks.filter((task) => task.status === "in_progress");
-  // A todo list has one active task; advance to the first pending task when needed.
-  for (const task of active.slice(1)) task.status = "pending";
-  if (active.length === 0) {
-    const next = tasks.find((task) => task.status === "pending");
-    if (next) next.status = "in_progress";
+
+
+function apply(current: Phase[], params: Params): { phases: Phase[]; errors: ReturnType<typeof applyTodoState>["errors"] } {
+  const result = applyTodoState(current, params);
+  return { phases: result.state, errors: result.errors };
+}
+
+function formatError(error: ReturnType<typeof applyTodoState>["errors"][number], op?: Params["op"]): string {
+  switch (error.code) {
+    case "missing_list": return "Missing list for init operation";
+    case "duplicate_phase": return `Duplicate phase "${error.phase}"`;
+    case "duplicate_task": return `Task "${error.task}" already exists`;
+    case "missing_phase": return "Missing phase name for append operation";
+    case "missing_items": return "Missing items for append operation";
+    case "missing_task": return "Missing task content";
+    case "task_not_found": return `Task "${error.task}" not found`;
+    case "phase_not_found": return `Phase "${error.phase}" not found`;
+    case "target_required": return op ? `${op} requires a task or phase target` : "block or unblock requires a task or phase target";
   }
 }
 
-function findTask(phases: Phase[], content: string): { task: Item; phase: Phase } | undefined {
-  for (const phase of phases) {
-    const task = phase.tasks.find((candidate) => candidate.content === content);
-    if (task) return { task, phase };
-  }
-  return undefined;
+function formatErrors(errors: ReturnType<typeof applyTodoState>["errors"], op?: Params["op"]): string[] {
+  return errors.map((error) => formatError(error, op));
 }
 
-function findPhase(phases: Phase[], name: string): Phase | undefined {
-  return phases.find((phase) => phase.name === name);
-}
-
-function targets(phases: Phase[], params: Params, errors: string[]): Item[] {
-  if (params.task !== undefined) {
-    const hit = findTask(phases, params.task);
-    if (!hit) errors.push(`Task "${params.task}" not found`);
-    return hit ? [hit.task] : [];
-  }
-  if (params.phase !== undefined) {
-    const phase = findPhase(phases, params.phase);
-    if (!phase) errors.push(`Phase "${params.phase}" not found`);
-    return phase?.tasks ?? [];
-  }
-  return phases.flatMap((phase) => phase.tasks);
-}
-
-function apply(current: Phase[], params: Params): { phases: Phase[]; errors: string[] } {
-  const phases = clone(current);
-  const errors: string[] = [];
-
-  switch (params.op) {
-    case "init": {
-      const list = params.list && params.list.length > 0 ? params.list : (params.items ? [{ phase: params.phase ?? "Tasks", items: params.items }] : undefined);
-      if (!list || list.length === 0) errors.push("Missing list for init operation");
-      else {
-        const phaseNames = new Set<string>();
-        const taskNames = new Set<string>();
-        for (const entry of list) {
-          if (phaseNames.has(entry.phase)) errors.push(`Duplicate phase "${entry.phase}"`);
-          phaseNames.add(entry.phase);
-          for (const item of entry.items) {
-            if (taskNames.has(item)) errors.push(`Duplicate task "${item}"`);
-            taskNames.add(item);
-          }
-        }
-        if (errors.length === 0) {
-          phases.splice(0, phases.length, ...list.map((entry) => ({
-            name: entry.phase,
-            tasks: entry.items.map((content) => ({ content, status: "pending" as const })),
-          })));
-        }
-      }
-      break;
-    }
-    case "append": {
-      if (!params.phase) errors.push("Missing phase name for append operation");
-      if (!params.items || params.items.length === 0) errors.push("Missing items for append operation");
-      if (params.items) {
-        for (const item of params.items) {
-          if (findTask(phases, item)) errors.push(`Task "${item}" already exists`);
-        }
-      }
-      if (errors.length === 0) {
-        let phase = findPhase(phases, params.phase!);
-        if (!phase) {
-          phase = { name: params.phase!, tasks: [] };
-          phases.push(phase);
-        }
-        for (const content of params.items!) phase.tasks.push({ content, status: "pending" });
-      }
-      break;
-    }
-    case "start": {
-      if (!params.task) errors.push("Missing task content");
-      const hit = params.task ? findTask(phases, params.task) : undefined;
-      if (params.task && !hit) errors.push(`Task "${params.task}" not found`);
-      if (hit) {
-        for (const task of phases.flatMap((phase) => phase.tasks)) {
-          if (task !== hit.task && task.status === "in_progress") task.status = "pending";
-        }
-        hit.task.status = "in_progress";
-      }
-      break;
-    }
-    case "done":
-    case "drop": {
-      for (const task of targets(phases, params, errors)) task.status = params.op === "done" ? "completed" : "abandoned";
-      break;
-    }
-    case "block": {
-      if (!params.task && !params.phase) errors.push("block requires a task or phase target");
-      const reason = params.reason?.replace(/\s+/g, " ").trim() || undefined;
-      for (const task of targets(phases, params, errors)) {
-        if (["pending", "in_progress", "blocked"].includes(task.status)) {
-          task.status = "blocked";
-          task.blocker = reason;
-        }
-      }
-      break;
-    }
-    case "unblock": {
-      if (!params.task && !params.phase) errors.push("unblock requires a task or phase target");
-      for (const task of targets(phases, params, errors)) {
-        if (task.status === "blocked") {
-          task.status = "pending";
-          delete task.blocker;
-        }
-      }
-      break;
-    }
-    case "rm": {
-      if (params.task) {
-        const hit = findTask(phases, params.task);
-        if (!hit) errors.push(`Task "${params.task}" not found`);
-        else hit.phase.tasks = hit.phase.tasks.filter((task) => task !== hit.task);
-      } else if (params.phase) {
-        const phase = findPhase(phases, params.phase);
-        if (!phase) errors.push(`Phase "${params.phase}" not found`);
-        else phase.tasks = [];
-      } else {
-        for (const phase of phases) phase.tasks = [];
-      }
-      break;
-    }
-    case "view":
-      return { phases: current, errors };
-  }
-
-  if (errors.length === 0) normalize(phases);
-  return { phases: errors.length === 0 ? phases : current, errors };
-}
-
-function summary(phases: Phase[], errors: string[]): string {
-  if (errors.length > 0) return `Errors: ${errors.join("; ")}`;
+function summary(phases: Phase[], errors: ReturnType<typeof applyTodoState>["errors"], op?: Params["op"]): string {
+  if (errors.length > 0) return `Errors: ${formatErrors(errors, op).join("; ")}`;
   if (phases.length === 0 || phases.every((phase) => phase.tasks.length === 0)) return "Todo list is empty.";
   const lines: string[] = [];
   for (const [index, phase] of phases.entries()) {
@@ -458,7 +325,7 @@ export default function (pi: ExtensionAPI): void {
       const result = apply(state.phases, params as Params);
       if (result.errors.length === 0 && params.op !== "view") save(pi, ctx, result.phases);
       return {
-        content: [{ type: "text", text: result.errors.length > 0 ? summary(result.phases, result.errors) : params.op === "view" ? summary(result.phases, []) : mutationText(params as Params, result.phases) }],
+        content: [{ type: "text", text: result.errors.length > 0 ? summary(result.phases, result.errors, params.op) : params.op === "view" ? summary(result.phases, []) : mutationText(params as Params, result.phases) }],
         details: { phases: clone(result.phases), op: params.op },
         isError: result.errors.length > 0 ? true : undefined,
       };
