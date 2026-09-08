@@ -5,5 +5,7 @@
   "tui.select.down": ["down", "ctrl+n"],
   "app.session.toggleNamedFilter": ["ctrl+l"],
   "app.session.togglePath": ["ctrl+f"],
-  "app.model.cycleForward": ["alt+p"]
+  "app.model.cycleForward": ["alt+p"],
+  "tui.input.newLine": "enter",
+  "tui.input.submit": "ctrl+s"
 }
