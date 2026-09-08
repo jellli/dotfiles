@@ -10,6 +10,17 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerInitCommand, registerTools, shutdown } from "./tools";
 
+// The engine opens its SQLite index via node:sqlite, which Node 22 still marks
+// experimental — every require prints an ExperimentalWarning, once per thread
+// (main process plus each parse worker), so indexing spams stderr. Filter just
+// that warning; everything else still reaches the default handler.
+const emitWarning = process.emitWarning;
+process.emitWarning = function (warning: string | Error, ...args: unknown[]) {
+  const message = typeof warning === "string" ? warning : warning?.message;
+  if (String(message).includes("SQLite is an experimental feature")) return;
+  return (emitWarning as (...a: unknown[]) => void).call(this, warning, ...args);
+};
+
 export default function (pi: ExtensionAPI) {
   // SDK-only usage — never send telemetry.
   process.env.CODEGRAPH_TELEMETRY ??= "0";
