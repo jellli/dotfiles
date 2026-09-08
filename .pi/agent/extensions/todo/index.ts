@@ -5,9 +5,9 @@
  * Adapted to pi's public ExtensionAPI; OMP's core-only imports are not used.
  */
 import { Type } from "typebox";
-import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@earendil-works/pi-coding-agent";
-import { applyTodoState, cloneTodoState, type TodoCommand as Params, type TodoItem as Item, type TodoPhase as Phase } from "./todo/todo-state.js";
-import { createToolAggregation } from "./ui/lib/aggregation.js";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { applyTodoState, cloneTodoState, type TodoCommand as Params, type TodoItem as Item, type TodoPhase as Phase } from "./todo-state.js";
+import { createToolAggregation } from "../ui/lib/aggregation.js";
 
 const TOOL_NAME = "todo";
 const ENTRY_TYPE = "oh-my-pi-todo";
@@ -19,13 +19,6 @@ const HUD_FOLLOWING_PHASE_LIMIT = 3;
 // Keep completed HUDs visible briefly without removing persisted session state.
 const HUD_CLEAR_DELAY_MS = 60_000;
 
-const TodoStatus = Type.Union([
-  Type.Literal("pending"),
-  Type.Literal("in_progress"),
-  Type.Literal("completed"),
-  Type.Literal("abandoned"),
-  Type.Literal("blocked"),
-]);
 const TodoOp = Type.Union([
   Type.Literal("init"),
   Type.Literal("start"),
@@ -321,12 +314,13 @@ export default function (pi: ExtensionAPI): void {
     ],
     parameters: TodoParams,
     execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
+      const p = params as Params;
       const state = getState(ctx);
-      const result = apply(state.phases, params as Params);
-      if (result.errors.length === 0 && params.op !== "view") save(pi, ctx, result.phases);
+      const result = apply(state.phases, p);
+      if (result.errors.length === 0 && p.op !== "view") save(pi, ctx, result.phases);
       return {
-        content: [{ type: "text", text: result.errors.length > 0 ? summary(result.phases, result.errors, params.op) : params.op === "view" ? summary(result.phases, []) : mutationText(params as Params, result.phases) }],
-        details: { phases: clone(result.phases), op: params.op },
+        content: [{ type: "text", text: result.errors.length > 0 ? summary(result.phases, result.errors, p.op) : p.op === "view" ? summary(result.phases, []) : mutationText(p, result.phases) }],
+        details: { phases: clone(result.phases), op: p.op },
         isError: result.errors.length > 0 ? true : undefined,
       };
     },

@@ -148,7 +148,7 @@ Current dotfiles intentionally use a smaller composition:
 
 - `ui/compact-tool-cards.ts` owns read/grep/find/ls/bash.
 - `ui/pi-diff.ts` owns write/edit and preserves SDK execution.
-- `oh-my-pi-todo.ts` owns task HUD widgets.
+- `todo/index.ts` owns task HUD widgets.
 - `statusline.ts` owns statusline/widget presentation.
 - `vim-mode/` owns editor behavior.
 

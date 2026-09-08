@@ -9,7 +9,8 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 # Resolve pi binary → package root
 PI_BIN=$(which pi)
 PI_REAL=$(node -e "console.log(require('fs').realpathSync('$PI_BIN'))")
-PKG_ROOT=$(dirname "$(dirname "$PI_REAL")")
+# cli.js lives at <pkg>/dist/bundle/cli.js, so the package root is three levels up.
+PKG_ROOT=$(dirname "$(dirname "$(dirname "$PI_REAL")")")
 NESTED_NM="$PKG_ROOT/node_modules"
 
 # Generate tsconfig
@@ -33,7 +34,7 @@ cat > "$DIR/tsconfig.json" <<EOF
       "typebox": ["$NESTED_NM/typebox/build/index.d.mts"]
     }
   },
-  "include": ["./*.ts"]
+  "include": ["./**/*.ts"]
 }
 EOF
 

@@ -17,7 +17,7 @@ const pi = {
   sendMessage: () => {},
 };
 
-const module = await jiti.import("../oh-my-pi-todo.ts");
+const module = await jiti.import("../todo/index.ts");
 const extension = module.default ?? module;
 extension(pi);
 assert.ok(registeredTool, "todo tool must be registered");
