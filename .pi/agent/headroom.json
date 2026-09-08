@@ -1,6 +1,7 @@
 {
   "port": 8787,
   "defaultUpstream": "https://www.jiji.cc",
+  "bin": "headroom",
   "providers": {
     "jiji": {
       "upstream": "https://www.jiji.cc",

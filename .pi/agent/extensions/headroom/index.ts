@@ -1,5 +1,5 @@
 /**
- * headroom — universal context-optimization proxy for pi.
+ * headroom — universal context-optimization proxy for pi (adapter).
  *
  * Runs a single local headroom proxy (default port 8787) and routes every
  * configured provider through it. headroom compresses tool outputs / logs /
@@ -16,6 +16,7 @@
  *   {
  *     "port": 8787,
  *     "defaultUpstream": "https://www.jiji.cc",   // proxy fallback upstream
+ *     "bin": "headroom",                          // optional; PATH lookup by default
  *     "providers": {
  *       "jiji":         { "upstream": "https://www.jiji.cc" },
  *       "deepseek":     { "upstream": "https://api.deepseek.com" },
@@ -27,25 +28,26 @@
  * /v1/responses or /v1/chat/completions itself.
  *
  * Behavior:
- *  - On load: spawns the proxy if port 8787 is not already healthy (non-blocking).
+ *  - On load: spawns the proxy if the port is not already healthy (non-blocking).
  *  - On session_start (all extensions loaded): waits for proxy readiness, then
  *    overrides each provider's baseUrl. Idempotent across /reload and sessions.
+ *  - Single-instance discipline lives in proxy-lifecycle.ts: a healthy /livez
+ *    or an open port (even if slow to respond) is always reused, never
+ *    re-spawned; once healthy, the pidfile records the true listening pid. A
+ *    failed spawn releases the guard so a later session_start can retry.
  *  - If the proxy never becomes ready, providers keep their original baseUrls
  *    (pi stays fully usable, just uncompressed).
+ *
+ * This file only wires config + pi events; all process/fs/network logic is in
+ * proxy-lifecycle.ts.
  */
-import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { createDefaultDeps, ensureProxy } from "./proxy-lifecycle.js";
 
-const HEADROOM_BIN = "/Users/hoon/.local/bin/headroom";
 const CONFIG_PATH = join(homedir(), ".pi", "agent", "headroom.json");
-const RUNTIME_DIR = join(homedir(), ".headroom");
-const LOG_PATH = join(RUNTIME_DIR, "headroom.log");
-const PID_PATH = join(RUNTIME_DIR, "headroom.pid");
-const READY_TIMEOUT_MS = 40_000;
-const POLL_INTERVAL_MS = 2_000;
 
 interface ProviderRoute {
   upstream: string;
@@ -55,6 +57,7 @@ interface HeadroomConfig {
   port: number;
   defaultUpstream: string;
   providers: Record<string, ProviderRoute>;
+  bin?: string;
 }
 
 function loadConfig(): HeadroomConfig | null {
@@ -62,45 +65,12 @@ function loadConfig(): HeadroomConfig | null {
     if (!existsSync(CONFIG_PATH)) return null;
     return JSON.parse(readFileSync(CONFIG_PATH, "utf8")) as HeadroomConfig;
   } catch (error) {
-    console.warn(`[headroom] failed to read ${CONFIG_PATH}: ${error instanceof Error ? error.message : String(error)}`);
+    console.warn(
+      `[headroom] failed to read ${CONFIG_PATH}: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return null;
   }
 }
-
-async function isHealthy(port: number, timeoutMs = 1_000): Promise<boolean> {
-  try {
-    const res = await fetch(`http://127.0.0.1:${port}/health`, {
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-function spawnProxy(port: number, defaultUpstream: string): void {
-  try {
-    mkdirSync(RUNTIME_DIR, { recursive: true });
-    const logFd = openSync(LOG_PATH, "a");
-    const child = spawn(
-      HEADROOM_BIN,
-      ["proxy", "--openai-api-url", defaultUpstream, "--port", String(port), "--no-telemetry"],
-      {
-        detached: true,
-        stdio: ["ignore", logFd, logFd],
-        env: { ...process.env, HEADROOM_SKIP_UPSTREAM_CHECK: "1" },
-      }
-    );
-    child.unref();
-    writeFileSync(PID_PATH, String(child.pid));
-  } catch (error) {
-    console.warn(`[headroom] failed to spawn proxy: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-// Module-level guard: both the load-time kick and session_start can race to
-// spawn; only the first caller spawns, the rest just wait for readiness.
-let spawnInFlight = false;
 
 export default async function (pi: ExtensionAPI) {
   const config = loadConfig();
@@ -108,20 +78,11 @@ export default async function (pi: ExtensionAPI) {
   const { port, defaultUpstream, providers } = config;
   const proxyBase = `http://127.0.0.1:${port}/v1`;
 
-  /** Ensure the proxy is running and healthy; returns true when ready. */
-  async function ensureProxy(): Promise<boolean> {
-    if (await isHealthy(port)) return true;
-    if (!spawnInFlight) {
-      spawnInFlight = true;
-      spawnProxy(port, defaultUpstream);
-    }
-    const deadline = Date.now() + READY_TIMEOUT_MS;
-    while (Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-      if (await isHealthy(port)) return true;
-    }
-    return false;
-  }
+  // config.bin overrides the PATH-resolved default binary; otherwise the
+  // module's default deps spawn `headroom` from PATH. Computed once so the
+  // load-time kick and session_start share the same deps (and thus the same
+  // in-flight attempt).
+  const deps = config.bin ? createDefaultDeps(config.bin) : undefined;
 
   /** Override each provider's baseUrl to route through the proxy. */
   async function applyOverrides(): Promise<void> {
@@ -143,13 +104,13 @@ export default async function (pi: ExtensionAPI) {
   }
 
   // Kick off the proxy at load time (non-blocking) so it warms up while pi boots.
-  void ensureProxy();
+  void ensureProxy(port, defaultUpstream, deps);
 
   // session_start fires after every extension has registered its providers, so
   // same-name overrides merge over the real registrations (models preserved).
   pi.on("session_start", () => {
     void (async () => {
-      if (await ensureProxy()) {
+      if (await ensureProxy(port, defaultUpstream, deps)) {
         await applyOverrides();
       } else {
         console.warn("[headroom] proxy unavailable; keeping original baseUrls");
