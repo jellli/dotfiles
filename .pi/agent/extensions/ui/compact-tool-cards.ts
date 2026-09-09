@@ -294,13 +294,20 @@ class BashResult implements Component {
   invalidate(): void {}
 
   render(width: number): string[] {
+    // Drives both the spinner glyph and the ticking elapsed time while running.
+    const spinner = this.context.state as SpinnerState;
+    syncSpinner(spinner, this.isPartial, this.context.invalidate);
+
     if (this.outputRows.length === 0) {
-      // No box without output: a stable `running` marker while streaming,
-      // exit stats once settled (spinner is intentionally not used here).
+      // No box without output: a spinner plus wall-clock time while streaming,
+      // exit stats once settled.
       if (this.isPartial) {
         return [
           fitLine(
-            resultLine(this.theme, this.theme.fg("muted", "running")),
+            resultLine(
+              this.theme,
+              this.theme.fg("muted", this.runningText(spinner)),
+            ),
             width,
             "",
             0,
@@ -321,6 +328,8 @@ class BashResult implements Component {
     }
 
     // The whole box sits in the result-line column: `└─ ` on the top border.
+    // While streaming the bottom border carries the spinner + elapsed time
+    // instead of exit stats (there is no exit code to show yet).
     const boxWidth = Math.max(1, width - RESULT_LINE_INDENT);
     const innerWidth = Math.max(1, boxWidth - 2);
     const border = (line: string) => this.theme.fg(this.border, line);
@@ -331,7 +340,8 @@ class BashResult implements Component {
       border(`│${padLine(line, innerWidth)}${dimAnsi}│`),
     );
 
-    const left = `└─ ${this.statsText()} `;
+    const label = this.isPartial ? this.runningText(spinner) : this.statsText();
+    const left = label ? `└─ ${label} ` : "└";
     const pad = "─".repeat(
       Math.max(0, innerWidth + 2 - visibleWidth(left) - 1),
     );
@@ -343,6 +353,14 @@ class BashResult implements Component {
         i === 0 ? resultLine(this.theme, line, true) : `${indent}${line}`,
       )
       .map((line) => fitLine(line, width, "", 0));
+  }
+
+  /** Spinner glyph + wall-clock since start, e.g. `⠸ 1.2s`. */
+  private runningText(spinner: SpinnerState): string {
+    const elapsed = bashElapsedText(
+      this.context.state as SpinnerState & { startedAt?: number },
+    );
+    return `${spinnerChar(spinner)}${elapsed ? ` ${elapsed}` : ""}`;
   }
 
   private statsText(): string {

@@ -105,18 +105,10 @@ export function resultLine(
 // Spinner — frame state lives in the tool render context's shared state
 // ---------------------------------------------------------------------------
 
-export const SPINNER_FRAMES = [
-  "⠋",
-  "⠙",
-  "⠹",
-  "⠸",
-  "⠼",
-  "⠴",
-  "⠦",
-  "⠧",
-  "⠇",
-  "⠏",
-];
+// Breathing dot: a filled circle alternating with a small bullet — conveys
+// loading without any positional motion, so it never blends into the
+// box-drawing characters around it.
+export const SPINNER_FRAMES = ["●", "●", "•", "•"];
 const SPINNER_INTERVAL_MS = 80;
 
 export type SpinnerState = {
