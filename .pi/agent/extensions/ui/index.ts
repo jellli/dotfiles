@@ -10,7 +10,7 @@
  *   consecutive-call aggregation, [compaction] summary patch
  * - pi-diff.ts: write/edit Shiki diff viewer
  * - lib/aggregation.ts: shared consecutive-call grouping
- * - lib/pi-ui.ts: shared fitLine/padLine/statusMarker/toolHeader
+ * - lib/pi-ui.ts: shared fitLine/padLine/toolBadge/toolHeader/resultLine
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerCompactToolCards } from "./compact-tool-cards.js";

@@ -49,7 +49,11 @@ assert.deepEqual(initialized.state, [
 assert.deepEqual(empty, []);
 
 const state = baseState();
-const blocked = run(state, { op: "block", task: "Write test", reason: "  waiting\nfor fixture  " });
+const blocked = run(state, {
+  op: "block",
+  task: "Write test",
+  reason: "  waiting\nfor fixture  ",
+});
 assert.deepEqual(blocked.errors, []);
 assert.deepEqual(blocked.state[0].tasks, [
   { content: "Write test", status: "blocked", blocker: "waiting for fixture" },
@@ -67,11 +71,20 @@ assert.deepEqual(completed.errors, []);
 assert.equal(completed.state[0].tasks[0].status, "completed");
 assert.equal(completed.state[0].tasks[1].status, "in_progress");
 
-const duplicate = run(completed.state, { op: "append", phase: "Build", items: ["Implement state", "New task"] });
-assert.deepEqual(duplicate.errors, [{ code: "duplicate_task", task: "Implement state" }]);
+const duplicate = run(completed.state, {
+  op: "append",
+  phase: "Build",
+  items: ["Implement state", "New task"],
+});
+assert.deepEqual(duplicate.errors, [
+  { code: "duplicate_task", task: "Implement state" },
+]);
 assert.deepEqual(duplicate.state, completed.state);
 
-const missingTarget = run(completed.state, { op: "block", reason: "not actionable" });
+const missingTarget = run(completed.state, {
+  op: "block",
+  reason: "not actionable",
+});
 assert.deepEqual(missingTarget.errors, [{ code: "target_required" }]);
 assert.deepEqual(missingTarget.state, completed.state);
 

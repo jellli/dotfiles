@@ -4,11 +4,12 @@
  * Groups consecutive calls of the same tool (e.g. read, todo) into one
  * visually collapsed card:
  *
- *   √ read ×2
+ *   READ ×2
  *     ├─ path-a lines 1-80
  *     └─ path-b lines 1-120
  *
- * - A single call keeps the existing one-line compact header.
+ * - A single call shows the badge header plus a `└─ ` result line (spinner
+ *   while running, summary or text result once settled).
  * - Consecutive same-tool calls merge under `√ <tool> ×N`; any other tool,
  *   agent boundary, or session shutdown closes the group.
  * - Expand (Ctrl+O / click) reveals each call's full output.
@@ -18,12 +19,26 @@
  */
 
 import { Text, type Component } from "@earendil-works/pi-tui";
-import type { ExtensionAPI, ToolDefinition } from "@earendil-works/pi-coding-agent";
-import { fitLine, padLine, statusMarker, toolHeader, type UiTheme } from "./pi-ui.js";
+import type {
+  ExtensionAPI,
+  ToolDefinition,
+} from "@earendil-works/pi-coding-agent";
+import {
+  fitLine,
+  resultLine,
+  spinnerChar,
+  syncSpinner,
+  toolHeader,
+  type SpinnerState,
+} from "./pi-ui.js";
 
 type AnyArgs = Record<string, unknown>;
-type AnyTheme = Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1];
-type AnyContext = Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[2];
+type AnyTheme = Parameters<
+  NonNullable<ToolDefinition<any, any, any>["renderCall"]>
+>[1];
+type AnyContext = Parameters<
+  NonNullable<ToolDefinition<any, any, any>["renderCall"]>
+>[2];
 type AnyResult = {
   content: Array<{ type: string; text?: string }>;
   details?: Record<string, unknown>;
@@ -36,6 +51,8 @@ export type ToolAggregationOptions = {
   row?: (args: AnyArgs, theme: AnyTheme) => string;
   /** Full output text shown when expanded. Defaults to joined text blocks. */
   expandedText?: (result: AnyResult) => string;
+  /** Collapsed result-line content (pre-colored). Defaults to the raw text result. */
+  summary?: (output: string, theme: AnyTheme) => string;
 };
 
 type Entry = {
@@ -65,12 +82,7 @@ type Store = {
 
 const AGGREGATION_KEY = Symbol.for("dotfiles.pi-tool-aggregation");
 const globals = globalThis as unknown as { [key: symbol]: Store | undefined };
-const store: Store = globals[AGGREGATION_KEY] ??= { entries: new Map() };
-
-const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-const SPINNER_INTERVAL_MS = 80;
-
-type SpinnerState = { timer?: ReturnType<typeof setInterval>; frame?: number };
+const store: Store = (globals[AGGREGATION_KEY] ??= { entries: new Map() });
 
 function closeAggregation(): void {
   if (!store.active) return;
@@ -97,7 +109,12 @@ function textOutput(result: AnyResult): string {
     .trim();
 }
 
-function registerEntry(toolName: string, single: string, row: string, context: AnyContext): Entry {
+function registerEntry(
+  toolName: string,
+  single: string,
+  row: string,
+  context: AnyContext,
+): Entry {
   const existing = store.entries.get(context.toolCallId);
   if (existing) {
     existing.invalidate = context.invalidate;
@@ -106,7 +123,8 @@ function registerEntry(toolName: string, single: string, row: string, context: A
     // incomplete path (e.g. "<missing path>") is overwritten by the real one.
     existing.single = single;
     existing.row = row;
-    if (existing.group.ownerId === existing.id) existing.group.expanded = context.expanded;
+    if (existing.group.ownerId === existing.id)
+      existing.group.expanded = context.expanded;
     return existing;
   }
 
@@ -140,14 +158,18 @@ function registerEntry(toolName: string, single: string, row: string, context: A
   return entry;
 }
 
-function updateResult(output: string, options: { isPartial: boolean }, context: AnyContext): void {
+function updateResult(
+  output: string,
+  options: { isPartial: boolean },
+  context: AnyContext,
+): void {
   const entry = store.entries.get(context.toolCallId);
   if (!entry) return;
 
   entry.isPartial = options.isPartial;
   entry.isError = context.isError;
   entry.output = output;
-  entry.errorText = entry.isError ? output.split("\n")[0] ?? "Failed" : "";
+  entry.errorText = entry.isError ? (output.split("\n")[0] ?? "Failed") : "";
   entry.invalidate = context.invalidate;
   if (entry.group.ownerId === entry.id) entry.group.expanded = context.expanded;
   // Only a non-owner signals the owner once on settle; the owner never
@@ -162,7 +184,9 @@ function bodyLines(entry: Entry, theme: AnyTheme, width: number): string[] {
   if (!entry.output) return [];
   return entry.output
     .split("\n")
-    .map((line) => fitLine(`     │ ${theme.fg("toolOutput", line)}`, width, "", 0));
+    .map((line) =>
+      fitLine(`     │ ${theme.fg("toolOutput", line)}`, width, "", 0),
+    );
 }
 
 class GroupComponent implements Component {
@@ -171,6 +195,7 @@ class GroupComponent implements Component {
     private theme: AnyTheme,
     private context: AnyContext,
     private toolName: string,
+    private summary?: (output: string, theme: AnyTheme) => string,
   ) {}
 
   update(entry: Entry, theme: AnyTheme, context: AnyContext): void {
@@ -178,7 +203,8 @@ class GroupComponent implements Component {
     this.theme = theme;
     this.context = context;
     this.entry.invalidate = context.invalidate;
-    if (this.entry.group.ownerId === this.entry.id) this.entry.group.expanded = context.expanded;
+    if (this.entry.group.ownerId === this.entry.id)
+      this.entry.group.expanded = context.expanded;
   }
 
   invalidate(): void {}
@@ -189,27 +215,77 @@ class GroupComponent implements Component {
     if (group.ownerId !== this.entry.id) return [];
 
     const isError = group.entries.some((entry) => entry.isError);
-    const isPartial = !isError && group.entries.some((entry) => entry.isPartial);
-    const state = { isError, isPartial };
+    const isPartial =
+      !isError && group.entries.some((entry) => entry.isPartial);
     const lines: string[] = [];
 
     if (group.entries.length === 1) {
       const entry = group.entries[0];
-      lines.push(fitLine(toolHeader(this.theme, this.toolName, entry.single, state), width, "", 0));
-      if (entry.isError && entry.errorText) {
-        lines.push(fitLine(`  ${this.theme.fg("error", entry.errorText)}`, width, "", 0));
+      lines.push(
+        fitLine(
+          toolHeader(this.theme, this.toolName, entry.single),
+          width,
+          "",
+          0,
+        ),
+      );
+      if (entry.isPartial) {
+        const frame = this.theme.fg(
+          "muted",
+          spinnerChar(this.context.state as SpinnerState),
+        );
+        lines.push(fitLine(resultLine(this.theme, frame), width, "", 0));
+      } else if (entry.isError && entry.errorText) {
+        lines.push(
+          fitLine(
+            resultLine(this.theme, this.theme.fg("error", entry.errorText)),
+            width,
+            "",
+            0,
+          ),
+        );
       } else if (group.expanded) {
         lines.push(...bodyLines(entry, this.theme, width));
+      } else if (entry.output) {
+        const content =
+          this.summary?.(entry.output, this.theme) ??
+          this.theme.fg("toolOutput", entry.output);
+        lines.push(fitLine(resultLine(this.theme, content), width, "", 0));
       }
       return lines;
     }
 
-    lines.push(fitLine(toolHeader(this.theme, this.toolName, this.theme.fg("toolOutput", `×${group.entries.length}`), state), width, "", 0));
+    lines.push(
+      fitLine(
+        toolHeader(
+          this.theme,
+          this.toolName,
+          this.theme.fg("toolOutput", `×${group.entries.length}`),
+        ),
+        width,
+        "",
+        0,
+      ),
+    );
     group.entries.forEach((entry, index) => {
       const connector = index === group.entries.length - 1 ? "└─" : "├─";
-      lines.push(fitLine(`  ${this.theme.fg("dim", connector)} ${entry.row}`, width, "", 0));
+      lines.push(
+        fitLine(
+          `  ${this.theme.fg("dim", connector)} ${entry.row}`,
+          width,
+          "",
+          0,
+        ),
+      );
       if (entry.isError && entry.errorText) {
-        lines.push(fitLine(`     ${this.theme.fg("error", entry.errorText)}`, width, "", 0));
+        lines.push(
+          fitLine(
+            `     ${this.theme.fg("error", entry.errorText)}`,
+            width,
+            "",
+            0,
+          ),
+        );
       } else if (group.expanded) {
         lines.push(...bodyLines(entry, this.theme, width));
       }
@@ -218,20 +294,11 @@ class GroupComponent implements Component {
   }
 
   private syncSpinner(): void {
-    const spinner = this.context.state as SpinnerState;
-    if (this.context.isPartial) {
-      spinner.frame ??= 0;
-      if (!spinner.timer) {
-        spinner.timer = setInterval(() => {
-          spinner.frame = ((spinner.frame ?? 0) + 1) % SPINNER_FRAMES.length;
-          this.context.invalidate();
-        }, SPINNER_INTERVAL_MS);
-        spinner.timer.unref();
-      }
-    } else if (spinner.timer) {
-      clearInterval(spinner.timer);
-      spinner.timer = undefined;
-    }
+    syncSpinner(
+      this.context.state as SpinnerState,
+      this.context.isPartial,
+      this.context.invalidate,
+    );
   }
 }
 
@@ -249,7 +316,10 @@ export function createToolAggregation(pi: ExtensionAPI) {
   pi.on("session_shutdown", () => resetAggregation());
 
   return {
-    wrap(tool: ToolDefinition<any, any, any>, options: ToolAggregationOptions = {}): ToolDefinition<any, any, any> {
+    wrap(
+      tool: ToolDefinition<any, any, any>,
+      options: ToolAggregationOptions = {},
+    ): ToolDefinition<any, any, any> {
       const toolName = tool.name;
       const line = options.line ?? (() => "");
       const row = options.row ?? line;
@@ -258,18 +328,38 @@ export function createToolAggregation(pi: ExtensionAPI) {
       return {
         ...tool,
         renderShell: "self",
-        renderCall(args: AnyArgs, theme: AnyTheme, context: AnyContext) {
-          const entry = registerEntry(toolName, line(args, theme), row(args, theme), context);
+        renderCall(args: unknown, theme: AnyTheme, context: AnyContext) {
+          const normalizedArgs =
+            args && typeof args === "object" ? (args as AnyArgs) : {};
+          const entry = registerEntry(
+            toolName,
+            line(normalizedArgs, theme),
+            row(normalizedArgs, theme),
+            context,
+          );
           const previous = context.lastComponent;
-          const component = previous instanceof GroupComponent
-            ? previous
-            : new GroupComponent(entry, theme, context, toolName);
+          const component =
+            previous instanceof GroupComponent
+              ? previous
+              : new GroupComponent(
+                  entry,
+                  theme,
+                  context,
+                  toolName,
+                  options.summary,
+                );
           component.update(entry, theme, context);
           return component;
         },
-        renderResult(result: AnyResult, resultOptions: { isPartial: boolean }, _theme: AnyTheme, context: AnyContext) {
+        renderResult(
+          result: AnyResult,
+          resultOptions: { isPartial: boolean },
+          _theme: AnyTheme,
+          context: AnyContext,
+        ) {
           updateResult(expandedText(result), resultOptions, context);
-          const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+          const text =
+            (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
           text.setText("");
           return text;
         },

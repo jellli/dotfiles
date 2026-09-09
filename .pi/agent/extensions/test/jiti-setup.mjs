@@ -20,15 +20,39 @@ export function createTestJiti(extensionsDir) {
   // Runtime deps resolve like pi resolves them: typebox from the codegraph
   // extension's node_modules, @earendil-works/* from pi's own node_modules.
   const alias = {};
-  const codegraphRequire = createRequire(join(extensionsDir, "codegraph/index.ts"));
-  alias.typebox = codegraphRequire.resolve("typebox");
+  const codegraphRequire = createRequire(
+    join(extensionsDir, "codegraph/index.ts"),
+  );
+  const typeboxEntry = codegraphRequire.resolve("typebox");
+  alias.typebox = typeboxEntry;
+  const typeboxRoot = dirname(dirname(typeboxEntry));
+  for (const subpath of [
+    "compile",
+    "error",
+    "format",
+    "guard",
+    "schema",
+    "system",
+    "type",
+    "value",
+  ]) {
+    alias[`typebox/${subpath}`] = join(
+      typeboxRoot,
+      "build",
+      subpath,
+      "index.mjs",
+    );
+  }
   const piRequire = createRequire(join(getPiRoot(), "package.json"));
-  for (const name of ["@earendil-works/pi-tui", "@earendil-works/pi-coding-agent"]) {
-    try {
-      alias[name] = piRequire.resolve(name);
-    } catch {
-      // Optional: not every module is resolvable from the pi package.
-    }
+  // pi-coding-agent's exports map has no require condition, so resolve()
+  // fails; point the alias straight at its dist entry instead.
+  alias["@earendil-works/pi-coding-agent"] = join(getPiRoot(), "dist/index.js");
+  try {
+    alias["@earendil-works/pi-tui"] = piRequire.resolve(
+      "@earendil-works/pi-tui",
+    );
+  } catch {
+    // Optional: not every module is resolvable from the pi package.
   }
   return createJiti(import.meta.url, { interopDefault: true, alias });
 }

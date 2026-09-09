@@ -1,6 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
-import { diffLines, diffWordsWithSpace } from "../../npm/node_modules/diff/libesm/index.js";
+import {
+  diffLines,
+  diffWordsWithSpace,
+} from "../../npm/node_modules/diff/libesm/index.js";
 import { createHighlighter } from "../../npm/node_modules/shiki/dist/index.mjs";
 import {
   createEditToolDefinition,
@@ -9,13 +12,30 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Text, type Component, visibleWidth } from "@earendil-works/pi-tui";
-import { fitLine, toolHeader } from "./lib/pi-ui.js";
+import {
+  fitLine,
+  bracketDetail,
+  RESULT_LINE_INDENT,
+  resultLine,
+  spinnerChar,
+  syncSpinner,
+  toolHeader,
+  type SpinnerState,
+} from "./lib/pi-ui.js";
 
 type ToolArgs = Record<string, unknown>;
-type Theme = Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[1];
-type RenderContext = Parameters<NonNullable<ToolDefinition<any, any, any>["renderCall"]>>[2];
-type RenderOptions = Parameters<NonNullable<ToolDefinition<any, any, any>["renderResult"]>>[1];
-type RenderResultTheme = Parameters<NonNullable<ToolDefinition<any, any, any>["renderResult"]>>[2];
+type Theme = Parameters<
+  NonNullable<ToolDefinition<any, any, any>["renderCall"]>
+>[1];
+type RenderContext = Parameters<
+  NonNullable<ToolDefinition<any, any, any>["renderCall"]>
+>[2];
+type RenderOptions = Parameters<
+  NonNullable<ToolDefinition<any, any, any>["renderResult"]>
+>[1];
+type RenderResultTheme = Parameters<
+  NonNullable<ToolDefinition<any, any, any>["renderResult"]>
+>[2];
 type Language = string;
 
 type Capture = { oldText: string; newText: string };
@@ -77,7 +97,8 @@ const FALLBACK_LNUM = "\x1b[38;2;102;92;84m";
 const CAPTURE_REGISTRY = Symbol.for("dotfiles.pi-diff.captures");
 type GlobalState = typeof globalThis & { [key: symbol]: Map<string, Capture> };
 const globalState = globalThis as GlobalState;
-const captures = globalState[CAPTURE_REGISTRY] ?? (globalState[CAPTURE_REGISTRY] = new Map());
+const captures =
+  globalState[CAPTURE_REGISTRY] ?? (globalState[CAPTURE_REGISTRY] = new Map());
 const SHIKI_THEME = "gruvbox-dark-medium";
 const highlightedTokens = new Map<string, Promise<HighlightToken[]>>();
 let highlighterPromise: ReturnType<typeof createHighlighter> | undefined;
@@ -85,7 +106,17 @@ let highlighterPromise: ReturnType<typeof createHighlighter> | undefined;
 function getHighlighter(): ReturnType<typeof createHighlighter> {
   return (highlighterPromise ??= createHighlighter({
     themes: [SHIKI_THEME],
-    langs: ["typescript", "tsx", "javascript", "jsx", "json", "markdown", "bash", "python", "text"],
+    langs: [
+      "typescript",
+      "tsx",
+      "javascript",
+      "jsx",
+      "json",
+      "markdown",
+      "bash",
+      "python",
+      "text",
+    ],
   }));
 }
 
@@ -133,26 +164,34 @@ function changedRows(oldText: string, newText: string): DiffRow[] {
   for (const part of diffLines(oldText, newText)) {
     const lines = part.value.replace(/\n$/, "").split("\n");
     if (part.removed) {
-      for (const text of lines) rows.push({ kind: "del", number: oldLine++, text });
+      for (const text of lines)
+        rows.push({ kind: "del", number: oldLine++, text });
     } else if (part.added) {
-      for (const text of lines) rows.push({ kind: "add", number: newLine++, text });
+      for (const text of lines)
+        rows.push({ kind: "add", number: newLine++, text });
     } else {
-      for (const text of lines) rows.push({ kind: "context", number: newLine++, text });
+      for (const text of lines)
+        rows.push({ kind: "context", number: newLine++, text });
       oldLine += lines.length;
     }
   }
   return rows;
 }
 
-function wordRanges(oldText: string, newText: string): { oldRanges: WordRange[]; newRanges: WordRange[] } {
+function wordRanges(
+  oldText: string,
+  newText: string,
+): { oldRanges: WordRange[]; newRanges: WordRange[] } {
   const oldRanges: WordRange[] = [];
   const newRanges: WordRange[] = [];
   let oldOffset = 0;
   let newOffset = 0;
   for (const part of diffWordsWithSpace(oldText, newText)) {
     const length = part.value.length;
-    if (part.removed) oldRanges.push({ start: oldOffset, end: oldOffset + length });
-    if (part.added) newRanges.push({ start: newOffset, end: newOffset + length });
+    if (part.removed)
+      oldRanges.push({ start: oldOffset, end: oldOffset + length });
+    if (part.added)
+      newRanges.push({ start: newOffset, end: newOffset + length });
     if (!part.added) oldOffset += length;
     if (!part.removed) newOffset += length;
   }
@@ -193,7 +232,8 @@ function parseDisplayDiff(diff: string): DiffRow[] {
 }
 
 function resultDiff(details: unknown): string | undefined {
-  if (!details || typeof details !== "object" || !("diff" in details)) return undefined;
+  if (!details || typeof details !== "object" || !("diff" in details))
+    return undefined;
   const diff = details.diff;
   return typeof diff === "string" ? diff : undefined;
 }
@@ -208,7 +248,9 @@ function languageFor(path: string): Language {
 
 function parseAnsiRgb(ansi: string): Rgb | null {
   const match = ansi.match(/\x1b\[(?:38|48);2;(\d+);(\d+);(\d+)m/);
-  return match ? { r: Number(match[1]), g: Number(match[2]), b: Number(match[3]) } : null;
+  return match
+    ? { r: Number(match[1]), g: Number(match[2]), b: Number(match[3]) }
+    : null;
 }
 
 /** Mix an accent color into a base bg at the given intensity (0.0–1.0). */
@@ -219,18 +261,24 @@ function mixBg(base: Rgb, accent: Rgb, intensity: number): string {
   return `\x1b[48;2;${r};${g};${b}m`;
 }
 
-function themeFg(theme: RenderResultTheme, name: string, fallback: string): string | null {
-  const get = (theme as unknown as { getFgAnsi?: (c: string) => string }).getFgAnsi;
+function themeFg(
+  theme: RenderResultTheme,
+  name: string,
+  fallback: string | null,
+): string | null {
+  const get = (theme as unknown as { getFgAnsi?: (c: string) => string })
+    .getFgAnsi;
   try {
     const ansi = get?.(name);
-    return ansi ? parseAnsiRgb(ansi) ? ansi : fallback : null;
+    return ansi ? (parseAnsiRgb(ansi) ? ansi : fallback) : null;
   } catch {
     return null;
   }
 }
 
 function themeBg(theme: RenderResultTheme, name: string): Rgb | null {
-  const get = (theme as unknown as { getBgAnsi?: (c: string) => string }).getBgAnsi;
+  const get = (theme as unknown as { getBgAnsi?: (c: string) => string })
+    .getBgAnsi;
   try {
     const ansi = get?.(name);
     return ansi ? parseAnsiRgb(ansi) : null;
@@ -240,8 +288,12 @@ function themeBg(theme: RenderResultTheme, name: string): Rgb | null {
 }
 
 function resolveDiffColors(theme: RenderResultTheme): DiffColors {
-  const fgAdd = themeFg(theme, "toolDiffAdded", "\x1b[38;2;100;180;120m") ?? "\x1b[38;2;100;180;120m";
-  const fgDel = themeFg(theme, "toolDiffRemoved", "\x1b[38;2;200;100;100m") ?? "\x1b[38;2;200;100;100m";
+  const fgAdd =
+    themeFg(theme, "toolDiffAdded", "\x1b[38;2;100;180;120m") ??
+    "\x1b[38;2;100;180;120m";
+  const fgDel =
+    themeFg(theme, "toolDiffRemoved", "\x1b[38;2;200;100;100m") ??
+    "\x1b[38;2;200;100;100m";
   const addRgb = parseAnsiRgb(fgAdd) ?? { r: 100, g: 180, b: 120 };
   const delRgb = parseAnsiRgb(fgDel) ?? { r: 200, g: 100, b: 100 };
 
@@ -259,9 +311,23 @@ function resolveDiffColors(theme: RenderResultTheme): DiffColors {
   const bgGutterDel = mixBg(errorBg, delRgb, 0.12);
 
   const bgBase = mixBg(successBg, successBg, 0); // raw toolSuccessBg
-  const fgCtx = themeFg(theme, "toolDiffContext", "\x1b[38;2;120;120;120m") ?? "\x1b[38;2;120;120;120m";
+  const fgCtx =
+    themeFg(theme, "toolDiffContext", "\x1b[38;2;120;120;120m") ??
+    "\x1b[38;2;120;120;120m";
   const fgLnum = themeFg(theme, "dim", null) ?? FALLBACK_LNUM;
-  return { fgAdd, fgDel, fgCtx, fgLnum, bgBase, bgGutterAdd, bgGutterDel, bgAdd, bgDel, bgAddW, bgDelW };
+  return {
+    fgAdd,
+    fgDel,
+    fgCtx,
+    fgLnum,
+    bgBase,
+    bgGutterAdd,
+    bgGutterDel,
+    bgAdd,
+    bgDel,
+    bgAddW,
+    bgDelW,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -276,14 +342,26 @@ function ansiFg(hex: string, text: string): string {
   return `\x1b[38;2;${r};${g};${b}m${text}\x1b[39m`;
 }
 
-async function highlightTokens(text: string, language: Language): Promise<HighlightToken[]> {
+async function highlightTokens(
+  text: string,
+  language: Language,
+): Promise<HighlightToken[]> {
   const key = `${language}\0${text}`;
   const cached = highlightedTokens.get(key);
   if (cached) return cached;
-  const pending = getHighlighter().then((highlighter) => {
-    const tokens = highlighter.codeToTokens(text, { lang: language, theme: SHIKI_THEME }).tokens[0] ?? [];
-    return tokens.map((token) => ({ content: token.content, color: token.color }));
-  }).catch(() => [{ content: text }]);
+  const pending = getHighlighter()
+    .then((highlighter) => {
+      const tokens =
+        highlighter.codeToTokens(text, {
+          lang: language as never,
+          theme: SHIKI_THEME,
+        }).tokens[0] ?? [];
+      return tokens.map((token) => ({
+        content: token.content,
+        color: token.color,
+      }));
+    })
+    .catch(() => [{ content: text }]);
   highlightedTokens.set(key, pending);
   return pending;
 }
@@ -305,12 +383,24 @@ function emphasizeWord(text: string, wordBg: string, bodyBg: string): string {
   return `${wordBg}${text}${bodyBg}`;
 }
 
-async function highlightCode(row: DiffRow, language: Language, colors: DiffColors): Promise<string> {
+async function highlightCode(
+  row: DiffRow,
+  language: Language,
+  colors: DiffColors,
+): Promise<string> {
   const tokens = await highlightTokens(row.text, language);
-  const wordBg = row.kind === "add" ? colors.bgAddW : row.kind === "del" ? colors.bgDelW : "";
-  const bodyBg = row.kind === "add" ? colors.bgAdd : row.kind === "del" ? colors.bgDel : "";
+  const wordBg =
+    row.kind === "add"
+      ? colors.bgAddW
+      : row.kind === "del"
+        ? colors.bgDelW
+        : "";
+  const bodyBg =
+    row.kind === "add" ? colors.bgAdd : row.kind === "del" ? colors.bgDel : "";
   if (!row.wordRanges?.length || !wordBg) {
-    return tokens.map((token) => ansiFg(token.color ?? DEFAULT_FG, token.content)).join("");
+    return tokens
+      .map((token) => ansiFg(token.color ?? DEFAULT_FG, token.content))
+      .join("");
   }
   const output: string[] = [];
   let offset = 0;
@@ -324,20 +414,40 @@ async function highlightCode(row: DiffRow, language: Language, colors: DiffColor
       const relativeStart = start - offset;
       const relativeEnd = end - offset;
       if (relativeStart > cursor) {
-        output.push(ansiFg(token.color ?? DEFAULT_FG, token.content.slice(cursor, relativeStart)));
+        output.push(
+          ansiFg(
+            token.color ?? DEFAULT_FG,
+            token.content.slice(cursor, relativeStart),
+          ),
+        );
       }
-      output.push(emphasizeWord(ansiFg(token.color ?? DEFAULT_FG, token.content.slice(relativeStart, relativeEnd)), wordBg, bodyBg));
+      output.push(
+        emphasizeWord(
+          ansiFg(
+            token.color ?? DEFAULT_FG,
+            token.content.slice(relativeStart, relativeEnd),
+          ),
+          wordBg,
+          bodyBg,
+        ),
+      );
       cursor = relativeEnd;
     }
     if (cursor < token.content.length) {
-      output.push(ansiFg(token.color ?? DEFAULT_FG, token.content.slice(cursor)));
+      output.push(
+        ansiFg(token.color ?? DEFAULT_FG, token.content.slice(cursor)),
+      );
     }
     offset = tokenEnd;
   }
   return output.join("");
 }
 
-async function highlightAll(rows: DiffRow[], path: string, colors: DiffColors): Promise<string[]> {
+async function highlightAll(
+  rows: DiffRow[],
+  path: string,
+  colors: DiffColors,
+): Promise<string[]> {
   const language = languageFor(path);
   return Promise.all(rows.map((row) => highlightCode(row, language, colors)));
 }
@@ -356,10 +466,18 @@ function lnum(number: number, width: number, fg: string): string {
 }
 
 /** Gutter per pi-diff: colored ▌ bar + right-aligned lnum + sign on a subtle bg. */
-function gutterFor(row: DiffRow, numberWidth: number, colors: DiffColors): string {
+function gutterFor(
+  row: DiffRow,
+  numberWidth: number,
+  colors: DiffColors,
+): string {
   const isAdd = row.kind === "add";
   const isDel = row.kind === "del";
-  const gBg = isAdd ? colors.bgGutterAdd : isDel ? colors.bgGutterDel : colors.bgBase;
+  const gBg = isAdd
+    ? colors.bgGutterAdd
+    : isDel
+      ? colors.bgGutterDel
+      : colors.bgBase;
   const signFg = isAdd ? colors.fgAdd : isDel ? colors.fgDel : colors.fgCtx;
   const numFg = isAdd ? colors.fgAdd : isDel ? colors.fgDel : colors.fgLnum;
   const sign = isAdd ? "+" : isDel ? "-" : " ";
@@ -373,7 +491,13 @@ function bodyBgFor(row: DiffRow | undefined, colors: DiffColors): string {
   return colors.bgBase;
 }
 
-function renderUnifiedLayout(rows: DiffRow[], code: string[], start: number, width: number, colors: DiffColors): string[] {
+function renderUnifiedLayout(
+  rows: DiffRow[],
+  code: string[],
+  start: number,
+  width: number,
+  colors: DiffColors,
+): string[] {
   const numberWidth = rowNumberWidth(rows);
   const output: string[] = [];
   for (let index = 0; index < rows.length; index++) {
@@ -382,21 +506,36 @@ function renderUnifiedLayout(rows: DiffRow[], code: string[], start: number, wid
     const gutter = gutterFor(row, numberWidth, colors);
     const bodyBg = bodyBgFor(row, colors);
     const contentW = Math.max(1, width - visibleWidth(gutter));
-    const fitted = fitLine(row.kind === "context" ? `${DIM}${highlighted}` : highlighted, contentW, "", 0);
+    const fitted = fitLine(
+      row.kind === "context" ? `${DIM}${highlighted}` : highlighted,
+      contentW,
+      "",
+      0,
+    );
     const pad = Math.max(0, contentW - visibleWidth(fitted));
     output.push(`${gutter}${bodyBg}${fitted}${" ".repeat(pad)}${RST}`);
   }
   return output;
 }
 
-function renderSplitLayout(rows: DiffRow[], code: string[], start: number, width: number, colors: DiffColors): string[] {
+function renderSplitLayout(
+  rows: DiffRow[],
+  code: string[],
+  start: number,
+  width: number,
+  colors: DiffColors,
+): string[] {
   const numberWidth = rowNumberWidth(rows);
   const half = Math.floor(width / 2);
   const leftWidth = Math.max(1, half - 1);
   const rightWidth = Math.max(1, width - half - 1);
   const output: string[] = [];
 
-  function halfLine(isLeft: boolean, row: DiffRow | undefined, indexInCode: number): string {
+  function halfLine(
+    isLeft: boolean,
+    row: DiffRow | undefined,
+    indexInCode: number,
+  ): string {
     if (!row) return " ".repeat(isLeft ? leftWidth : rightWidth);
     const highlighted = code[indexInCode] ?? row.text;
     const gutter = gutterFor(row, numberWidth, colors);
@@ -404,7 +543,12 @@ function renderSplitLayout(rows: DiffRow[], code: string[], start: number, width
     const halfW = isLeft ? leftWidth : rightWidth;
     const gutterWidth = visibleWidth(gutter);
     const contentW = Math.max(1, halfW - gutterWidth);
-    const fitted = fitLine(row.kind === "context" ? `${DIM}${highlighted}` : highlighted, contentW, "", 0);
+    const fitted = fitLine(
+      row.kind === "context" ? `${DIM}${highlighted}` : highlighted,
+      contentW,
+      "",
+      0,
+    );
     const pad = Math.max(0, contentW - visibleWidth(fitted));
     return `${gutter}${bodyBg}${fitted}${" ".repeat(pad)}`;
   }
@@ -430,26 +574,54 @@ function padToWidth(line: string, width: number): string {
   return fitted + " ".repeat(Math.max(0, width - visibleWidth(fitted)));
 }
 
-function viewerTop(stats: string | undefined, width: number, theme: RenderResultTheme): string {
+function viewerTop(
+  stats: string | undefined,
+  width: number,
+  theme: RenderResultTheme,
+): string {
   const corner = theme.fg("dim", "┌");
   const dash = theme.fg("dim", "─");
   if (!stats || width < 10) {
-    return fitLine(`${corner}${dash.repeat(Math.max(1, width - 2))}${theme.fg("dim", "┐")}`, width, "", 0);
+    return fitLine(
+      `${corner}${dash.repeat(Math.max(1, width - 2))}${theme.fg("dim", "┐")}`,
+      width,
+      "",
+      0,
+    );
   }
   const head = `${corner}${dash} ${stats} `;
   const fill = Math.max(1, width - visibleWidth(head) - 1);
-  return fitLine(`${head}${dash.repeat(fill)}${theme.fg("dim", "┐")}`, width, "", 0);
+  return fitLine(
+    `${head}${dash.repeat(fill)}${theme.fg("dim", "┐")}`,
+    width,
+    "",
+    0,
+  );
 }
 
-function viewerFooter(totalLines: number, width: number, theme: RenderResultTheme): string {
-  const label = `└─ ${totalLines} lines`;
+function viewerFooter(
+  totalLines: number,
+  width: number,
+  theme: RenderResultTheme,
+): string {
+  const label = `└─ ${totalLines} lines `;
   if (width < 4) return fitLine(theme.fg("dim", label), width, "", 0);
   const fill = Math.max(0, width - visibleWidth(label) - 1);
   return fitLine(theme.fg("dim", `${label}${"─".repeat(fill)}┘`), width, "", 0);
 }
 
-function boxed(lines: string[], width: number, totalLines: number, theme: RenderResultTheme, stats?: string): string[] {
-  if (width < 4) return [...lines.map((line) => fitLine(line, width, "", 0)), viewerFooter(totalLines, width, theme)];
+function boxed(
+  lines: string[],
+  width: number,
+  totalLines: number,
+  theme: RenderResultTheme,
+  stats?: string,
+): string[] {
+  if (width < 4)
+    return [
+      ...lines.map((line) => fitLine(line, width, "", 0)),
+      viewerFooter(totalLines, width, theme),
+    ];
   const innerWidth = width - 2;
   const side = theme.fg("dim", "│");
   return [
@@ -466,7 +638,12 @@ class MutationDiffViewer implements Component {
   private colors!: DiffColors;
   private expanded = false;
 
-  constructor(state: DiffState, path: string, theme: RenderResultTheme, expanded: boolean) {
+  constructor(
+    state: DiffState,
+    path: string,
+    theme: RenderResultTheme,
+    expanded: boolean,
+  ) {
     this.state = state;
     this.path = path;
     this.theme = theme;
@@ -484,9 +661,22 @@ class MutationDiffViewer implements Component {
 
   render(width: number): string[] {
     const targetWidth = Math.max(1, width);
-    const innerWidth = Math.max(1, targetWidth - 2);
     this.ensureSource();
-    return boxed(this.layout(innerWidth), targetWidth, this.state.totalLines ?? 0, this.theme, this.state.stats);
+    // The whole box sits in the result-line column: `└─ ` on the top border.
+    const boxWidth = Math.max(1, targetWidth - RESULT_LINE_INDENT);
+    const innerWidth = Math.max(1, boxWidth - 2);
+    const indent = " ".repeat(RESULT_LINE_INDENT);
+    return boxed(
+      this.layout(innerWidth),
+      boxWidth,
+      this.state.totalLines ?? 0,
+      this.theme,
+      this.state.stats,
+    )
+      .map((line, i) =>
+        i === 0 ? resultLine(this.theme, line, true) : `${indent}${line}`,
+      )
+      .map((line) => fitLine(line, targetWidth, "", 0));
   }
 
   private ensureSource(): void {
@@ -496,21 +686,31 @@ class MutationDiffViewer implements Component {
       this.state.rows = [];
       return;
     }
-    this.state.rows = addWordRanges(changedRows(capture.oldText, capture.newText));
+    this.state.rows = addWordRanges(
+      changedRows(capture.oldText, capture.newText),
+    );
     this.state.totalLines = this.state.rows.length;
   }
 
   private kickHighlight(): void {
     const rows = this.state.rows;
-    if (!rows || rows.length === 0 || this.state.highlighted !== undefined || this.state.highlightPending) return;
+    if (
+      !rows ||
+      rows.length === 0 ||
+      this.state.highlighted !== undefined ||
+      this.state.highlightPending
+    )
+      return;
     this.state.highlightPending = true;
-    highlightAll(rows, this.path, this.colors).then((highlighted) => {
-      if (this.state.highlighted !== undefined) return;
-      this.state.highlighted = highlighted;
-      this.state.invalidate?.();
-    }).finally(() => {
-      this.state.highlightPending = false;
-    });
+    highlightAll(rows, this.path, this.colors)
+      .then((highlighted) => {
+        if (this.state.highlighted !== undefined) return;
+        this.state.highlighted = highlighted;
+        this.state.invalidate?.();
+      })
+      .finally(() => {
+        this.state.highlightPending = false;
+      });
   }
 
   private layout(innerWidth: number): string[] {
@@ -518,7 +718,10 @@ class MutationDiffViewer implements Component {
     if (rows === undefined || rows.length === 0) {
       return [this.theme.fg("warning", "Diff unavailable after reload")];
     }
-    if (this.state.stats === undefined && rows.some((row) => row.kind !== "context")) {
+    if (
+      this.state.stats === undefined &&
+      rows.some((row) => row.kind !== "context")
+    ) {
       this.state.stats = styleStats(rows, this.theme);
       this.state.totalLines = rows.length;
     }
@@ -528,13 +731,29 @@ class MutationDiffViewer implements Component {
     if (this.state.highlighted === undefined) {
       return [this.theme.fg("muted", "Rendering diff...")];
     }
-    const window = this.expanded ? { rows, start: 0 } : selectCollapsedRows(rows, COLLAPSED_DIFF_LINES);
-    const rendered = innerWidth >= SPLIT_MIN_WIDTH
-      ? renderSplitLayout(window.rows, this.state.highlighted, window.start, innerWidth, this.colors)
-      : renderUnifiedLayout(window.rows, this.state.highlighted, window.start, innerWidth, this.colors);
-    const prefix = !this.expanded && window.start > 0
-      ? [this.theme.fg("muted", ` ... ${window.start} earlier lines`)]
-      : [];
+    const window = this.expanded
+      ? { rows, start: 0 }
+      : selectCollapsedRows(rows, COLLAPSED_DIFF_LINES);
+    const rendered =
+      innerWidth >= SPLIT_MIN_WIDTH
+        ? renderSplitLayout(
+            window.rows,
+            this.state.highlighted,
+            window.start,
+            innerWidth,
+            this.colors,
+          )
+        : renderUnifiedLayout(
+            window.rows,
+            this.state.highlighted,
+            window.start,
+            innerWidth,
+            this.colors,
+          );
+    const prefix =
+      !this.expanded && window.start > 0
+        ? [this.theme.fg("muted", ` ... ${window.start} earlier lines`)]
+        : [];
     return [...prefix, ...rendered];
   }
 }
@@ -546,7 +765,14 @@ function styleStats(rows: DiffRow[], theme: RenderResultTheme): string {
 }
 
 function selectCollapsedRows(rows: DiffRow[], limit: number): DiffWindow {
-  const lastChanged = rows.findLastIndex((row) => row.kind !== "context");
+  // Manual scan: findLastIndex needs ES2023 lib, which the extension tsconfig lacks.
+  let lastChanged = -1;
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    if (rows[index].kind !== "context") {
+      lastChanged = index;
+      break;
+    }
+  }
   if (lastChanged < 0) return { rows: [], start: 0 };
 
   let start = Math.max(0, lastChanged - Math.max(1, limit) + 1);
@@ -558,45 +784,103 @@ function selectCollapsedRows(rows: DiffRow[], limit: number): DiffWindow {
   return { rows: rows.slice(start, end), start };
 }
 
-function header(path: string, tool: string, theme: Theme, context: RenderContext): Component {
+function header(
+  path: string,
+  tool: string,
+  theme: Theme,
+  context: RenderContext,
+): Component {
   const text = new Text("", 0, 0);
-  text.setText(toolHeader(theme, tool, theme.fg("accent", path), context));
+  const spinner = context.state as SpinnerState;
+  syncSpinner(spinner, context.isPartial, context.invalidate);
+  const lines = [
+    toolHeader(theme, tool, bracketDetail(theme, theme.fg("accent", path))),
+  ];
+  if (context.isPartial) {
+    lines.push(resultLine(theme, theme.fg("muted", spinnerChar(spinner))));
+  }
+  text.setText(lines.join("\n"));
   return text;
 }
 
-function wrapMutation<T extends ToolDefinition<any, any, any>>(tool: T, cwd: string): T {
+function wrapMutation<T extends ToolDefinition<any, any, any>>(
+  tool: T,
+  cwd: string,
+): T {
   const originalExecute = tool.execute;
   return {
     ...tool,
     renderShell: "self",
-    async execute(toolCallId: string, args: ToolArgs, signal: AbortSignal, onUpdate: unknown, context: { cwd?: string }) {
+    async execute(
+      toolCallId: string,
+      args: ToolArgs,
+      signal: AbortSignal,
+      onUpdate: unknown,
+      context: { cwd?: string },
+    ) {
       const executionCwd = context?.cwd || cwd;
       const path = targetPath(args, executionCwd);
       const oldText = await readText(path);
-      const result = await originalExecute(toolCallId, args, signal, onUpdate as never, context as never);
+      const result = await originalExecute(
+        toolCallId,
+        args,
+        signal,
+        onUpdate as never,
+        context as never,
+      );
       const newText = await readText(path);
       captures.set(toolCallId, { oldText, newText });
       return result;
     },
     renderCall(args: ToolArgs, theme: Theme, context: RenderContext) {
-      return header(stringArg(args, "path", "<missing path>"), tool.name, theme, context);
+      return header(
+        stringArg(args, "path", "<missing path>"),
+        tool.name,
+        theme,
+        context,
+      );
     },
-    renderResult(result: { content: Array<{ type: string; text?: string }>; details?: unknown }, options: RenderOptions, theme: RenderResultTheme, context: RenderContext) {
+    renderResult(
+      result: {
+        content: Array<{ type: string; text?: string }>;
+        details?: unknown;
+      },
+      options: RenderOptions,
+      theme: RenderResultTheme,
+      context: RenderContext,
+    ) {
       if (options.isPartial) return context.lastComponent ?? new Text("", 0, 0);
       if (context.isError) {
-        const message = result.content?.find((item) => item.type === "text")?.text ?? "Tool failed";
-        return new Text(theme.fg("error", message.split("\n")[0]), 0, 0);
+        const message =
+          result.content?.find((item) => item.type === "text")?.text ??
+          "Tool failed";
+        return new Text(
+          resultLine(theme, theme.fg("error", message.split("\n")[0])),
+          0,
+          0,
+        );
       }
       const state = (context.state as DiffState) ?? {};
       state.invalidate = context.invalidate;
       state.capture ??= captures.get(context.toolCallId);
       if (!state.capture && state.rows === undefined) {
         const nativeDiff = resultDiff(result.details);
-        if (nativeDiff !== undefined) state.rows = addWordRanges(parseDisplayDiff(nativeDiff));
+        if (nativeDiff !== undefined)
+          state.rows = addWordRanges(parseDisplayDiff(nativeDiff));
       }
-      const component = context.lastComponent instanceof MutationDiffViewer
-        ? context.lastComponent
-        : new MutationDiffViewer(state, stringArg(context.args, "path", "<missing path>"), theme, options.expanded);
+      const pathArg =
+        context.args && typeof context.args === "object"
+          ? (context.args as ToolArgs)
+          : {};
+      const component =
+        context.lastComponent instanceof MutationDiffViewer
+          ? context.lastComponent
+          : new MutationDiffViewer(
+              state,
+              stringArg(pathArg, "path", "<missing path>"),
+              theme,
+              options.expanded,
+            );
       component.setExpanded(options.expanded);
       captures.delete(context.toolCallId);
       return component;
