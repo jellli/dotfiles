@@ -6,8 +6,10 @@ import { createTestJiti, here } from "./jiti-setup.mjs";
 const jiti = createTestJiti(`${here}/..`);
 const originalLoad = Module._load;
 let codegraphLoads = 0;
+let undiciLoads = 0;
 Module._load = function (request, ...args) {
   if (request === "@colbymchenry/codegraph") codegraphLoads++;
+  if (request === "undici") undiciLoads++;
   return originalLoad.call(this, request, ...args);
 };
 
@@ -35,6 +37,18 @@ try {
     "codegraph_impact",
     "codegraph_status",
   ]);
+
+  const brave = jiti("../brave-search/index.ts");
+  assert.equal(undiciLoads, 0, "undici must not load during extension import");
+  const braveRegistered = [];
+  brave.default({
+    on() {},
+    registerTool(tool) {
+      braveRegistered.push(tool.name);
+    },
+    registerCommand() {},
+  });
+  assert.deepEqual(braveRegistered, ["brave_web_search"]);
 
   const headroom = jiti("../headroom/index.ts");
   const route = { upstream: "https://api.example.test" };

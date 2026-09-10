@@ -16,6 +16,7 @@
  * extensions in sync.
  */
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
@@ -24,8 +25,8 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
-import { fetch as undiciFetch, ProxyAgent, type Dispatcher } from "undici";
 import { Type } from "typebox";
+import type { Dispatcher } from "undici";
 import {
   bracketDetail,
   resultLine,
@@ -55,10 +56,23 @@ interface BraveResult {
 
 type BraveDetails = { results: BraveResult[]; cached?: boolean };
 
+// undici stays off the startup path; loaded on the first tool call (the
+// lazy-loading pattern used by the codegraph extension).
+type UndiciRuntime = typeof import("undici");
+let undici: UndiciRuntime | undefined;
+
+function loadUndici(): UndiciRuntime {
+  if (!undici) {
+    const require = createRequire(import.meta.url);
+    undici = require("undici") as UndiciRuntime;
+  }
+  return undici;
+}
+
 // In-memory cache keyed by query+count; survives within a pi session only.
 const cache = new Map<string, { ts: number; results: BraveResult[] }>();
 
-let proxyAgent: ProxyAgent | undefined;
+let proxyAgent: InstanceType<UndiciRuntime["ProxyAgent"]> | undefined;
 
 // undici's fetch takes a per-request dispatcher, so the proxy applies to this
 // tool only — pi's other fetches (ollama, providers) keep their direct route.
@@ -69,7 +83,7 @@ function getDispatcher(): Dispatcher | undefined {
     process.env.ALL_PROXY ??
     process.env.all_proxy ??
     DEFAULT_PROXY;
-  proxyAgent ??= new ProxyAgent(url);
+  proxyAgent ??= new (loadUndici().ProxyAgent)(url);
   return proxyAgent;
 }
 
@@ -181,7 +195,8 @@ export default function (pi: ExtensionAPI) {
 
       const url = `${BRAVE_BASE}?q=${encodeURIComponent(params.query)}&count=${count}`;
       const timeout = AbortSignal.timeout(TIMEOUT_MS);
-      const res = await undiciFetch(url, {
+      const { fetch: braveFetch } = loadUndici();
+      const res = await braveFetch(url, {
         headers: {
           Accept: "application/json",
           "Accept-Encoding": "gzip",
