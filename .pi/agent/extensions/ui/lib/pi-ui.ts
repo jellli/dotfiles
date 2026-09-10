@@ -141,3 +141,38 @@ export function syncSpinner(
 export function spinnerChar(state: SpinnerState): string {
   return SPINNER_FRAMES[state.frame ?? 0];
 }
+
+// ---------------------------------------------------------------------------
+// Shared card helpers (used by brave-search and ollama-web-fetch)
+// ---------------------------------------------------------------------------
+
+/** A tool result whose text lives in `content` (the AgentToolResult shape). */
+export type ToolTextResult = {
+  content: Array<{ type: string; text?: string }>;
+};
+
+/** Truncate a string to `max` chars with a trailing ellipsis. */
+export function shorten(value: string, max = 56): string {
+  return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
+}
+
+/** Join the text blocks of a tool result, trimmed. */
+export function textOutput(result: ToolTextResult): string {
+  return result.content
+    .filter((c) => c.type === "text")
+    .map((c) => c.text ?? "")
+    .join("\n")
+    .trim();
+}
+
+/** First-line error preview on the result line; full output when expanded. */
+export function errorPreviewLine(
+  theme: UiTheme,
+  output: string,
+  expanded: boolean,
+): string {
+  const lines = output.split("\n");
+  const preview = expanded ? output : lines[0];
+  const suffix = !expanded && lines.length > 1 ? theme.fg("muted", " ...") : "";
+  return resultLine(theme, theme.fg("error", preview) + suffix);
+}

@@ -1,0 +1,7 @@
+{
+  "name": "ollama-cloud",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Ollama Cloud model provider for pi (local fork of pi-ollama-cloud, provider + usage command only)"
+}

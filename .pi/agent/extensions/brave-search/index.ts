@@ -29,9 +29,12 @@ import { Type } from "typebox";
 import type { Dispatcher } from "undici";
 import {
   bracketDetail,
+  errorPreviewLine,
   resultLine,
+  shorten,
   spinnerChar,
   syncSpinner,
+  textOutput,
   toolHeader,
   type SpinnerState,
   type UiTheme,
@@ -123,19 +126,6 @@ type RenderContext = Parameters<
 type RenderResultOptions = Parameters<
   NonNullable<ToolDefinition<any, any, any>["renderResult"]>
 >[1];
-
-const shorten = (value: string, max = 56): string =>
-  value.length <= max ? value : `${value.slice(0, max - 1)}…`;
-
-function textOutput(result: {
-  content: Array<{ type: string; text?: string }>;
-}): string {
-  return result.content
-    .filter((content) => content.type === "text")
-    .map((content) => content.text ?? "")
-    .join("\n")
-    .trim();
-}
 
 function searchCallText(args: Record<string, unknown>, theme: UiTheme): string {
   const query = typeof args.query === "string" ? args.query : "";
@@ -268,13 +258,7 @@ export default function (pi: ExtensionAPI) {
       if (options.isPartial || !output) {
         text.setText("");
       } else if (context.isError) {
-        const lines = output.split("\n");
-        const preview = options.expanded ? output : lines[0];
-        const suffix =
-          !options.expanded && lines.length > 1
-            ? theme.fg("muted", " ...")
-            : "";
-        text.setText(resultLine(theme, theme.fg("error", preview) + suffix));
+        text.setText(errorPreviewLine(theme, output, options.expanded));
       } else if (options.expanded) {
         text.setText(theme.fg("toolOutput", output));
       } else {
