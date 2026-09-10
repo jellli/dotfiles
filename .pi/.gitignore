@@ -2,6 +2,9 @@
 /agent/sessions/
 node_modules/
 /agent/auth.json
+/agent/brave-search/
+/agent/cache/
+/agent/trust.json
 tsconfig.json
 !agent/extensions/codegraph/tsconfig.json
 

@@ -1,0 +1,10 @@
+{
+  "name": "brave-search",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Brave Search web tool for pi",
+  "dependencies": {
+    "undici": "8.9.0"
+  }
+}
