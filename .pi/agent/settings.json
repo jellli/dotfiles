@@ -11,7 +11,8 @@
     "npm:@juicesharp/rpiv-ask-user-question",
     "-npm:pi-mcp-adapter",
     "npm:pi-blackhole",
-    "npm:pi-rtk-optimizer"
+    "npm:pi-rtk-optimizer",
+    "npm:@ff-labs/pi-fff"
   ],
   "skills": [
     "-skills/caveman-commit/SKILL.md",

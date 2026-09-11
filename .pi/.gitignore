@@ -12,3 +12,6 @@ tsconfig.json
 /agent/pi-hermes-memory/
 /agent/projects-memory/
 /agent/pi-blackhole/
+
+# FFF search data (LMDB frecency/history, machine-local)
+/agent/fff/
