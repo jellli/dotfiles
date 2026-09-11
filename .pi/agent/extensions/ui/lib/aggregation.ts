@@ -65,6 +65,10 @@ type Entry = {
   isError: boolean;
   group: Group;
   invalidate?: () => void;
+  // A card redraws on every input event, so the derived lines are cached against
+  // what they were derived from.
+  summary?: Memo<string>;
+  body?: Memo<string[]>;
 };
 
 type Group = {
@@ -84,6 +88,16 @@ const AGGREGATION_KEY = Symbol.for("dotfiles.pi-tool-aggregation");
 const globals = globalThis as unknown as { [key: symbol]: Store | undefined };
 const store: Store = (globals[AGGREGATION_KEY] ??= { entries: new Map() });
 
+/**
+ * Close the active group.
+ *
+ * The entries map is deliberately not pruned here. A settled entry stays
+ * reachable from its group component anyway, so dropping the map slot frees
+ * nothing - and the host re-invokes renderCall on every updateDisplay (a resize,
+ * an expand, any invalidation). An id that is missing from the map registers a
+ * second time, which rebuilds the closed group as a fresh single-call card and
+ * loses the rows already drawn. See test/aggregation.test.mjs.
+ */
 function closeAggregation(): void {
   if (!store.active) return;
   store.active.closed = true;
@@ -189,6 +203,49 @@ function bodyLines(entry: Entry, theme: AnyTheme, width: number): string[] {
     );
 }
 
+/** A derived line, kept until the output, theme, or width it came from changes. */
+type Memo<T> = { output: string; theme: AnyTheme; width: number; value: T };
+
+function refresh<T>(
+  memo: Memo<T> | undefined,
+  entry: Entry,
+  theme: AnyTheme,
+  width: number,
+  compute: () => T,
+): Memo<T> {
+  if (
+    memo &&
+    memo.output === entry.output &&
+    memo.theme === theme &&
+    memo.width === width
+  ) {
+    return memo;
+  }
+  return { output: entry.output, theme, width, value: compute() };
+}
+
+function cachedBody(entry: Entry, theme: AnyTheme, width: number): string[] {
+  entry.body = refresh(entry.body, entry, theme, width, () =>
+    bodyLines(entry, theme, width),
+  );
+  return entry.body.value;
+}
+
+function cachedSummary(
+  entry: Entry,
+  theme: AnyTheme,
+  width: number,
+  summary: (output: string, theme: AnyTheme) => string,
+): string {
+  entry.summary = refresh(entry.summary, entry, theme, width, () =>
+    summary(entry.output, theme),
+  );
+  return entry.summary.value;
+}
+
+const plainSummary = (output: string, theme: AnyTheme): string =>
+  theme.fg("toolOutput", output);
+
 class GroupComponent implements Component {
   constructor(
     private entry: Entry,
@@ -245,11 +302,14 @@ class GroupComponent implements Component {
           ),
         );
       } else if (group.expanded) {
-        lines.push(...bodyLines(entry, this.theme, width));
+        lines.push(...cachedBody(entry, this.theme, width));
       } else if (entry.output) {
-        const content =
-          this.summary?.(entry.output, this.theme) ??
-          this.theme.fg("toolOutput", entry.output);
+        const content = cachedSummary(
+          entry,
+          this.theme,
+          width,
+          this.summary ?? plainSummary,
+        );
         lines.push(fitLine(resultLine(this.theme, content), width, "", 0));
       }
       return lines;
@@ -287,7 +347,7 @@ class GroupComponent implements Component {
           ),
         );
       } else if (group.expanded) {
-        lines.push(...bodyLines(entry, this.theme, width));
+        lines.push(...cachedBody(entry, this.theme, width));
       }
     });
     return lines;

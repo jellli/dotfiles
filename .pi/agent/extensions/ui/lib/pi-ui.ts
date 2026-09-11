@@ -109,7 +109,9 @@ export function resultLine(
 // loading without any positional motion, so it never blends into the
 // box-drawing characters around it.
 export const SPINNER_FRAMES = ["●", "●", "•", "•"];
-const SPINNER_INTERVAL_MS = 80;
+// The breathing dot is four frames; 140ms is still smooth, and each tick costs
+// a full re-render of the transcript.
+const SPINNER_INTERVAL_MS = 140;
 
 export type SpinnerState = {
   timer?: ReturnType<typeof setInterval>;

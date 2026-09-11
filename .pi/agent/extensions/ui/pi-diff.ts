@@ -4,7 +4,7 @@ import {
   diffLines,
   diffWordsWithSpace,
 } from "../../npm/node_modules/diff/libesm/index.js";
-import { createHighlighter } from "../../npm/node_modules/shiki/dist/index.mjs";
+import type { createHighlighter } from "../../npm/node_modules/shiki/dist/index.mjs";
 import {
   createEditToolDefinition,
   createWriteToolDefinition,
@@ -42,7 +42,8 @@ type Capture = { oldText: string; newText: string };
 type DiffState = {
   capture?: Capture;
   rows?: DiffRow[];
-  highlighted?: string[];
+  /** Highlighted lines by row index: only the rows the view has drawn. */
+  highlighted?: Map<number, string>;
   highlightPending?: boolean;
   stats?: string;
   totalLines?: number;
@@ -88,6 +89,10 @@ type DiffColors = {
 };
 
 const COLLAPSED_DIFF_LINES = 8;
+/** Rows tokenized per pass: the expanded view fills in, chunk by chunk. */
+const HIGHLIGHT_CHUNK = 500;
+/** Above this many lines a whole-file capture is not worth its row objects. */
+const MAX_CAPTURE_LINES = 20_000;
 const SPLIT_MIN_WIDTH = 150;
 const DIM = "\x1b[2m";
 const RST = "\x1b[0m";
@@ -101,23 +106,38 @@ const captures =
   globalState[CAPTURE_REGISTRY] ?? (globalState[CAPTURE_REGISTRY] = new Map());
 const SHIKI_THEME = "gruvbox-dark-medium";
 const highlightedTokens = new Map<string, Promise<HighlightToken[]>>();
-let highlighterPromise: ReturnType<typeof createHighlighter> | undefined;
+// Every distinct line of every diff and every bash command lands here, so the
+// cache is bounded instead of growing for the whole session.
+const TOKEN_CACHE_LIMIT = 4000;
+type Highlighter = Awaited<ReturnType<typeof createHighlighter>>;
+let highlighterPromise: Promise<Highlighter> | undefined;
 
-function getHighlighter(): ReturnType<typeof createHighlighter> {
-  return (highlighterPromise ??= createHighlighter({
-    themes: [SHIKI_THEME],
-    langs: [
-      "typescript",
-      "tsx",
-      "javascript",
-      "jsx",
-      "json",
-      "markdown",
-      "bash",
-      "python",
-      "text",
-    ],
-  }));
+/** Shiki is imported on first use: the module graph is large, and a session
+ * that never edits a file never needs it. */
+function getHighlighter(): Promise<Highlighter> {
+  return (highlighterPromise ??=
+    import("../../npm/node_modules/shiki/dist/index.mjs")
+      .catch((error: unknown) => {
+        // Do not cache the failure: the next diff gets its own attempt.
+        highlighterPromise = undefined;
+        throw error;
+      })
+      .then((shiki) =>
+        shiki.createHighlighter({
+          themes: [SHIKI_THEME],
+          langs: [
+            "typescript",
+            "tsx",
+            "javascript",
+            "jsx",
+            "json",
+            "markdown",
+            "bash",
+            "python",
+            "text",
+          ],
+        }),
+      ));
 }
 
 const LANGUAGE_BY_EXTENSION: Record<string, Language> = {
@@ -138,6 +158,20 @@ const LANGUAGE_BY_EXTENSION: Record<string, Language> = {
 function stringArg(args: ToolArgs, key: string, fallback = ""): string {
   const value = args[key];
   return typeof value === "string" ? value : fallback;
+}
+
+/** Line count without splitting the text into an array. */
+function lineCount(text: string): number {
+  if (text === "") return 0;
+  let count = 1;
+  for (
+    let index = text.indexOf("\n");
+    index !== -1;
+    index = text.indexOf("\n", index + 1)
+  ) {
+    count += 1;
+  }
+  return count;
 }
 
 function normalize(text: string): string {
@@ -362,6 +396,7 @@ async function highlightTokens(
       }));
     })
     .catch(() => [{ content: text }]);
+  if (highlightedTokens.size >= TOKEN_CACHE_LIMIT) highlightedTokens.clear();
   highlightedTokens.set(key, pending);
   return pending;
 }
@@ -387,8 +422,9 @@ async function highlightCode(
   row: DiffRow,
   language: Language,
   colors: DiffColors,
+  tokenize: DiffTokenizer,
 ): Promise<string> {
-  const tokens = await highlightTokens(row.text, language);
+  const tokens = await tokenize(row.text, language);
   const wordBg =
     row.kind === "add"
       ? colors.bgAddW
@@ -443,14 +479,17 @@ async function highlightCode(
   return output.join("");
 }
 
-async function highlightAll(
-  rows: DiffRow[],
-  path: string,
-  colors: DiffColors,
-): Promise<string[]> {
-  const language = languageFor(path);
-  return Promise.all(rows.map((row) => highlightCode(row, language, colors)));
-}
+/**
+ * Tokenizes one line of code. Injected so the diff card can be exercised without
+ * shiki: the running extension uses the default.
+ */
+export type DiffTokenizer = (
+  text: string,
+  language: Language,
+) => Promise<HighlightToken[]>;
+
+const shikiTokenizer: DiffTokenizer = (text, language) =>
+  highlightTokens(text, language);
 
 // ---------------------------------------------------------------------------
 // Layout — fully synchronous: consumes already-highlighted code + palette
@@ -493,7 +532,7 @@ function bodyBgFor(row: DiffRow | undefined, colors: DiffColors): string {
 
 function renderUnifiedLayout(
   rows: DiffRow[],
-  code: string[],
+  code: ReadonlyMap<number, string>,
   start: number,
   width: number,
   colors: DiffColors,
@@ -502,7 +541,7 @@ function renderUnifiedLayout(
   const output: string[] = [];
   for (let index = 0; index < rows.length; index++) {
     const row = rows[index];
-    const highlighted = code[start + index] ?? row.text;
+    const highlighted = code.get(start + index) ?? row.text;
     const gutter = gutterFor(row, numberWidth, colors);
     const bodyBg = bodyBgFor(row, colors);
     const contentW = Math.max(1, width - visibleWidth(gutter));
@@ -520,7 +559,7 @@ function renderUnifiedLayout(
 
 function renderSplitLayout(
   rows: DiffRow[],
-  code: string[],
+  code: ReadonlyMap<number, string>,
   start: number,
   width: number,
   colors: DiffColors,
@@ -537,7 +576,7 @@ function renderSplitLayout(
     indexInCode: number,
   ): string {
     if (!row) return " ".repeat(isLeft ? leftWidth : rightWidth);
-    const highlighted = code[indexInCode] ?? row.text;
+    const highlighted = code.get(indexInCode) ?? row.text;
     const gutter = gutterFor(row, numberWidth, colors);
     const bodyBg = bodyBgFor(row, colors);
     const halfW = isLeft ? leftWidth : rightWidth;
@@ -637,20 +676,22 @@ class MutationDiffViewer implements Component {
   private theme!: RenderResultTheme;
   private colors!: DiffColors;
   private expanded = false;
+  private readonly tokenize!: DiffTokenizer;
 
   constructor(
     state: DiffState,
     path: string,
     theme: RenderResultTheme,
     expanded: boolean,
+    tokenize: DiffTokenizer,
   ) {
     this.state = state;
     this.path = path;
     this.theme = theme;
     this.colors = resolveDiffColors(theme);
     this.expanded = expanded;
+    this.tokenize = tokenize;
     this.ensureSource();
-    this.kickHighlight();
   }
 
   setExpanded(expanded: boolean): void {
@@ -692,20 +733,46 @@ class MutationDiffViewer implements Component {
     this.state.totalLines = this.state.rows.length;
   }
 
-  private kickHighlight(): void {
+  private highlighted(): Map<number, string> {
+    return (this.state.highlighted ??= new Map());
+  }
+
+  /**
+   * Tokenize the lines this window is about to draw, in bounded chunks.
+   *
+   * The card draws a handful of lines out of a file of any size, so highlighting
+   * the whole diff costs seconds on a large file (measured at ~0.3ms per line).
+   * Lines that have not arrived yet render as plain text.
+   */
+  private fillWindow(window: DiffWindow): void {
     const rows = this.state.rows;
-    if (
-      !rows ||
-      rows.length === 0 ||
-      this.state.highlighted !== undefined ||
-      this.state.highlightPending
-    )
-      return;
+    if (!rows || rows.length === 0 || this.state.highlightPending) return;
+
+    const code = this.highlighted();
+    const missing: number[] = [];
+    const end = window.start + window.rows.length;
+    for (let index = window.start; index < end; index += 1) {
+      if (!code.has(index)) missing.push(index);
+    }
+    if (missing.length === 0) return;
+
+    const batch = missing.slice(0, HIGHLIGHT_CHUNK);
+    const language = languageFor(this.path);
     this.state.highlightPending = true;
-    highlightAll(rows, this.path, this.colors)
-      .then((highlighted) => {
-        if (this.state.highlighted !== undefined) return;
-        this.state.highlighted = highlighted;
+    Promise.all(
+      batch.map((index) =>
+        rows[index]
+          ? highlightCode(rows[index], language, this.colors, this.tokenize)
+          : Promise.resolve(""),
+      ),
+    )
+      .then((lines) => {
+        batch.forEach((index, position) => code.set(index, lines[position]));
+        this.state.invalidate?.();
+      })
+      .catch(() => {
+        // A failing tokenizer must not retry on every frame: show plain text.
+        for (const index of batch) code.set(index, rows[index]?.text ?? "");
         this.state.invalidate?.();
       })
       .finally(() => {
@@ -728,24 +795,27 @@ class MutationDiffViewer implements Component {
     if (!rows.some((row) => row.kind !== "context")) {
       return [this.theme.fg("muted", "No changes")];
     }
-    if (this.state.highlighted === undefined) {
-      return [this.theme.fg("muted", "Rendering diff...")];
-    }
     const window = this.expanded
       ? { rows, start: 0 }
       : selectCollapsedRows(rows, COLLAPSED_DIFF_LINES);
+    this.fillWindow(window);
+
+    const code = this.highlighted();
+    if (code.size === 0) {
+      return [this.theme.fg("muted", "Rendering diff...")];
+    }
     const rendered =
       innerWidth >= SPLIT_MIN_WIDTH
         ? renderSplitLayout(
             window.rows,
-            this.state.highlighted,
+            code,
             window.start,
             innerWidth,
             this.colors,
           )
         : renderUnifiedLayout(
             window.rows,
-            this.state.highlighted,
+            code,
             window.start,
             innerWidth,
             this.colors,
@@ -756,6 +826,25 @@ class MutationDiffViewer implements Component {
         : [];
     return [...prefix, ...rendered];
   }
+}
+
+/** The diff card as the host sees it: a component that follows the expand key. */
+export type DiffViewer = Component & { setExpanded(expanded: boolean): void };
+
+export function createDiffViewer(options: {
+  state: DiffState;
+  path: string;
+  theme: RenderResultTheme;
+  expanded: boolean;
+  tokenize?: DiffTokenizer;
+}): DiffViewer {
+  return new MutationDiffViewer(
+    options.state,
+    options.path,
+    options.theme,
+    options.expanded,
+    options.tokenize ?? shikiTokenizer,
+  );
 }
 
 function styleStats(rows: DiffRow[], theme: RenderResultTheme): string {
@@ -806,6 +895,7 @@ function header(
 function wrapMutation<T extends ToolDefinition<any, any, any>>(
   tool: T,
   cwd: string,
+  tokenize: DiffTokenizer,
 ): T {
   const originalExecute = tool.execute;
   return {
@@ -829,7 +919,16 @@ function wrapMutation<T extends ToolDefinition<any, any, any>>(
         context as never,
       );
       const newText = await readText(path);
-      captures.set(toolCallId, { oldText, newText });
+
+      // A whole-file diff costs one row object per line. When the tool reports a
+      // bounded diff of its own, a huge file uses that instead; without one
+      // (write) the capture is the only source of a diff, so it is kept.
+      const tooLarge =
+        lineCount(oldText) > MAX_CAPTURE_LINES ||
+        lineCount(newText) > MAX_CAPTURE_LINES;
+      if (!tooLarge || resultDiff(result?.details) === undefined) {
+        captures.set(toolCallId, { oldText, newText });
+      }
       return result;
     },
     renderCall(args: ToolArgs, theme: Theme, context: RenderContext) {
@@ -851,6 +950,9 @@ function wrapMutation<T extends ToolDefinition<any, any, any>>(
     ) {
       if (options.isPartial) return context.lastComponent ?? new Text("", 0, 0);
       if (context.isError) {
+        // The card will not draw a diff for a failed call, so the capture is
+        // dead weight from here on.
+        captures.delete(context.toolCallId);
         const message =
           result.content?.find((item) => item.type === "text")?.text ??
           "Tool failed";
@@ -865,8 +967,10 @@ function wrapMutation<T extends ToolDefinition<any, any, any>>(
       state.capture ??= captures.get(context.toolCallId);
       if (!state.capture && state.rows === undefined) {
         const nativeDiff = resultDiff(result.details);
-        if (nativeDiff !== undefined)
+        if (nativeDiff !== undefined) {
           state.rows = addWordRanges(parseDisplayDiff(nativeDiff));
+          state.totalLines = state.rows.length;
+        }
       }
       const pathArg =
         context.args && typeof context.args === "object"
@@ -875,12 +979,13 @@ function wrapMutation<T extends ToolDefinition<any, any, any>>(
       const component =
         context.lastComponent instanceof MutationDiffViewer
           ? context.lastComponent
-          : new MutationDiffViewer(
+          : createDiffViewer({
               state,
-              stringArg(pathArg, "path", "<missing path>"),
+              path: stringArg(pathArg, "path", "<missing path>"),
               theme,
-              options.expanded,
-            );
+              expanded: options.expanded,
+              tokenize,
+            });
       component.setExpanded(options.expanded);
       captures.delete(context.toolCallId);
       return component;
@@ -888,8 +993,13 @@ function wrapMutation<T extends ToolDefinition<any, any, any>>(
   } as T;
 }
 
-export function registerPiDiff(pi: ExtensionAPI): void {
+export function registerPiDiff(
+  pi: ExtensionAPI,
+  options: { tokenize?: DiffTokenizer } = {},
+): void {
   const cwd = process.cwd();
-  pi.registerTool(wrapMutation(createEditToolDefinition(cwd), cwd));
-  pi.registerTool(wrapMutation(createWriteToolDefinition(cwd), cwd));
+  const tokenize = options.tokenize ?? shikiTokenizer;
+  pi.registerTool(wrapMutation(createEditToolDefinition(cwd), cwd, tokenize));
+  pi.registerTool(wrapMutation(createWriteToolDefinition(cwd), cwd, tokenize));
+  pi.on("session_shutdown", () => captures.clear());
 }

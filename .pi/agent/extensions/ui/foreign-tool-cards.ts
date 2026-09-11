@@ -22,7 +22,7 @@
 import { readFileSync, readdirSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type {
   ExtensionAPI,
@@ -344,11 +344,15 @@ export function outputSummary(output: string, theme: AnyTheme): string {
  * Background colors off: a third-party card paints its own backgrounds (fabric's
  * tool-call background and diff highlighting). The local card has none, so the
  * SGR background parameters are dropped and the foreground stays.
+ *
+ * A bare `\x1b[m` is a reset, not a background: it is kept, because dropping it
+ * lets the colors it clears leak into every following line.
  */
-export function stripBackground(text: string): string {
+function stripBackgroundUncached(text: string): string {
   return text.replace(/\x1b\[([0-9;]*)m/g, (_match, params: string) => {
-    const kept: string[] = [];
     const parts = params.split(";").filter((part) => part !== "");
+    if (parts.length === 0) return "\x1b[m";
+    const kept: string[] = [];
     for (let index = 0; index < parts.length; index += 1) {
       const code = Number(parts[index]);
       if (code === 48) {
@@ -364,6 +368,22 @@ export function stripBackground(text: string): string {
     }
     return kept.length > 0 ? `\x1b[${kept.join(";")}m` : "";
   });
+}
+
+// Stripping runs on every re-render, for every line of every foreign card, and
+// the same lines come back frame after frame.
+const STRIP_CACHE_LIMIT = 2000;
+const stripCache = new Map<string, string>();
+
+/** Strip backgrounds from one rendered line, memoized across re-renders. */
+export function stripBackground(text: string): string {
+  const cached = stripCache.get(text);
+  if (cached !== undefined) return cached;
+
+  const stripped = stripBackgroundUncached(text);
+  if (stripCache.size >= STRIP_CACHE_LIMIT) stripCache.clear();
+  stripCache.set(text, stripped);
+  return stripped;
 }
 
 /**
@@ -606,8 +626,15 @@ function isOwnTool(
   const path = tool.sourceInfo?.path;
   if (typeof path !== "string" || path === "") return false;
   return [path, safeRealPath(path)].some((candidate) =>
-    ownRoots.some((root) => candidate.startsWith(root)),
+    ownRoots.some((root) => isInside(candidate, root)),
   );
+}
+
+/** Path containment on segment boundaries: `/x/ui-extra` is not inside `/x/ui`. */
+function isInside(path: string, root: string): boolean {
+  if (path === root) return true;
+  const prefix = root.endsWith(sep) ? root : `${root}${sep}`;
+  return path.startsWith(prefix);
 }
 
 function safeRealPath(path: string): string {
