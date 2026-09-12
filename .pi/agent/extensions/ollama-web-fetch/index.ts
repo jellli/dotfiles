@@ -1,10 +1,10 @@
 /**
  * ollama_web_fetch for pi — local extension, decoupled from pi-ollama-cloud.
  *
- * Same API contract as the upstream tool (url/offset/full/refresh params,
- * disk cache with 24h success / 15min failure TTL at the same path) but the
- * tool card is rendered in the local card language (see CONTEXT.md) and
- * `ollama_web_search` is gone — brave_web_search covers search.
+ * Same API contract as the upstream tool (url/offset/full/refresh params, disk
+ * cache with 24h success / 15min failure TTL at the same path) but the tool card
+ * is a Card spec (see CONTEXT.md) and `ollama_web_search` is gone —
+ * brave_web_search covers search.
  *
  * The tool definition is exposed as a factory (`createWebFetchTool`) so tests
  * can drive execute() with an injected cache store and a stubbed fetch.
@@ -12,9 +12,7 @@
 import type {
   AgentToolResult,
   ExtensionAPI,
-  ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import {
   CACHE_TTL_MS,
@@ -30,20 +28,8 @@ import {
   getCloudApiKey,
   httpError,
 } from "./utils";
-import {
-  spinnerChar,
-  syncSpinner,
-  type SpinnerState,
-} from "../card/spinner.js";
-import {
-  bracketDetail,
-  errorPreviewLine,
-  resultLine,
-  shorten,
-  textOutput,
-  toolHeader,
-  type UiTheme,
-} from "../card/text.js";
+import { shorten } from "../card/text.js";
+import { toolCard, type CardSpec } from "../card/tool-card.js";
 
 const WEB_TOOLS_TIMEOUT_MS = 15000;
 // Fetch chunks are capped so a single call never floods the context window;
@@ -53,7 +39,7 @@ const SUCCESS_TTL_HOURS = CACHE_TTL_MS / 3_600_000;
 const FAIL_TTL_MINUTES = Math.round(FAIL_TTL_MS / 60_000);
 const OLLAMA_BASE = "https://ollama.com";
 
-// --- Card renderers (tool-card language from extensions/ui, see CONTEXT.md) ---
+// --- Card spec (tool-card language from agent/extensions/card) ---
 
 interface FetchDetails {
   title?: string;
@@ -61,39 +47,29 @@ interface FetchDetails {
   links?: string[] | null;
 }
 
-type RenderArgs = Record<string, unknown>;
+/** First line of the tool's text output; the summary reads title and size back. */
+const FETCH_HEADER = /^Title: (.*) \((\d+) chars total\)$/;
 
-type RenderTheme = Parameters<
-  NonNullable<ToolDefinition<any, any, any>["renderCall"]>
->[1];
-type RenderContext = Parameters<
-  NonNullable<ToolDefinition<any, any, any>["renderCall"]>
->[2];
-type RenderResultOptions = Parameters<
-  NonNullable<ToolDefinition<any, any, any>["renderResult"]>
->[1];
-
-type ToolResult = {
-  content: Array<{ type: string; text?: string }>;
-  details?: FetchDetails;
+/**
+ * What the card hands the Frame: the URL in the header, and the result line
+ * derived from the text the tool returns. The badge, the `└─ ` line, the error
+ * preview, the expansion, the spinner, and the group belong to the Frame.
+ */
+export const webFetchSpec: CardSpec = {
+  detail: (args, theme) => {
+    const url = typeof args.url === "string" ? args.url : "";
+    return theme.fg("toolOutput", shorten(url));
+  },
+  summary: (output, theme) => {
+    const match = (output.split("\n")[0] ?? "").match(FETCH_HEADER);
+    if (!match) return theme.fg("muted", "done");
+    const title = match[1].trim();
+    return theme.fg(
+      "muted",
+      title ? `${title} · ${match[2]} chars` : `${match[2]} chars`,
+    );
+  },
 };
-
-/** Header detail: the target URL, e.g. `[https://example.com/page]`. */
-function fetchCallText(args: RenderArgs, theme: UiTheme): string {
-  const url = typeof args.url === "string" ? args.url : "";
-  return bracketDetail(theme, theme.fg("toolOutput", shorten(url)));
-}
-
-/** Muted one-line summary on the result line, e.g. `Example Page · 6000 chars · cached`. */
-function fetchSummary(result: ToolResult, theme: UiTheme): string {
-  const details = result.details;
-  const parts: string[] = [];
-  if (details?.title) parts.push(details.title);
-  if (details?.totalChars !== undefined)
-    parts.push(`${details.totalChars} chars`);
-  if (parts.length === 0) return theme.fg("muted", "done");
-  return theme.fg("muted", parts.join(" · "));
-}
 
 interface FetchResponse {
   title: string;
@@ -323,59 +299,9 @@ export function createWebFetchTool(options: WebFetchToolOptions = {}) {
         } satisfies FetchDetails,
       } satisfies AgentToolResult<FetchDetails>;
     },
-
-    // Self-rendering card, same shape as the brave_web_search card: badge
-    // header, `└─ ` result line, muted summary collapsed, full output on
-    // expand, first-line error preview on failure.
-    renderShell: "self" as const,
-    renderCall(args: RenderArgs, theme: RenderTheme, context: RenderContext) {
-      const text =
-        (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-      const spinner = context.state as SpinnerState;
-      syncSpinner(spinner, context.isPartial, context.invalidate);
-      const lines = [
-        toolHeader(
-          theme as UiTheme,
-          "ollama_web_fetch",
-          fetchCallText(args, theme as UiTheme),
-        ),
-      ];
-      if (context.isPartial) {
-        lines.push(
-          resultLine(theme as UiTheme, theme.fg("muted", spinnerChar(spinner))),
-        );
-      }
-      text.setText(lines.join("\n"));
-      return text;
-    },
-    renderResult(
-      result: ToolResult,
-      options: RenderResultOptions,
-      theme: RenderTheme,
-      context: RenderContext,
-    ) {
-      const text =
-        (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-      const output = textOutput(result);
-      const t = theme as UiTheme;
-
-      // While streaming the header carries the spinner; once settled show the
-      // outcome: muted summary collapsed, full output on expand, error preview
-      // on failure.
-      if (options.isPartial || !output) {
-        text.setText("");
-      } else if (context.isError) {
-        text.setText(errorPreviewLine(t, output, options.expanded));
-      } else if (options.expanded) {
-        text.setText(t.fg("toolOutput", output));
-      } else {
-        text.setText(resultLine(t, fetchSummary(result, t)));
-      }
-      return text;
-    },
   };
 }
 
 export default function (pi: ExtensionAPI) {
-  pi.registerTool(createWebFetchTool());
+  pi.registerTool(toolCard(pi, createWebFetchTool(), webFetchSpec));
 }

@@ -396,6 +396,19 @@ assert.ok(
   "a body card draws one card per call, never a group",
 );
 
+const listing = mod.toolCard(pi, tool("listing"), {
+  detail: () => "ls",
+  body: () => ["first row", "second row"],
+});
+const listingRow = hostRow("listing-1", {});
+listingRow.call(listing);
+listingRow.result(listing, text(""));
+assert.deepEqual(
+  frame(listing, listingRow),
+  [" LISTING  [ls]", " └─ first row", "    second row"],
+  "a block that is not a box keeps the connector's space, and lines up under it",
+);
+
 assert.throws(
   () => mod.toolCard(pi, tool("bash"), { body: () => [], aggregate: true }),
   /body with aggregate/,
@@ -481,6 +494,187 @@ assert.equal(
   "a settled call with no output draws nothing under the badge",
 );
 assert.ok(settled[0].includes("DERIVED_"), "and the badge is still there");
+
+// ---------------------------------------------------------------------------
+// A tool that draws its own card: the Frame derives a body for it
+// ---------------------------------------------------------------------------
+// A third-party definition owns its renderer. The Frame keeps the badge, the
+// header detail, the connector, and the fallback, and shows what the tool's own
+// component draws inside the result column.
+
+/** Stands in for a tool's own card: fixed rows, an invalidate of its own. */
+const ownCard = (rows) => ({ render: () => rows, invalidate() {} });
+
+/** A definition that draws its own card, the way a third-party package does. */
+const drawingTool = (name, renderCall, renderResult = renderCall) => ({
+  ...tool(name),
+  renderShell: "self",
+  renderCall,
+  renderResult,
+});
+
+const painting = mod.toolCard(
+  pi,
+  drawingTool("mcp", () => ownCard(["child header", "child body"])),
+);
+const paintingRow = hostRow("mcp-1", { server: "figma", tool: "get_file" });
+assert.deepEqual(
+  frame(painting, paintingRow),
+  [" MCP  [figma]", " └─ child header", "    child body"],
+  "the tool's own rows draw in the result column under the Frame's connector",
+);
+
+// The Frame calls the tool's call renderer while the call runs and its result
+// renderer once it settles - never one for the other.
+const slots = mod.toolCard(
+  pi,
+  drawingTool(
+    "mcp_slots",
+    () => ownCard(["call card"]),
+    () => ownCard(["result card"]),
+  ),
+);
+const slotsRow = hostRow("mcp-slots-1", {});
+assert.equal(
+  frame(slots, slotsRow).at(-1),
+  " └─ call card",
+  "a running call draws the tool's own call component",
+);
+slotsRow.result(slots, text("one\ntwo"));
+assert.equal(
+  frame(slots, slotsRow).at(-1),
+  " └─ result card",
+  "a settled call draws the tool's own result component",
+);
+
+// Backgrounds are the only thing taken from the tool's own rows.
+const tinted = mod.toolCard(
+  pi,
+  drawingTool("mcp_tinted", () =>
+    ownCard(["\x1b[48;2;1;2;3m\x1b[38;2;4;5;6mtinted\x1b[39m\x1b[49m"]),
+  ),
+);
+const tintedRow = hostRow("mcp-tinted-1", {});
+const tintedLine = tintedRow.call(tinted).render(80)[1];
+assert.equal(
+  plain(tintedLine),
+  " └─ tinted",
+  "the tool's row is drawn as it is",
+);
+assert.ok(!tintedLine.includes("\x1b[48;"), "its background is dropped");
+assert.ok(
+  tintedLine.includes("\x1b[38;2;4;5;6m"),
+  "and its foreground survives",
+);
+
+// A renderer with nothing to draw leaves the Frame its own derivations.
+const blank = mod.toolCard(
+  pi,
+  drawingTool("mcp_blank", () => ownCard([])),
+);
+const blankRow = hostRow("mcp-blank-1", {});
+assert.deepEqual(
+  frame(blank, blankRow),
+  [" MCP_BLANK", " └─ ●"],
+  "an empty own card leaves the Frame's spinner while the call runs",
+);
+blankRow.result(blank, text("one\ntwo"));
+assert.deepEqual(
+  frame(blank, blankRow),
+  [" MCP_BLANK", " └─ 2 lines"],
+  "the Frame's summary once it settles",
+);
+blankRow.result(blank, text("boom\nsecond line"), { isError: true });
+assert.equal(
+  frame(blank, blankRow).at(-1),
+  " └─ boom ...",
+  "and the error preview when it failed",
+);
+assert.deepEqual(
+  frame(blank, blankRow)
+    .slice(1)
+    .map((line) => line.trimEnd()),
+  [" └─ boom ..."],
+  "so an empty body never doubles the Frame's own result line",
+);
+
+const okRow = hostRow("mcp-blank-2", {});
+okRow.call(blank);
+okRow.result(blank, text("ok"));
+assert.equal(
+  frame(blank, okRow).at(-1),
+  " └─ ok",
+  "a single-line output shows itself on the result line",
+);
+
+// The tool's own folding stays its own: the real expanded state reaches it, and
+// the row hands its component back as `lastComponent` so its state survives.
+let seenCallExpanded;
+let seenResultOptions;
+const seenComponents = [];
+const folding = mod.toolCard(
+  pi,
+  drawingTool(
+    "mcp_folding",
+    (_args, _theme, renderContext) => {
+      seenCallExpanded = renderContext.expanded;
+      const component = renderContext.lastComponent ?? ownCard(["call"]);
+      seenComponents.push(component);
+      return component;
+    },
+    (_result, options, _theme, renderContext) => {
+      seenResultOptions = options;
+      return renderContext.lastComponent ?? ownCard(["result"]);
+    },
+  ),
+);
+const foldingRow = hostRow("mcp-folding-1", {});
+frame(folding, foldingRow);
+assert.equal(
+  seenCallExpanded,
+  false,
+  "collapsed state reaches the tool's call renderer",
+);
+foldingRow.expanded = true;
+frame(folding, foldingRow);
+assert.equal(
+  seenCallExpanded,
+  true,
+  "expanded state reaches the tool's call renderer",
+);
+foldingRow.result(folding, text("x"), { expanded: true });
+frame(folding, foldingRow);
+assert.deepEqual(
+  seenResultOptions,
+  { isPartial: false, expanded: true },
+  "the tool's result renderer gets the real options",
+);
+assert.equal(
+  seenComponents[0],
+  seenComponents.at(-1),
+  "the row hands the tool's own component back as lastComponent",
+);
+
+// A third-party renderer that invalidates while drawing cannot drive the Frame:
+// re-running this render from inside it would never settle.
+let ownRenders = 0;
+const stormy = mod.toolCard(
+  pi,
+  drawingTool("mcp_storm", (_args, _theme, renderContext) => {
+    ownRenders += 1;
+    renderContext.invalidate();
+    return ownCard(["row"]);
+  }),
+);
+const stormRow = hostRow("mcp-storm-1", {});
+frame(stormy, stormRow);
+frame(stormy, stormRow);
+assert.equal(ownRenders, 2, "the tool's renderer ran on both frames");
+assert.equal(
+  stormRow.invalidations,
+  0,
+  "and never reached the host's invalidate, so the Frame cannot re-enter",
+);
 
 // ---------------------------------------------------------------------------
 // The memos
@@ -805,5 +999,84 @@ try {
 } finally {
   Date.now = realNow;
 }
+
+// ---------------------------------------------------------------------------
+// The web cards the extension ships
+// ---------------------------------------------------------------------------
+// brave-search and ollama-web-fetch hand the Frame a `detail` and a `summary`;
+// the badge, the result line, the spinner, and the expansion are the Frame's.
+
+const brave = await jiti(join(extensionsDir, "brave-search/index.ts"));
+const webFetch = await jiti(join(extensionsDir, "ollama-web-fetch/index.ts"));
+
+const braveCard = mod.toolCard(
+  pi,
+  tool("brave_web_search"),
+  brave.braveSearchSpec,
+);
+const search = hostRow("brave-1", { query: "pi coding agent", count: 5 });
+assert.deepEqual(
+  frame(braveCard, search),
+  [' BRAVE_WEB_SEARCH  ["pi coding agent" (count 5)]', " └─ ●"],
+  "the shipped search card brackets the query and shows the Frame's spinner",
+);
+
+// The header the summary parses is the text the tool itself formats.
+const searchText = (results, fromCache) =>
+  brave.formatResults("pi coding agent", results, fromCache).content[0].text;
+search.result(
+  braveCard,
+  text(searchText([{ title: "a", url: "u", description: "d" }], false)),
+);
+assert.equal(
+  frame(braveCard, search).at(-1),
+  " └─ 1 result",
+  "the search card counts its results on the result line",
+);
+
+events.agent_start();
+const cachedSearch = hostRow("brave-2", { query: "cached query", count: 5 });
+cachedSearch.call(braveCard);
+cachedSearch.result(
+  braveCard,
+  text(
+    searchText(
+      [
+        { title: "a", url: "u", description: "d" },
+        { title: "b", url: "u2", description: "d2" },
+      ],
+      true,
+    ),
+  ),
+);
+assert.equal(
+  frame(braveCard, cachedSearch).at(-1),
+  " └─ 2 results · cached",
+  "and marks a result served from the cache",
+);
+
+const fetchCard = mod.toolCard(
+  pi,
+  tool("ollama_web_fetch"),
+  webFetch.webFetchSpec,
+);
+events.agent_start();
+const page = hostRow("webfetch-1", { url: "https://example.com/page" });
+assert.deepEqual(
+  frame(fetchCard, page),
+  [" OLLAMA_WEB_FETCH  [https://example.com/page]", " └─ ●"],
+  "the shipped fetch card brackets the URL",
+);
+page.result(
+  fetchCard,
+  text(
+    "Title: Example Page (6000 chars total)\n\nChars 1-3000 of 6000 (3000 remaining):\nhello\n\n# live query",
+  ),
+);
+assert.equal(
+  frame(fetchCard, page).at(-1),
+  " └─ Example Page · 6000 chars",
+  "the fetch card reports the page title and its size on the result line",
+);
 
 console.log("tool-card: ok");

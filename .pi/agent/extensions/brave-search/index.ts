@@ -10,37 +10,19 @@
  *   ~/.pi/agent/brave-search/auth.json   { "apiKey": "<subscription token>" }
  *
  * The card presentation follows the tool-card language defined by
- * agent/extensions/card/ (see CONTEXT.md): badge header, `└─ ` result line with
- * a muted summary when collapsed, full output on expand. Helpers are imported
- * from ../card/text.js so the cards stay visually identical; keep the two
- * extensions in sync.
+ * agent/extensions/card/ (see CONTEXT.md): a Card spec gives the query for the
+ * header and a muted result line; the badge, the result line, the error
+ * preview, the expansion, and the spinner are the Frame's.
  */
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import {
-  type AgentToolResult,
-  type ExtensionAPI,
-  type ToolDefinition,
-} from "@earendil-works/pi-coding-agent";
-import { Text } from "@earendil-works/pi-tui";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import type { Dispatcher } from "undici";
-import {
-  spinnerChar,
-  syncSpinner,
-  type SpinnerState,
-} from "../card/spinner.js";
-import {
-  bracketDetail,
-  errorPreviewLine,
-  resultLine,
-  shorten,
-  textOutput,
-  toolHeader,
-  type UiTheme,
-} from "../card/text.js";
+import { shorten } from "../card/text.js";
+import { toolCard, type CardSpec } from "../card/tool-card.js";
 
 const BRAVE_BASE = "https://api.search.brave.com/res/v1/web/search";
 const AUTH_PATH = join(homedir(), ".pi", "agent", "brave-search", "auth.json");
@@ -117,42 +99,45 @@ interface BraveSearchResponse {
   };
 }
 
-// --- Card renderers (tool-card language from extensions/ui) ---
+// --- Card spec (tool-card language from agent/extensions/card) ---
 
-type RenderTheme = Parameters<
-  NonNullable<ToolDefinition<any, any, any>["renderCall"]>
->[1];
-type RenderContext = Parameters<
-  NonNullable<ToolDefinition<any, any, any>["renderCall"]>
->[2];
-type RenderResultOptions = Parameters<
-  NonNullable<ToolDefinition<any, any, any>["renderResult"]>
->[1];
+/** First line of the tool's text output; the summary reads the count back out. */
+const RESULT_HEADER = /^Results for ".*?" \((\d+) results?(, cached)?\):$/;
 
-function searchCallText(args: Record<string, unknown>, theme: UiTheme): string {
-  const query = typeof args.query === "string" ? args.query : "";
-  const count = typeof args.count === "number" ? args.count : undefined;
-  let detail = `"${shorten(query, 48)}"`;
-  if (count !== undefined) detail += ` (count ${count})`;
-  return bracketDetail(theme, theme.fg("toolOutput", detail));
-}
-
-/** Muted one-line summary on the result line, e.g. `5 results · cached`. */
-function searchSummary(
-  result: AgentToolResult<BraveDetails>,
-  theme: UiTheme,
+/** Header line of the tool's own output, e.g. `Results for "pi" (5 results, cached):`. */
+function resultHeader(
+  query: string,
+  count: number,
+  fromCache: boolean,
 ): string {
-  const details = result.details;
-  const count = details?.results.length;
-  if (count === undefined) return theme.fg("muted", "done");
-  return theme.fg(
-    "muted",
-    `${count} results${details?.cached ? " · cached" : ""}`,
-  );
+  return `Results for "${query}" (${count} result${count === 1 ? "" : "s"}${fromCache ? ", cached" : ""}):`;
 }
+
+/**
+ * What the card hands the Frame: the query in the header, and the result line
+ * derived from the text the tool returns. The badge, the `└─ ` line, the error
+ * preview, the expansion, the spinner, and the group belong to the Frame.
+ */
+export const braveSearchSpec: CardSpec = {
+  detail: (args, theme) => {
+    const query = typeof args.query === "string" ? args.query : "";
+    const count = typeof args.count === "number" ? args.count : undefined;
+    let detail = `"${shorten(query, 48)}"`;
+    if (count !== undefined) detail += ` (count ${count})`;
+    return theme.fg("toolOutput", detail);
+  },
+  summary: (output, theme) => {
+    const match = (output.split("\n")[0] ?? "").match(RESULT_HEADER);
+    if (!match) return theme.fg("muted", "done");
+    return theme.fg(
+      "muted",
+      `${match[1]} result${match[1] === "1" ? "" : "s"}${match[2] ? " · cached" : ""}`,
+    );
+  },
+};
 
 export default function (pi: ExtensionAPI) {
-  pi.registerTool({
+  const definition = {
     name: "brave_web_search",
     label: "Brave Web Search",
     description:
@@ -172,7 +157,11 @@ export default function (pi: ExtensionAPI) {
         }),
       ),
     }),
-    async execute(_toolCallId, params, signal) {
+    async execute(
+      _toolCallId: string,
+      params: { query: string; count?: number },
+      signal?: AbortSignal,
+    ) {
       const apiKey = loadApiKey();
       if (!apiKey) {
         throw new Error(missingKeyMessage());
@@ -226,60 +215,11 @@ export default function (pi: ExtensionAPI) {
       cache.set(key, { ts: Date.now(), results });
       return formatResults(params.query, results, false);
     },
-
-    // Self-rendering card, same shape as the read/grep/find/ls cards in
-    // extensions/ui: badge header, `└─ ` result line, muted summary collapsed,
-    // full output on expand, first-line error preview.
-    renderShell: "self",
-    renderCall(args, theme, context) {
-      const text =
-        (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-      const spinner = context.state as SpinnerState;
-      syncSpinner(spinner, context.isPartial, context.invalidate);
-      const lines = [
-        toolHeader(
-          theme,
-          "brave_web_search",
-          searchCallText(args as Record<string, unknown>, theme as UiTheme),
-        ),
-      ];
-      if (context.isPartial) {
-        lines.push(resultLine(theme, theme.fg("muted", spinnerChar(spinner))));
-      }
-      text.setText(lines.join("\n"));
-      return text;
-    },
-    renderResult(result, options, theme, context) {
-      const text =
-        (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-      const output = textOutput(result);
-
-      // While streaming the header carries the spinner; once settled show the
-      // outcome: muted summary collapsed, full output on expand, error preview
-      // on failure.
-      if (options.isPartial || !output) {
-        text.setText("");
-      } else if (context.isError) {
-        text.setText(errorPreviewLine(theme, output, options.expanded));
-      } else if (options.expanded) {
-        text.setText(theme.fg("toolOutput", output));
-      } else {
-        text.setText(
-          resultLine(
-            theme,
-            searchSummary(
-              result as AgentToolResult<BraveDetails>,
-              theme as UiTheme,
-            ),
-          ),
-        );
-      }
-      return text;
-    },
-  });
+  };
+  pi.registerTool(toolCard(pi, definition, braveSearchSpec));
 }
 
-function formatResults(
+export function formatResults(
   query: string,
   results: BraveResult[],
   fromCache: boolean,
@@ -297,12 +237,11 @@ function formatResults(
     })
     .join("\n\n");
 
-  const source = fromCache ? "(cached)" : `(${results.length} results)`;
   return {
     content: [
       {
         type: "text",
-        text: `Results for "${query}" ${source}:\n\n${formatted || "No results found."}`,
+        text: `${resultHeader(query, results.length, fromCache)}\n\n${formatted || "No results found."}`,
       },
     ],
     details: { results, cached: fromCache || undefined },

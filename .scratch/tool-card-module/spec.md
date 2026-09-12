@@ -45,6 +45,6 @@ interface 形态由三份并行设计（最小 interface / 最大灵活性 / 最
 | --- | --- | --- | --- |
 | 01 | card library 与 Frame 核心 | — | done |
 | 02 | compact cards 改成 spec | 01 | done |
-| 03 | foreign card 收敛成一次调用 | 01 | ready-for-agent |
-| 04 | 外部调用方迁移（brave / ollama / todo） | 01 | ready-for-agent |
+| 03 | foreign card 收敛成一次调用 | 01 | done |
+| 04 | 外部调用方迁移（brave / ollama / todo） | 01 | done |
 | 05 | pi-diff 降为 body slot adapter | 01 | ready-for-agent |

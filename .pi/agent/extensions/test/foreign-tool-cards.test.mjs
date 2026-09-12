@@ -60,22 +60,27 @@ assert.deepEqual(
 
 // --- background stripping ---------------------------------------------------
 
+// The stripping the Frame does for a card that draws itself lives in the card
+// module now; the assertions stay here, next to the memo that keeps it cheap.
+const stripMod = await jiti(join(extensionsDir, "card/strip-background.ts"));
+const strip = (text) => stripMod.stripBackground(text);
+
 assert.equal(
-  mod.stripBackground("\x1b[48;2;1;2;3mtext\x1b[49m"),
+  strip("\x1b[48;2;1;2;3mtext\x1b[49m"),
   "text",
   "a truecolor background is dropped",
 );
 assert.equal(
-  plain(mod.stripBackground("\x1b[41mred\x1b[0m")),
+  plain(strip("\x1b[41mred\x1b[0m")),
   "red",
   "a basic background is dropped",
 );
 assert.ok(
-  mod.stripBackground("\x1b[38;2;1;2;3mx\x1b[39m").includes("\x1b[38;2;1;2;3m"),
+  strip("\x1b[38;2;1;2;3mx\x1b[39m").includes("\x1b[38;2;1;2;3m"),
   "the foreground color survives",
 );
 assert.equal(
-  mod.stripBackground("\x1b[38;2;1;2;3mred\x1b[m"),
+  strip("\x1b[38;2;1;2;3mred\x1b[m"),
   "\x1b[38;2;1;2;3mred\x1b[m",
   "a bare reset survives: dropping it leaks the foreground into the next line",
 );
@@ -118,7 +123,7 @@ for (let index = 0; index < 3000; index += 1)
 
 const passOverCard = () => {
   const start = performance.now();
-  for (const line of frame) mod.stripBackground(line);
+  for (const line of frame) strip(line);
   return performance.now() - start;
 };
 
@@ -289,187 +294,6 @@ assert.equal(
 );
 boundary.dispose();
 
-// --- card for a tool that draws its own content -----------------------------
-
-const childLines = ["child header", "child body"];
-const child = {
-  render: (width) =>
-    childLines.map((line) => line.slice(0, Math.max(1, width))),
-  invalidate() {},
-};
-const withRenderer = {
-  ...definition("mcp"),
-  renderShell: "self",
-  renderCall: () => child,
-  renderResult: () => child,
-};
-const card = mod.wrapForeignDefinition(withRenderer, "mcp", cardFactory);
-
-const context = {
-  args: { server: "figma", tool: "get_file" },
-  toolCallId: "call-1",
-  isPartial: false,
-  isError: false,
-  expanded: false,
-  state: {},
-  lastComponent: undefined,
-  invalidate() {},
-};
-const result = { content: [{ type: "text", text: "line one\nline two" }] };
-
-const call = card
-  .renderCall(context.args, theme, context)
-  .render(80)
-  .map(plainLine);
-assert.ok(call[0].includes("MCP"), "the badge carries the tool label");
-assert.ok(
-  call[0].includes("[figma]"),
-  "the header carries the argument detail",
-);
-assert.ok(
-  call[1].includes("child header"),
-  "the tool's own card follows the header",
-);
-
-const collapsed = card
-  .renderResult(result, { isPartial: false, expanded: false }, theme, context)
-  .render(80)
-  .map(plainLine);
-assert.ok(
-  collapsed[0].includes("child header"),
-  "the body shows without expanding",
-);
-
-const expanded = card
-  .renderResult(result, { isPartial: false, expanded: true }, theme, context)
-  .render(80)
-  .map(plainLine);
-assert.ok(expanded[1].includes("child body"), "every body line shows");
-
-// The badge is the tool's identity; display.description becomes the detail.
-const displayArgs = {
-  display: {
-    name: "Add badge helper",
-    description: "Wire the badge into the header",
-  },
-};
-const displayCall = card
-  .renderCall(displayArgs, theme, { ...context, args: displayArgs })
-  .render(80)
-  .map(plainLine);
-assert.ok(displayCall[0].includes("MCP"), "the badge stays the tool label");
-assert.ok(
-  displayCall[0].includes("Wire the badge into the header"),
-  "display.description becomes the header detail",
-);
-
-// The tool's own card renders untouched: nothing is removed from it.
-const titled = {
-  ...definition("mcp"),
-  renderCall: () => ({
-    render: () => ["mcp server figma", "body line"],
-    invalidate() {},
-  }),
-};
-const titledCall = mod
-  .wrapForeignDefinition(titled, "mcp", cardFactory)
-  .renderCall(context.args, theme, context)
-  .render(80)
-  .map(plainLine);
-assert.ok(
-  titledCall.some((line) => line.includes("mcp server figma")),
-  "the tool's own title line stays",
-);
-assert.ok(
-  titledCall.some((line) => line.includes("body line")),
-  "every body line stays",
-);
-
-// A renderer with nothing to draw falls back to the summary result line.
-const empty = {
-  ...definition("mcp"),
-  renderCall: () => ({ render: () => [], invalidate() {} }),
-  renderResult: () => ({ render: () => [], invalidate() {} }),
-};
-const emptyCard = mod.wrapForeignDefinition(empty, "mcp", cardFactory);
-const emptyResult = emptyCard
-  .renderResult(result, { isPartial: false, expanded: false }, theme, context)
-  .render(80)
-  .map(plainLine);
-assert.equal(
-  emptyResult[0],
-  " └─ 2 lines",
-  "an empty body falls back to the summary",
-);
-
-const single = emptyCard
-  .renderResult(
-    { content: [{ type: "text", text: "ok" }] },
-    { isPartial: false, expanded: false },
-    theme,
-    context,
-  )
-  .render(80)
-  .map(plainLine);
-assert.equal(single[0], " └─ ok", "a single-line output shows itself");
-
-// Folding stays the tool's own: the real expanded state passes through.
-let seenCallExpanded;
-let seenResultOptions;
-const recorder = {
-  ...definition("mcp"),
-  renderCall: (_args, _theme, renderContext) => {
-    seenCallExpanded = renderContext.expanded;
-    return { render: () => ["body"], invalidate() {} };
-  },
-  renderResult: (_result, options) => {
-    seenResultOptions = options;
-    return { render: () => ["body"], invalidate() {} };
-  },
-};
-const recorderCard = mod.wrapForeignDefinition(recorder, "mcp", cardFactory);
-const collapsedContext = { ...context, expanded: false, state: {} };
-recorderCard.renderCall(context.args, theme, collapsedContext).render(80);
-assert.equal(
-  seenCallExpanded,
-  false,
-  "collapsed state reaches the tool's call renderer",
-);
-recorderCard
-  .renderResult(
-    result,
-    { isPartial: false, expanded: false },
-    theme,
-    collapsedContext,
-  )
-  .render(80);
-assert.equal(
-  seenResultOptions.expanded,
-  false,
-  "collapsed state reaches the tool's result renderer",
-);
-
-const expandedContext = { ...context, expanded: true, state: {} };
-recorderCard.renderCall(context.args, theme, expandedContext).render(80);
-assert.equal(
-  seenCallExpanded,
-  true,
-  "expanded state reaches the tool's call renderer",
-);
-recorderCard
-  .renderResult(
-    result,
-    { isPartial: false, expanded: true },
-    theme,
-    expandedContext,
-  )
-  .render(80);
-assert.equal(
-  seenResultOptions.expanded,
-  true,
-  "expanded state reaches the tool's result renderer",
-);
-
 // --- reload hygiene: a re-install replaces the listener, it does not stack ---
 
 const hubKey = Symbol.for("dotfiles.foreign-tool-cards.v1");
@@ -510,9 +334,15 @@ const renderOwnCard = (definition) =>
 const lifecycleMod = await jiti(join(extensionsDir, "card/lifecycle.ts"));
 const reloadLifecycle = lifecycleMod.createLifecycle();
 
+// The card a reload installs is the real one: what is under test is the badge a
+// re-install does or does not double, which only the Frame draws. What the card
+// draws for a definition that ships a renderer is covered by test/tool-card.test.mjs.
+const pi = { on() {}, registerTool() {} };
+const cardModule = await jiti(join(extensionsDir, "card/tool-card.ts"));
+
 const installOptions = {
   constructors: [FakeRunner],
-  card: cardFactory,
+  card: (toolDefinition) => cardModule.toolCard(pi, toolDefinition),
   isExcepted: () => false,
   ownRoot: extensionsDir,
   lifecycle: reloadLifecycle,

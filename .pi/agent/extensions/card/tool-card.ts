@@ -15,8 +15,7 @@
  *    column; a body that yields nothing (no body, `undefined`, `[]`) leaves the
  *    Frame to draw the summary, the error preview, or the expansion itself.
  * 2. A `body` turns aggregation off. Asking for both (`aggregate: true`) throws
- *    where the card is attached instead of failing quietly at render time.
- * 3. `context.invalidate` is only ever called by the Frame, and only for the
+ *    where the card is attached instead of failing quietly at render time. 3. `context.invalidate` is only ever called by the Frame, and only for the
  *    group owner. A non-owner settling notifies the owner once, and the owner
  *    never propagates, so `invalidate() -> updateDisplay() -> render` cannot
  *    bounce back (no render storm).
@@ -33,6 +32,7 @@ import type {
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { spinnerChar, syncSpinner, type SpinnerState } from "./spinner.js";
+import { stripBackground } from "./strip-background.js";
 import {
   bracketDetail,
   errorPreviewLine,
@@ -51,14 +51,25 @@ type AnyTheme = Parameters<
 type AnyContext = Parameters<
   NonNullable<ToolDefinition<any, any, any>["renderCall"]>
 >[2];
+type AnyRenderCall = NonNullable<ToolDefinition<any, any, any>["renderCall"]>;
+type AnyRenderResult = NonNullable<
+  ToolDefinition<any, any, any>["renderResult"]
+>;
 type AnyResult = {
   content?: Array<{ type: string; text?: string }>;
   details?: unknown;
 };
 type RenderOptions = { expanded: boolean; isPartial: boolean };
 
+/** A tool's own component, cached per row and render slot (see `ownBody`). */
+type OwnCardState = { call?: Component; result?: Component };
+
 /** Per-row render state the Frame owns: the spinner frame and the start time. */
-export type CardState = SpinnerState & { startedAt?: number };
+export type CardState = SpinnerState & {
+  startedAt?: number;
+  /** The card a tool draws itself, when it ships a renderer (see `ownBody`). */
+  own?: OwnCardState;
+};
 
 /** What a body slot is handed for one render. */
 export type CardBodyInput = {
@@ -76,8 +87,9 @@ export type CardBodyInput = {
  * Rows a body hands the Frame for the result area.
  *
  * The Frame places them: one row is result-line content (`└─ exit 0`), several
- * rows are a block whose top row glues to the connector (`└─┌───┐`, the diff and
- * bash boxes) and whose remaining rows indent to the same column. A body
+ * rows are a block. A block whose top row is a box border glues to the connector
+ * (`└─┌───┐`, the diff and bash boxes); any other block keeps the connector's
+ * space and its remaining rows line up under the first row's content. A body
  * therefore draws geometry only and never touches the connector.
  */
 export type CardBody = (input: CardBodyInput) => string[] | undefined;
@@ -407,6 +419,76 @@ function expandedLines(entry: Entry, theme: AnyTheme, width: number): string[] {
   return entry.body.value;
 }
 
+/**
+ * Default body for a tool that draws its own card.
+ *
+ * A third-party definition owns its renderer, and that renderer draws the whole
+ * result: the Frame keeps the badge, the header, the connector, and the
+ * fallback, and hands the tool's own rows through. Backgrounds are the only
+ * thing dropped (a third-party card paints them for a transcript this repo
+ * already colors), the tool's real expanded state passes through, and
+ * `invalidate` is neutralized - a renderer that asks for a redraw while drawing
+ * would re-run this render forever. The component is cached per row and slot, so
+ * the tool's own state survives a redraw, and it is handed back to the renderer
+ * as `lastComponent` the way the host hands back its own.
+ */
+function ownBody(tool: ToolDefinition<any, any, any>): CardBody {
+  return (input) => {
+    const state = input.context.state as CardState | undefined;
+    const own: OwnCardState = state ? (state.own ??= {}) : {};
+    const nested = {
+      ...input.context,
+      expanded: input.options.expanded,
+      invalidate: () => {},
+    } as AnyContext;
+    const options = {
+      isPartial: input.options.isPartial,
+      expanded: input.options.expanded,
+    };
+
+    let component: Component | undefined;
+    if (input.result === undefined) {
+      const renderCall = tool.renderCall as AnyRenderCall | undefined;
+      if (!renderCall) return undefined;
+      try {
+        component = renderCall(input.args, input.theme, {
+          ...nested,
+          lastComponent: own.call,
+        });
+      } catch {
+        return undefined;
+      }
+      own.call = component;
+    } else {
+      const renderResult = tool.renderResult as AnyRenderResult | undefined;
+      if (!renderResult) return undefined;
+      try {
+        component = renderResult(
+          // The Frame keeps whatever the tool returned; only the tool's own
+          // renderer knows that shape.
+          input.result as Parameters<AnyRenderResult>[0],
+          options,
+          input.theme,
+          { ...nested, lastComponent: own.result },
+        );
+      } catch {
+        return undefined;
+      }
+      own.result = component;
+    }
+
+    let rows: string[] | undefined;
+    try {
+      rows = component.render(input.width);
+    } catch {
+      return undefined;
+    }
+    // Nothing drawn: the Frame's own summary / error preview / expansion stands.
+    if (!rows || rows.length === 0) return undefined;
+    return rows.map((line) => stripBackground(line));
+  };
+}
+
 // ---------------------------------------------------------------------------
 // The Frame
 // ---------------------------------------------------------------------------
@@ -551,14 +633,21 @@ class Frame implements Component {
     return [fitLine(resultLine(this.theme, content), width, "", 0)];
   }
 
-  /** Place the rows a body handed over (see CardBody). */
+  /**
+   * Place the rows a body handed over (see CardBody).
+   *
+   * A box glues its top border to the connector (`└─┌───┐`), so its left edge
+   * lands flush with the card's; any other block keeps the connector's space and
+   * its remaining rows line up under the first row's content.
+   */
   private placeBody(rows: string[], width: number): string[] {
     const [first, ...rest] = rows;
+    const box = rest.length > 0 && first.startsWith("┌");
     const head =
-      rows.length > 1
+      box && rest.length > 0
         ? resultLine(this.theme, first, true)
         : resultLine(this.theme, first);
-    const indent = " ".repeat(RESULT_LINE_INDENT);
+    const indent = " ".repeat(RESULT_LINE_INDENT + (box ? 0 : 1));
     return [head, ...rest.map((line) => `${indent}${line}`)].map((line) =>
       fitLine(line, width, "", 0),
     );
@@ -611,13 +700,23 @@ export function toolCard<T extends ToolDefinition<any, any, any>>(
   }
   installCardHooks(pi);
 
+  // A tool that draws its own card hands the Frame a default body, so the Frame
+  // keeps everything around that card. A spec that declares how the result reads
+  // (`summary`) or draws it (`body`) owns the result area itself - which is how
+  // the compact cards replace the renderer a built-in tool ships with.
+  const declared = Boolean(tool.renderCall || tool.renderResult);
+  const body =
+    spec.body ?? (declared && !spec.summary ? ownBody(tool) : undefined);
+
   const resolved: ResolvedSpec = {
     detail: spec.detail ?? defaultDetail,
     row: spec.row ?? spec.detail ?? defaultDetail,
     summary: spec.summary ?? defaultSummary,
-    body: spec.body,
+    body,
   };
-  const aggregate = spec.body ? false : spec.aggregate !== false;
+  // A body owns the whole result area, so a group would have to pick which row's
+  // body draws the shared card.
+  const aggregate = body ? false : spec.aggregate !== false;
 
   return {
     ...tool,

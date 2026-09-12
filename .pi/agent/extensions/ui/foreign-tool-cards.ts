@@ -5,15 +5,14 @@
  * third-party extension owns its definitions. The one seam that reaches every
  * definition is the host's `ExtensionRunner.getAllRegisteredTools()`: the
  * session reads it to build the tool registry, so a listener here hands back the
- * same definitions with local renderers attached. `execute`, the parameter
+ * same definitions with the card language attached. `execute`, the parameter
  * schema, and the prompt metadata stay untouched - this is display only.
  *
- * Two card shapes:
- * - no own renderer -> the card module's Frame derives the whole card from the
- *   definition (badge header, summary result line, consecutive-call groups,
- *   raw text when expanded).
- * - own renderer -> a local card draws the header and result line, and the
- *   tool's own component draws inside the expanded block.
+ * One call does it: `toolCard(pi, definition)`. The Frame derives the whole card
+ * from the definition - badge header, summary result line, consecutive-call
+ * groups, raw text when expanded - and a tool that ships its own renderer keeps
+ * drawing it: the Frame hands that component's rows through the result column
+ * with backgrounds stripped (see `card/tool-card.ts`).
  *
  * Tools registered by this repo's extensions are skipped: they already draw
  * cards. Names in the exception list (`~/.pi/agent/tool-cards.json`) are
@@ -29,29 +28,8 @@ import type {
   ExtensionAPI,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import { Text, type Component } from "@earendil-works/pi-tui";
 import { cardLifecycle, type Lifecycle } from "../card/lifecycle.js";
-import { createTextMemo } from "../card/line-memo.js";
-import {
-  spinnerChar,
-  syncSpinner,
-  type SpinnerState,
-} from "../card/spinner.js";
-import {
-  bracketDetail,
-  errorPreviewLine,
-  fitLine,
-  resultLine,
-  textOutput,
-  toolHeader,
-} from "../card/text.js";
-import {
-  defaultSummary,
-  firstShortArgument,
-  installCardHooks,
-  runDisplay,
-  toolCard,
-} from "../card/tool-card.js";
+import { installCardHooks, toolCard } from "../card/tool-card.js";
 
 type AnyTheme = Parameters<
   NonNullable<ToolDefinition<any, any, any>["renderCall"]>
@@ -333,231 +311,6 @@ export function exceptionMatcher(
 }
 
 // ---------------------------------------------------------------------------
-// Card content
-// ---------------------------------------------------------------------------
-
-/**
- * Background colors off: a third-party card paints its own backgrounds (fabric's
- * tool-call background and diff highlighting). The local card has none, so the
- * SGR background parameters are dropped and the foreground stays.
- *
- * A bare `\x1b[m` is a reset, not a background: it is kept, because dropping it
- * lets the colors it clears leak into every following line.
- */
-function stripBackgroundUncached(text: string): string {
-  return text.replace(/\x1b\[([0-9;]*)m/g, (_match, params: string) => {
-    const parts = params.split(";").filter((part) => part !== "");
-    if (parts.length === 0) return "\x1b[m";
-    const kept: string[] = [];
-    for (let index = 0; index < parts.length; index += 1) {
-      const code = Number(parts[index]);
-      if (code === 48) {
-        // 48;5;n (256 color) or 48;2;r;g;b (truecolor)
-        if (parts[index + 1] === "5") index += 2;
-        else if (parts[index + 1] === "2") index += 4;
-        else index += 1;
-        continue;
-      }
-      if (code === 49) continue;
-      if (code >= 40 && code <= 47) continue;
-      kept.push(parts[index]);
-    }
-    return kept.length > 0 ? `\x1b[${kept.join(";")}m` : "";
-  });
-}
-
-// Stripping runs on every re-render, for every line of every foreign card, and
-// the same lines come back frame after frame: 4.3us per line cold against
-// 0.054us warm (measured 2026-09-12), which is why the memo is what keeps a long
-// transcript cheap. The budget counts retained text (String#length in and out,
-// which tracks memory closely enough for sizing): 4M units is roughly ten
-// thousand rendered lines, so a card of any realistic length stays cached.
-const STRIP_CACHE_BUDGET = 4 * 1024 * 1024;
-const stripCache = createTextMemo(STRIP_CACHE_BUDGET, stripBackgroundUncached);
-
-/** Strip backgrounds from one rendered line, memoized across re-renders. */
-export function stripBackground(text: string): string {
-  return stripCache.get(text);
-}
-
-/**
- * The local header line plus the tool's own card, drawn as-is.
- *
- * Nothing is removed from the tool's own card: it renders exactly as it does
- * without us. Backgrounds are the only thing dropped.
- */
-class OwnContentCard implements Component {
-  constructor(
-    private readonly header: string,
-    private readonly child: Component | undefined,
-    private readonly fallback: string,
-  ) {}
-
-  invalidate(): void {}
-
-  render(width: number): string[] {
-    const lines: string[] = [];
-    if (this.header !== "") lines.push(fitLine(this.header, width, "", 0));
-
-    let body: string[] = [];
-    if (this.child) {
-      try {
-        body = this.child.render(width);
-      } catch {
-        body = [];
-      }
-    }
-    for (const line of body) lines.push(stripBackground(line));
-
-    // Nothing drawn by the tool: keep the local card informative.
-    if (body.length === 0 && this.fallback !== "") {
-      lines.push(fitLine(this.fallback, width, "", 0));
-    }
-    return lines;
-  }
-}
-
-type ContentState = {
-  spinner?: SpinnerState;
-  call?: Component;
-  result?: Component;
-};
-
-/**
- * Card for a tool that draws its own content.
- *
- * The badge carries the tool's identity (its label), the header detail carries
- * the objective it declares (`display.description`, else the first short
- * argument), and the rest of the tool's own card is shown as it draws it - the
- * card never hides that body, and the tool's own folding (its expand key) keeps
- * working because the real expanded state is passed through.
- * Its `invalidate` is a no-op on purpose: a third-party renderer that
- * invalidates while drawing would re-run this render forever.
- */
-function contentCard(
-  definition: ToolDefinition<any, any, any>,
-  name: string,
-): ToolDefinition<any, any, any> {
-  const originalCall = definition.renderCall;
-  const originalResult = definition.renderResult;
-  const label = definition.label || name;
-
-  return {
-    ...definition,
-    renderShell: "self",
-    renderCall(args: unknown, theme: AnyTheme, context: AnyContext) {
-      const state = context.state as ContentState;
-      state.spinner ??= {};
-      syncSpinner(state.spinner, context.isPartial, context.invalidate);
-
-      // The badge is the tool's identity; the tool's own title line stays in its
-      // card, so its `display.name` is not repeated here.
-      const detail =
-        runDisplay(args).description ?? firstShortArgument(args, theme);
-      const header = toolHeader(
-        theme,
-        label,
-        detail === "" ? "" : bracketDetail(theme, detail),
-      );
-
-      const child = ownComponent(
-        state,
-        "call",
-        args,
-        undefined,
-        { isPartial: context.isPartial, expanded: context.expanded },
-        theme,
-        context,
-        originalCall,
-      );
-      const fallback = context.isPartial
-        ? resultLine(theme, theme.fg("muted", spinnerChar(state.spinner)))
-        : "";
-      if (child) return new OwnContentCard(header, child, fallback);
-
-      return new Text(
-        fallback === "" ? header : `${header}\n${fallback}`,
-        0,
-        0,
-      );
-    },
-    renderResult(
-      result: AnyResult,
-      options: { isPartial: boolean; expanded: boolean },
-      theme: AnyTheme,
-      context: AnyContext,
-    ) {
-      const state = context.state as ContentState;
-      const output = textOutput(result);
-      const fallback = options.isPartial
-        ? ""
-        : context.isError
-          ? errorPreviewLine(theme, output, options.expanded)
-          : output
-            ? resultLine(theme, defaultSummary(output, theme))
-            : "";
-
-      const child = ownComponent(
-        state,
-        "result",
-        context.args,
-        result,
-        options,
-        theme,
-        context,
-        originalResult,
-      );
-      if (child) return new OwnContentCard("", child, fallback);
-      return new Text(fallback, 0, 0);
-    },
-  };
-}
-
-function ownComponent(
-  state: ContentState,
-  slot: "call" | "result",
-  args: unknown,
-  result: AnyResult | undefined,
-  options: { isPartial: boolean; expanded: boolean },
-  theme: AnyTheme,
-  context: AnyContext,
-  renderer: ((...args: any[]) => Component) | undefined,
-): Component | undefined {
-  if (!renderer) return undefined;
-  const previous = slot === "call" ? state.call : state.result;
-  const nested = {
-    ...context,
-    lastComponent: previous,
-    // A third-party renderer must not drive our invalidation (see contentCard).
-    invalidate: () => {},
-  } as AnyContext;
-  try {
-    const component =
-      slot === "result"
-        ? renderer(result, options, theme, nested)
-        : renderer(args, theme, nested);
-    if (slot === "call") state.call = component;
-    else state.result = component;
-    return component;
-  } catch {
-    return undefined;
-  }
-}
-
-/** Attach the local card to one definition, keeping execution untouched. */
-export function wrapForeignDefinition(
-  definition: ToolDefinition<any, any, any>,
-  name: string,
-  card: CardFactory,
-): ToolDefinition<any, any, any> {
-  if (definition.renderCall || definition.renderResult) {
-    return contentCard(definition, name);
-  }
-  // No renderer of its own: the Frame derives the whole card from the tool.
-  return card(definition);
-}
-
-// ---------------------------------------------------------------------------
 // Install
 // ---------------------------------------------------------------------------
 
@@ -643,7 +396,7 @@ export function installForeignToolCards(options: {
 
       let card = cards.get(definition);
       if (!card) {
-        card = wrapForeignDefinition(definition, name, options.card);
+        card = options.card(definition);
         cards.set(definition, card);
       }
       names.push(name);
