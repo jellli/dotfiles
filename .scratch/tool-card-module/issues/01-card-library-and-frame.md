@@ -1,6 +1,6 @@
 # 01 — card library 与 Frame 核心
 
-**Status:** ready-for-agent
+**Status:** done
 
 新建 `agent/extensions/card/`（无 index.ts、无 package.json），从 `ui/lib/` 搬入并重组：
 

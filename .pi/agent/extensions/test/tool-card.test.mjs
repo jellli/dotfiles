@@ -537,4 +537,273 @@ assert.equal(
 );
 assert.equal(mod.elapsedText({}), "", "a row with no start time shows nothing");
 
+// ---------------------------------------------------------------------------
+// The compact cards the extension ships
+// ---------------------------------------------------------------------------
+// `ui/compact-tool-cards.ts` keeps five Card specs, and the Frame draws them
+// like any other card, so the shipped cards are asserted through the same
+// interface as everything above instead of through their registration.
+
+const compact = await jiti(join(extensionsDir, "ui/compact-tool-cards.ts"));
+
+/** The Shiki highlight resolves through its own import, so poll for it. */
+async function waitForHighlight(ready) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    if (ready()) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error("the bash header highlight never resolved");
+}
+
+/** Frozen so the bash box's wall clock reads `0.0s` on any machine. */
+const realNow = Date.now;
+Date.now = () => 1_700_000_000_000;
+
+try {
+  events.agent_start();
+
+  const readCard = mod.toolCard(pi, tool("read"), compact.readSpec);
+  const readRow = hostRow("compact-read-1", {
+    path: "a.ts",
+    offset: 10,
+    limit: 5,
+  });
+  readRow.call(readCard);
+  readRow.result(readCard, text("one\ntwo"));
+  assert.deepEqual(
+    frame(readCard, readRow),
+    [" READ  [a.ts lines 10-14]", " └─ 2 lines"],
+    "the shipped read card brackets its detail and summarizes on the result line",
+  );
+
+  const findCard = mod.toolCard(pi, tool("find"), compact.findSpec);
+  const findOne = hostRow("compact-find-1", { pattern: "*.ts", path: "src" });
+  findOne.call(findCard);
+  findOne.result(findCard, text("a.ts\nb.ts"));
+  assert.deepEqual(
+    frame(findCard, findOne),
+    [" FIND  [*.ts in src]", " └─ 2 results"],
+    "the shipped find card is a spec: bracketed detail plus a summary",
+  );
+
+  const findTwo = hostRow("compact-find-2", { pattern: "*.md" });
+  findTwo.call(findCard);
+  assert.deepEqual(
+    frame(findCard, findTwo),
+    [" FIND  [*.md in .]", " └─ ●"],
+    "a consecutive find still draws its own card",
+  );
+  assert.ok(
+    !frame(findCard, findTwo)[0].includes("×"),
+    "find opted out of aggregation rather than joining a group",
+  );
+
+  const lsCard = mod.toolCard(pi, tool("ls"), compact.lsSpec);
+  const lsRow = hostRow("compact-ls-1", { path: "src" });
+  lsRow.call(lsCard);
+  lsRow.result(lsCard, text("a.ts\nb.ts\nc.ts"));
+  assert.deepEqual(
+    frame(lsCard, lsRow),
+    [" LS  [src]", " └─ 3 entries"],
+    "the shipped ls card is a spec too",
+  );
+
+  // The bash card: the command in the header, the output box in the body.
+  const bashCard = mod.toolCard(pi, tool("bash"), compact.bashSpec);
+  // A box the Frame hands the result column to: `inner` wide without borders.
+  const inner = 80 - 3 - 2;
+  const boxRow = (value) => `   │${value.padEnd(inner)}│`;
+  const bottomEdge = (label) =>
+    `   └─ ${label} ${"─".repeat(80 - 3 - 1 - `└─ ${label} `.length)}┘`;
+
+  const shellRow = hostRow("compact-bash-1", { command: "ls" });
+  const runningShell = frame(bashCard, shellRow);
+  assert.equal(
+    runningShell[0],
+    " BASH  [ls]",
+    "the header detail is the command, unbracketed by the card itself",
+  );
+  assert.match(
+    runningShell.at(-1),
+    /^ └─ [●•] 0\.0s$/,
+    "a running call with no output yet is the spinner and the Frame's clock",
+  );
+
+  shellRow.result(bashCard, text("one\ntwo\nthree"));
+  assert.deepEqual(
+    frame(bashCard, shellRow),
+    [
+      " BASH  [ls]",
+      ` └─┌${"─".repeat(inner)}┐`,
+      boxRow("one"),
+      boxRow("two"),
+      boxRow("three"),
+      bottomEdge("exit 0 · 0.0s"),
+    ],
+    "the box glues to the connector, fills the result column, and reports exit stats on its bottom edge",
+  );
+
+  const liveRow = hostRow("compact-bash-2", { command: "make" });
+  liveRow.call(bashCard);
+  liveRow.result(bashCard, text("building\nlinking"), { isPartial: true });
+  const live = frame(bashCard, liveRow);
+  assert.deepEqual(
+    live.slice(0, 4),
+    [
+      " BASH  [make]",
+      ` └─┌${"─".repeat(inner)}┐`,
+      boxRow("building"),
+      boxRow("linking"),
+    ],
+    "a streaming box draws the output it already has",
+  );
+  assert.match(
+    live.at(-1),
+    /^   └─ [●•] 0\.0s ─+┘$/,
+    "and carries the spinner and the clock instead of exit stats",
+  );
+
+  const manyRow = hostRow("compact-bash-3", { command: "ls -la" });
+  manyRow.call(bashCard);
+  manyRow.result(bashCard, text("one\ntwo\nthree\nfour\nfive"));
+  const preview = frame(bashCard, manyRow);
+  assert.deepEqual(
+    preview.slice(2, 5),
+    [boxRow("three"), boxRow("four"), boxRow("five")],
+    "a collapsed box previews the tail of the output",
+  );
+  assert.match(
+    preview[5],
+    /^ {3}│… 2 more lines \(.+ to expand\)/,
+    "and says how much of it is hidden",
+  );
+  assert.equal(preview[5].length, 80, "inside a box fitted to the card width");
+
+  const silentRow = hostRow("compact-bash-4", { command: "true" });
+  silentRow.call(bashCard);
+  silentRow.result(bashCard, text(""));
+  assert.deepEqual(
+    frame(bashCard, silentRow),
+    [" BASH  [true]", " └─ exit 0 · 0.0s"],
+    "a settled call with no output is exit stats on the result line, with no box",
+  );
+
+  const failedRow = hostRow("compact-bash-5", { command: "false" });
+  failedRow.call(bashCard);
+  failedRow.result(bashCard, text("boom: first line\nsecond line"), {
+    isError: true,
+  });
+  const failed = frame(bashCard, failedRow);
+  assert.deepEqual(
+    failed.slice(0, 3),
+    [
+      " BASH  [false]",
+      ` └─┌${"─".repeat(inner)}┐`,
+      boxRow("boom: first line ..."),
+    ],
+    "a collapsed error box keeps the first line plus the muted marker",
+  );
+  assert.equal(
+    failed.at(-1),
+    bottomEdge("err · 0.0s"),
+    "and reports the failure on its bottom edge",
+  );
+
+  failedRow.expanded = true;
+  assert.deepEqual(
+    frame(bashCard, failedRow).slice(2, 4),
+    [boxRow("boom: first line"), boxRow("second line")],
+    "expanding an error wraps every line of it inside the box",
+  );
+
+  // The header's Shiki highlight: the body primes it, the header reads it. The
+  // row settles first, so the only thing that can ask for a redraw is the
+  // highlight landing.
+  const highlightedRow = hostRow("compact-bash-6", { command: "echo hi" });
+  highlightedRow.call(bashCard);
+  highlightedRow.result(bashCard, text("hi"));
+  const plainHeader = " BASH  [echo hi]";
+  const header = () => frame(bashCard, highlightedRow)[0];
+  assert.equal(header(), plainHeader, "the header starts as the plain command");
+  await waitForHighlight(() => header() !== plainHeader);
+  assert.equal(
+    header(),
+    " BASH  [cd /tmp && echo hi]",
+    "the body primes the highlight and the header picks it up on the redraw it asks for",
+  );
+  assert.equal(
+    header(),
+    " BASH  [cd /tmp && echo hi]",
+    "a later frame reuses the cached highlight",
+  );
+  assert.equal(
+    highlightedRow.invalidations,
+    1,
+    "one command is highlighted once, so no redraw is asked for twice",
+  );
+
+  // The specs above are only worth anything wired to the tool they belong to.
+  events.agent_start();
+  const registered = new Map();
+  compact.registerCompactToolCards({
+    on() {},
+    registerTool(definition) {
+      registered.set(definition.name, definition);
+    },
+  });
+  assert.deepEqual(
+    [...registered.keys()].sort(),
+    ["bash", "find", "grep", "ls", "read"],
+    "the extension registers the five compact cards",
+  );
+
+  /** The header the registered definition for `name` draws for one call. */
+  const registeredHeader = (name, args) => {
+    const row = hostRow(`registered-${name}`, args);
+    return frame(registered.get(name), row)[0];
+  };
+  assert.equal(
+    registeredHeader("read", { path: "a.ts", offset: 10, limit: 5 }),
+    " READ  [a.ts lines 10-14]",
+    "read is registered with the read spec",
+  );
+  assert.equal(
+    registeredHeader("grep", { pattern: "x", path: "." }),
+    ' GREP  ["x" in .]',
+    "grep is registered with the grep spec",
+  );
+  assert.equal(
+    registeredHeader("find", { pattern: "*.ts" }),
+    " FIND  [*.ts in .]",
+    "find is registered with the find spec",
+  );
+  assert.equal(
+    registeredHeader("ls", { path: "src" }),
+    " LS  [src]",
+    "ls is registered with the ls spec",
+  );
+  assert.equal(
+    registeredHeader("bash", { command: "git status" }),
+    " BASH  [git status]",
+    "bash is registered with the bash spec",
+  );
+  // The registered bash card primes the header highlight too, so a command
+  // already highlighted shows up as such.
+  await waitForHighlight(
+    () => registeredHeader("bash", { command: "ls" }) !== " BASH  [ls]",
+  );
+  assert.equal(
+    registeredHeader("bash", { command: "ls" }),
+    " BASH  [cd /tmp && ls]",
+    "and the highlight it primes reaches the header through that registration",
+  );
+  assert.equal(
+    typeof registered.get("bash").execute,
+    "function",
+    "and the built-in execution is left untouched",
+  );
+} finally {
+  Date.now = realNow;
+}
+
 console.log("tool-card: ok");

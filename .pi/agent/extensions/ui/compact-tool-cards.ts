@@ -9,49 +9,24 @@ import {
   type ExtensionAPI,
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import {
-  Text,
-  type Component,
-  truncateToWidth,
-  visibleWidth,
-} from "@earendil-works/pi-tui";
+import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { cardLifecycle, type Lifecycle } from "../card/lifecycle.js";
+import { spinnerChar } from "../card/spinner.js";
+import { fitPath, padLine, shorten, textOutput } from "../card/text.js";
 import {
-  spinnerChar,
-  syncSpinner,
-  type SpinnerState,
-} from "../card/spinner.js";
-import {
-  fitLine,
-  fitPath,
-  padLine,
-  bracketDetail,
-  RESULT_LINE_INDENT,
-  resultLine,
-  toolHeader,
-} from "../card/text.js";
-import { toolCard } from "../card/tool-card.js";
+  elapsedText,
+  toolCard,
+  type CardSpec,
+  type CardState,
+} from "../card/tool-card.js";
 import { highlightBashLines } from "./pi-diff.js";
 
 type ToolArgs = Record<string, unknown>;
-type HeaderFormatter = (
-  args: ToolArgs,
-  theme: Parameters<
-    NonNullable<ToolDefinition<any, any, any>["renderCall"]>
-  >[1],
-) => string;
-type ResultFormatter = (
-  output: string,
-  theme: Parameters<
-    NonNullable<ToolDefinition<any, any, any>["renderCall"]>
-  >[1],
-) => string;
 type RenderTheme = Parameters<
   NonNullable<ToolDefinition<any, any, any>["renderCall"]>
 >[1];
-type RenderContext = Parameters<
-  NonNullable<ToolDefinition<any, any, any>["renderCall"]>
->[2];
+/** One collapsed result-line derivation: the card's `summary`. */
+type SummaryFormatter = NonNullable<CardSpec["summary"]>;
 
 export const COMPACTION_RENDER_PATCH = "__dotfilesCompactCompactionRender";
 export const COMPACTION_PATCH_OWNER = "dotfiles.compact-tool-cards";
@@ -172,7 +147,6 @@ async function installBundleCompactionRenderer(): Promise<void> {
 // Compact collapsed summaries while leaving Pi's expanded summary untouched.
 installCompactCompactionRenderer(CompactionSummaryMessageComponent);
 
-// Keep command previews readable on narrow terminals while bounding wide cards.
 function stringArg(args: ToolArgs, key: string, fallback = ""): string {
   const value = args[key];
   return typeof value === "string" ? value : fallback;
@@ -183,78 +157,67 @@ function numberArg(args: ToolArgs, key: string): number | undefined {
   return typeof value === "number" ? value : undefined;
 }
 
-function shorten(value: string, max = 96): string {
-  return value.length > max ? `${value.slice(0, max - 3)}...` : value;
-}
+// ---------------------------------------------------------------------------
+// bash: the async Shiki header highlight, primed by the body
+// ---------------------------------------------------------------------------
 
-type HeaderFactory = (
-  args: ToolArgs,
-  theme: Parameters<
-    NonNullable<ToolDefinition<any, any, any>["renderCall"]>
-  >[1],
-  context: Parameters<
-    NonNullable<ToolDefinition<any, any, any>["renderCall"]>
-  >[2],
-) => Component;
+/** Commands whose highlight is known, and the ones shiki is still working on. */
+const COMMAND_HIGHLIGHT_LIMIT = 200;
+const commandHighlights = new Map<string, string>();
+const pendingHighlights = new Set<string>();
 
-class BashHeader implements Component {
-  private command = "";
-  private cwd = "";
-  private theme!: RenderTheme;
-  private context!: RenderContext;
-  private highlightKey = "";
-  private highlighted: string | undefined;
-
-  update(command: string, theme: RenderTheme, context: RenderContext): void {
-    this.command = command;
-    this.cwd = typeof context.cwd === "string" ? context.cwd : "";
-    this.theme = theme;
-    this.context = context;
-    // Shared rendererState: mark tool start so the result card can show wall time.
-    (context.state as SpinnerState & { startedAt?: number }).startedAt ??=
-      Date.now();
-    this.maybeHighlight();
-  }
-
-  invalidate(): void {}
-
-  render(width: number): string[] {
-    const detail = bracketDetail(
-      this.theme,
-      this.highlighted ?? this.theme.fg("toolOutput", this.command),
-    );
-    return [fitLine(toolHeader(this.theme, "bash", detail), width, "", 0)];
-  }
-
-  private highlightText(): string {
-    // The header is single-line; fold multi-line commands onto `; ` joins.
-    const command = this.command.replace(/\s*\n\s*/g, "; ");
-    return this.cwd ? `cd ${this.cwd} && ${command}` : command;
-  }
-
-  private maybeHighlight(): void {
-    const text = this.highlightText();
-    if (!text || this.highlightKey === text) return;
-    this.highlightKey = text;
-    this.highlighted = undefined;
-    highlightBashLines(text)
-      .then((lines) => {
-        if (this.highlightKey === text) {
-          this.highlighted = lines.join("");
-          this.context?.invalidate?.();
-        }
-      })
-      .catch(() => {});
-  }
+/**
+ * Highlight the command this row is running, and remember the header text.
+ *
+ * `detail` is a pure `(args, theme)` derivation - the Frame hands it no row, so
+ * it can neither start the async highlight nor ask for a redraw. `body` is the
+ * only slot the Frame hands the row to, so the body primes the highlight and the
+ * header reads it off the redraw that the resolution asks for.
+ *
+ * The cache is keyed by the command text rather than held on the row, for the
+ * same reason: `detail` has no row to look in. The `cd <cwd> &&` prefix it shows
+ * is therefore the one that primed the command - the session's cwd, which is
+ * what every row of a session gets. Keying by the whole highlighted text would
+ * need the cwd in `detail`, i.e. a change to the card interface (ticket 01).
+ * One command is highlighted once, and that first resolution is the only time
+ * the header's detail changes, so it is the only time a redraw is asked for.
+ * Passing that invalidate straight to the body is the one place outside the
+ * Frame that asks for a redraw: a bash card draws no group (its body turns
+ * aggregation off), so the body only ever runs on the owner.
+ */
+function primeBashHighlight(
+  command: string,
+  cwd: string,
+  invalidate: () => void,
+): void {
+  if (command === "") return;
+  if (commandHighlights.has(command) || pendingHighlights.has(command)) return;
+  // One row's worth of command: newlines folded onto `; ` joins, and the
+  // directory it runs in, the way a shell prompt would show it.
+  const folded = command.replace(/\s*\n\s*/g, "; ");
+  const text = cwd ? `cd ${cwd} && ${folded}` : folded;
+  pendingHighlights.add(command);
+  highlightBashLines(text)
+    .then((lines) => {
+      pendingHighlights.delete(command);
+      // Over the limit the whole cache goes, like pi-diff's token cache: a row
+      // that loses its entry re-primes on its next render, so the fallback to
+      // the plain command lasts one frame.
+      if (commandHighlights.size >= COMMAND_HIGHLIGHT_LIMIT) {
+        commandHighlights.clear();
+      }
+      commandHighlights.set(command, lines.join(""));
+      invalidate();
+    })
+    .catch(() => {
+      pendingHighlights.delete(command);
+    });
 }
 
 const BASH_PREVIEW_LINES = 3;
 
-function bashExitText(
-  result: { content: Array<{ type: string; text?: string }> },
-  isError: boolean,
-): string {
-  const output = textOutput(result);
+/** `exit 0`, `timeout 5s` or `err`: the outcome the bottom edge reports. */
+function bashExitText(output: string, isError: boolean): string {
   const exit = output.match(/exit(?:ed with)? code (\d+)/);
   if (exit) return `exit ${exit[1]}`;
   const timeout = output.match(/timed out after (\d+) seconds/);
@@ -262,149 +225,47 @@ function bashExitText(
   return isError ? "err" : "exit 0";
 }
 
-function bashElapsedText(state: SpinnerState & { startedAt?: number }): string {
-  const startedAt = state?.startedAt;
-  if (!startedAt) return "";
-  const seconds = (Date.now() - startedAt) / 1000;
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  return `${Math.floor(seconds / 60)}m${Math.round(seconds % 60)}s`;
+/** `exit 0 · 1.2s`: the settled bottom edge, wall time from the Frame's clock. */
+function bashStatsText(
+  output: string,
+  isError: boolean,
+  state: CardState,
+): string {
+  const elapsed = elapsedText(state);
+  return `${bashExitText(output, isError)}${elapsed ? ` · ${elapsed}` : ""}`;
 }
 
-class BashResult implements Component {
-  private outputRows: string[] = [];
-  private border: "accent" | "dim" | "error" = "dim";
-  private theme!: RenderTheme;
-  private context!: RenderContext;
-  private exitText = "";
-  private elapsedText = "";
-  private isPartial = false;
+/** Spinner glyph + wall clock since start, e.g. `⠸ 1.2s`. */
+function bashRunningText(state: CardState): string {
+  const elapsed = elapsedText(state);
+  return `${spinnerChar(state)}${elapsed ? ` ${elapsed}` : ""}`;
+}
 
-  update(
-    result: { content: Array<{ type: string; text?: string }> },
-    options: { isPartial?: boolean; expanded?: boolean },
-    theme: RenderTheme,
-    context: RenderContext,
-  ): void {
-    this.theme = theme;
-    this.context = context;
-    this.border = context.isError
-      ? "error"
-      : options.isPartial
-        ? "accent"
-        : "dim";
-    this.isPartial = Boolean(options.isPartial);
-    this.exitText = bashExitText(result, Boolean(context.isError));
-    this.elapsedText = bashElapsedText(
-      context.state as SpinnerState & { startedAt?: number },
-    );
-
-    const output = textOutput(result);
-    this.outputRows = [];
-    if (output) {
-      if (context.isError) {
-        const lines = output.split("\n");
-        const preview = options.expanded ? output : lines[0];
-        const suffix =
-          !options.expanded && lines.length > 1
-            ? theme.fg("muted", " ...")
-            : "";
-        this.outputRows.push(theme.fg("error", preview) + suffix);
-      } else if (options.expanded) {
-        this.outputRows.push(
-          ...output.split("\n").map((line) => theme.fg("toolOutput", line)),
-        );
-      } else {
-        const lines = output.split("\n");
-        const tail = lines.slice(-BASH_PREVIEW_LINES);
-        const hidden = lines.length - tail.length;
-        this.outputRows.push(
-          ...tail.map((line) => theme.fg("toolOutput", line)),
-        );
-        if (hidden > 0) {
-          const hint = keyText("app.tools.expand") || "ctrl+o";
-          this.outputRows.push(
-            theme.fg("muted", `… ${hidden} more lines (${hint} to expand)`),
-          );
-        }
-      }
-    }
+/** The rows inside the box: the output tail collapsed, the whole output expanded. */
+function bashOutputRows(
+  output: string,
+  isError: boolean,
+  expanded: boolean,
+  theme: RenderTheme,
+): string[] {
+  const lines = output.split("\n");
+  if (isError) {
+    // One row per line: the Frame splits a row that carries a newline, and the
+    // continuation would fall outside the box it is meant to sit in.
+    if (expanded) return lines.map((line) => theme.fg("error", line));
+    const suffix = lines.length > 1 ? theme.fg("muted", " ...") : "";
+    return [theme.fg("error", lines[0]) + suffix];
   }
+  if (expanded) return lines.map((line) => theme.fg("toolOutput", line));
 
-  invalidate(): void {}
-
-  render(width: number): string[] {
-    // Drives both the spinner glyph and the ticking elapsed time while running.
-    const spinner = this.context.state as SpinnerState;
-    syncSpinner(spinner, this.isPartial, this.context.invalidate);
-
-    if (this.outputRows.length === 0) {
-      // No box without output: a spinner plus wall-clock time while streaming,
-      // exit stats once settled.
-      if (this.isPartial) {
-        return [
-          fitLine(
-            resultLine(
-              this.theme,
-              this.theme.fg("muted", this.runningText(spinner)),
-            ),
-            width,
-            "",
-            0,
-          ),
-        ];
-      }
-      const stats = this.statsText();
-      if (!stats) return [];
-      const color = this.border === "error" ? "error" : "dim";
-      return [
-        fitLine(
-          resultLine(this.theme, this.theme.fg(color, stats)),
-          width,
-          "",
-          0,
-        ),
-      ];
-    }
-
-    // The whole box sits in the result-line column: `└─ ` on the top border.
-    // While streaming the bottom border carries the spinner + elapsed time
-    // instead of exit stats (there is no exit code to show yet).
-    const boxWidth = Math.max(1, width - RESULT_LINE_INDENT);
-    const innerWidth = Math.max(1, boxWidth - 2);
-    const border = (line: string) => this.theme.fg(this.border, line);
-    const top = border(`┌${"─".repeat(innerWidth)}┐`);
-    const dimAnsi =
-      (this.theme as any).getFgAnsi?.("dim") ?? "\x1b[38;2;102;92;84m";
-    const body = this.outputRows.map((line) =>
-      border(`│${padLine(line, innerWidth)}${dimAnsi}│`),
-    );
-
-    const label = this.isPartial ? this.runningText(spinner) : this.statsText();
-    const left = label ? `└─ ${label} ` : "└";
-    const pad = "─".repeat(
-      Math.max(0, innerWidth + 2 - visibleWidth(left) - 1),
-    );
-    const bottom = border(`${left}${pad}┘`);
-    const indent = " ".repeat(RESULT_LINE_INDENT);
-
-    return [top, ...body, bottom]
-      .map((line, i) =>
-        i === 0 ? resultLine(this.theme, line, true) : `${indent}${line}`,
-      )
-      .map((line) => fitLine(line, width, "", 0));
+  const tail = lines.slice(-BASH_PREVIEW_LINES);
+  const rows = tail.map((line) => theme.fg("toolOutput", line));
+  const hidden = lines.length - tail.length;
+  if (hidden > 0) {
+    const hint = keyText("app.tools.expand") || "ctrl+o";
+    rows.push(theme.fg("muted", `… ${hidden} more lines (${hint} to expand)`));
   }
-
-  /** Spinner glyph + wall-clock since start, e.g. `⠸ 1.2s`. */
-  private runningText(spinner: SpinnerState): string {
-    const elapsed = bashElapsedText(
-      this.context.state as SpinnerState & { startedAt?: number },
-    );
-    return `${spinnerChar(spinner)}${elapsed ? ` ${elapsed}` : ""}`;
-  }
-
-  private statsText(): string {
-    return `${this.exitText}${this.elapsedText ? ` · ${this.elapsedText}` : ""}`;
-  }
+  return rows;
 }
 
 function lineRange(args: ToolArgs): string {
@@ -448,106 +309,123 @@ function readCallRow(
   return `${path}${range ? ` ${theme.fg("toolOutput", range)}` : ""}`;
 }
 
-function textOutput(result: {
-  content: Array<{ type: string; text?: string }>;
-}): string {
-  return result.content
-    .filter((content) => content.type === "text")
-    .map((content) => content.text ?? "")
-    .join("\n")
-    .trim();
-}
+// ---------------------------------------------------------------------------
+// The five compact cards
+// ---------------------------------------------------------------------------
 
-function renderHeader(
-  text: Text,
-  toolName: string,
-  header: string,
-  theme: RenderTheme,
-  context: RenderContext,
-): void {
-  const spinner = context.state as SpinnerState;
-  syncSpinner(spinner, context.isPartial, context.invalidate);
+/** bash: the command in the header, the output box in the body slot. */
+export const bashSpec: CardSpec = {
+  detail: (args, theme) => {
+    const command = stringArg(args, "command", "<missing command>");
+    return commandHighlights.get(command) ?? theme.fg("toolOutput", command);
+  },
+  body: ({ args, result, options, theme, context, width }) => {
+    const state = context.state as CardState;
+    primeBashHighlight(
+      stringArg(args, "command"),
+      typeof context.cwd === "string" ? context.cwd : "",
+      context.invalidate,
+    );
 
-  const lines = [
-    toolHeader(
-      theme,
-      toolName,
-      bracketDetail(theme, theme.fg("toolOutput", header)),
-    ),
-  ];
-  if (context.isPartial) {
-    lines.push(resultLine(theme, theme.fg("muted", spinnerChar(spinner))));
-  }
-  text.setText(lines.join("\n"));
-}
+    const output = textOutput(result ?? {});
+    const isError = Boolean(context.isError);
+    const border: "accent" | "dim" | "error" = isError
+      ? "error"
+      : options.isPartial
+        ? "accent"
+        : "dim";
+    const label = options.isPartial
+      ? bashRunningText(state)
+      : bashStatsText(output, isError, state);
 
-type CompactOptions = {
-  formatHeader: HeaderFormatter;
-  /** Collapsed result-line content (pre-colored); defaults to the raw text result. */
-  summary?: ResultFormatter;
-  createHeader?: HeaderFactory;
-  createResult?: (
-    result: any,
-    options: any,
-    theme: any,
-    context: any,
-  ) => Component;
+    // No box without output: a spinner plus wall-clock time while streaming,
+    // exit stats once settled.
+    if (output === "") {
+      return options.isPartial
+        ? [theme.fg("muted", label)]
+        : [theme.fg(isError ? "error" : "dim", label)];
+    }
+
+    // The box fills the column the Frame handed over, so its border lands flush
+    // with the card (`└─┌─…`): the Frame owns the connector and the indent.
+    const innerWidth = Math.max(1, width - 2);
+    const painted = (line: string) => theme.fg(border, line);
+    // The right border stays dim while the left takes the state color.
+    const dim = (theme as any).getFgAnsi?.("dim") ?? "\x1b[38;2;102;92;84m";
+    const rows = bashOutputRows(output, isError, options.expanded, theme).map(
+      (line) => painted(`│${padLine(line, innerWidth)}${dim}│`),
+    );
+    const left = label ? `└─ ${label} ` : "└";
+    const pad = "─".repeat(
+      Math.max(0, innerWidth + 2 - visibleWidth(left) - 1),
+    );
+
+    return [
+      painted(`┌${"─".repeat(innerWidth)}┐`),
+      ...rows,
+      painted(`${left}${pad}┘`),
+    ];
+  },
 };
 
-function compactDefinition(
-  tool: ToolDefinition<any, any, any>,
-  options: CompactOptions,
-): ToolDefinition<any, any, any> {
-  const { formatHeader, summary, createHeader, createResult } = options;
-  // Spread the built-in definition so its schema, prompt, and execution stay unchanged.
-  return {
-    ...tool,
-    // Self-rendering bypasses Pi's colored Box shell.
-    renderShell: "self",
-    renderCall(args: unknown, theme, context) {
-      const toolArgs =
-        args && typeof args === "object" ? (args as ToolArgs) : {};
-      if (createHeader) return createHeader(toolArgs, theme, context);
-      const text =
-        (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-      renderHeader(
-        text,
-        tool.name,
-        formatHeader(toolArgs, theme),
-        theme,
-        context,
-      );
-      return text;
-    },
-    renderResult(result, options, theme, context) {
-      if (createResult) return createResult(result, options, theme, context);
-      const text =
-        (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-      const output = textOutput(result);
+/** `N lines` / `N results` / `N entries`: what a plain list of output comes to. */
+const countSummary =
+  (noun: string): SummaryFormatter =>
+  (output, theme) =>
+    theme.fg("muted", `${output.split("\n").length} ${noun}`);
 
-      // Successful output remains available on expand; errors retain a collapsed preview.
-      if (options.isPartial || !output) {
-        text.setText("");
-      } else if (context.isError) {
-        const lines = output.split("\n");
-        const preview = options.expanded ? output : lines[0];
-        const suffix =
-          !options.expanded && lines.length > 1
-            ? theme.fg("muted", " ...")
-            : "";
-        text.setText(resultLine(theme, theme.fg("error", preview) + suffix));
-      } else if (options.expanded) {
-        text.setText(theme.fg("toolOutput", output));
-      } else {
-        const content = summary
-          ? summary(output, theme)
-          : theme.fg("toolOutput", output);
-        text.setText(resultLine(theme, content));
-      }
-      return text;
-    },
-  };
-}
+const readSummary = countSummary("lines");
+const findSummary = countSummary("results");
+const lsSummary = countSummary("entries");
+
+const grepSummary: SummaryFormatter = (output, theme) => {
+  if (!output || output === "No matches found")
+    return theme.fg("muted", "no matches");
+  const lines = output.split("\n");
+  const files = new Set<string>();
+  for (const line of lines) {
+    const file = line.match(/^([^:]+):\d+/)?.[1];
+    if (file) files.add(file);
+  }
+  const filePart = files.size > 0 ? ` in ${files.size} files` : "";
+  return theme.fg("muted", `${lines.length} matches${filePart}`);
+};
+
+/** read: the path and range in the header, one row per file inside a group. */
+export const readSpec: CardSpec = {
+  detail: (args, theme) => readCallLine(args, theme),
+  row: readCallRow,
+  summary: readSummary,
+};
+
+/** grep: pattern and path in the header, so its group rows need no `row`. */
+export const grepSpec: CardSpec = {
+  detail: (args, theme) =>
+    theme.fg(
+      "toolOutput",
+      `"${shorten(stringArg(args, "pattern"), 48)}" in ${shorten(stringArg(args, "path", "."), 48)}`,
+    ),
+  summary: grepSummary,
+};
+
+/** find: one call, one card - a consecutive call never joins a group. */
+export const findSpec: CardSpec = {
+  detail: (args, theme) =>
+    theme.fg(
+      "toolOutput",
+      `${shorten(stringArg(args, "pattern"), 56)} in ${shorten(stringArg(args, "path", "."), 48)}`,
+    ),
+  summary: findSummary,
+  aggregate: false,
+};
+
+/** ls: the same opt-out, with the directory as the header. */
+export const lsSpec: CardSpec = {
+  detail: (args, theme) =>
+    theme.fg("toolOutput", shorten(stringArg(args, "path", "."), 96)),
+  summary: lsSummary,
+  aggregate: false,
+};
 
 export function registerCompactToolCards(pi: ExtensionAPI) {
   installCompactCompactionRenderer(CompactionSummaryMessageComponent);
@@ -556,80 +434,10 @@ export function registerCompactToolCards(pi: ExtensionAPI) {
   void installBundleCompactionRenderer();
   const cwd = process.cwd();
 
-  const readSummary: ResultFormatter = (output, theme) =>
-    theme.fg("muted", `${output.split("\n").length} lines`);
-  const grepSummary: ResultFormatter = (output, theme) => {
-    if (!output || output === "No matches found")
-      return theme.fg("muted", "no matches");
-    const lines = output.split("\n");
-    const files = new Set<string>();
-    for (const line of lines) {
-      const file = line.match(/^([^:]+):\d+/)?.[1];
-      if (file) files.add(file);
-    }
-    const filePart = files.size > 0 ? ` in ${files.size} files` : "";
-    return theme.fg("muted", `${lines.length} matches${filePart}`);
-  };
-  const findSummary: ResultFormatter = (output, theme) =>
-    theme.fg("muted", `${output.split("\n").length} results`);
-  const lsSummary: ResultFormatter = (output, theme) =>
-    theme.fg("muted", `${output.split("\n").length} entries`);
-
   // Registering matching names replaces only the built-in renderers above.
-  pi.registerTool(
-    toolCard(pi, createReadToolDefinition(cwd), {
-      detail: (args, theme) => readCallLine(args, theme),
-      row: readCallRow,
-      summary: readSummary,
-    }),
-  );
-  pi.registerTool(
-    toolCard(pi, createGrepToolDefinition(cwd), {
-      // The Frame draws the detail in a group row too, so grep needs no `row`.
-      detail: (args, theme) =>
-        theme.fg(
-          "toolOutput",
-          `"${shorten(stringArg(args, "pattern"), 48)}" in ${shorten(stringArg(args, "path", "."), 48)}`,
-        ),
-      summary: grepSummary,
-    }),
-  );
-  pi.registerTool(
-    compactDefinition(createFindToolDefinition(cwd), {
-      formatHeader: (args, theme) =>
-        `${shorten(stringArg(args, "pattern"), 56)} in ${shorten(stringArg(args, "path", "."), 48)}`,
-      summary: findSummary,
-    }),
-  );
-  pi.registerTool(
-    compactDefinition(createLsToolDefinition(cwd), {
-      formatHeader: (args, theme) => shorten(stringArg(args, "path", ".")),
-      summary: lsSummary,
-    }),
-  );
-  pi.registerTool(
-    compactDefinition(createBashToolDefinition(cwd), {
-      formatHeader: () => "",
-      createHeader: (args, theme, context) => {
-        const header =
-          context.lastComponent instanceof BashHeader
-            ? context.lastComponent
-            : new BashHeader();
-        header.update(
-          stringArg(args, "command", "<missing command>"),
-          theme,
-          context,
-        );
-        return header;
-      },
-      createResult: (result, options, theme, context) => {
-        const card =
-          context.lastComponent instanceof BashResult
-            ? context.lastComponent
-            : new BashResult();
-        card.update(result, options, theme, context);
-        return card;
-      },
-    }),
-  );
+  pi.registerTool(toolCard(pi, createReadToolDefinition(cwd), readSpec));
+  pi.registerTool(toolCard(pi, createGrepToolDefinition(cwd), grepSpec));
+  pi.registerTool(toolCard(pi, createFindToolDefinition(cwd), findSpec));
+  pi.registerTool(toolCard(pi, createLsToolDefinition(cwd), lsSpec));
+  pi.registerTool(toolCard(pi, createBashToolDefinition(cwd), bashSpec));
 }
