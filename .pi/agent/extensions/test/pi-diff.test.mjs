@@ -147,12 +147,12 @@ assert.equal(
   "a theme change does not drop the highlighted lines",
 );
 
-// --- a theme switch repaints a reused card: the host's theme object is stable --
+// --- a theme switch repaints the box: the host's theme object is stable -------
 
 // The host passes one theme object whose accessors read the live global theme
 // (its theme module is a proxy over the current theme), so a switch changes what
-// the accessors return, not the object's identity. That is why a reused card has
-// to re-derive its palette on every result render.
+// the accessors return, not the object's identity. That is why the card's body
+// hands the theme to the box again on every frame it draws.
 const switchable = {
   current: "a",
   uses: { a: 0, b: 0 },
@@ -223,12 +223,8 @@ const switchResult = await switchEdit.execute(
 );
 const switchOptions = { isPartial: false, expanded: false };
 
-const firstCard = switchEdit.renderResult(
-  switchResult,
-  switchOptions,
-  liveTheme,
-  switchContext,
-);
+const firstCard = switchEdit.renderCall(switchArgs, liveTheme, switchContext);
+switchEdit.renderResult(switchResult, switchOptions, liveTheme, switchContext);
 firstCard.render(80);
 await new Promise((resolve) => setTimeout(resolve, 0));
 const beforeSwitchFrame = firstCard.render(80).join("\n");
@@ -243,22 +239,14 @@ assert.ok(
 
 switchable.current = "b";
 const tokenizedBeforeSwitch = switchTokenized;
-const reusedCard = switchEdit.renderResult(
-  switchResult,
-  switchOptions,
-  liveTheme,
-  { ...switchContext, lastComponent: firstCard },
-);
-assert.equal(reusedCard, firstCard, "the host's re-render reuses the card");
-
-const afterSwitchFrame = reusedCard.render(80).join("\n");
+const afterSwitchFrame = firstCard.render(80).join("\n");
 assert.ok(
   afterSwitchFrame.includes(switchable.colors.b.add),
-  "the reused card takes the new theme's add color",
+  "the card takes the new theme's add color",
 );
 assert.ok(
   afterSwitchFrame.includes(switchable.colors.b.base),
-  "the reused card takes the new theme's base background",
+  "the card takes the new theme's base background",
 );
 assert.ok(
   !afterSwitchFrame.includes(switchable.colors.a.add),
@@ -313,7 +301,8 @@ const bigResult = await edit.execute(
   () => {},
   { cwd },
 );
-const bigCard = edit.renderResult(
+const bigCard = edit.renderCall(bigArgs, theme, bigContext);
+edit.renderResult(
   bigResult,
   { isPartial: false, expanded: false },
   theme,
@@ -326,12 +315,13 @@ const bigFrame = plainLines(bigCard.render(80));
 const bigText = bigFrame.join("\n");
 assert.ok(bigText.includes("line 10000 CHANGED"), "the change is drawn");
 
-const counted = Number(
-  plain(bigFrame[bigFrame.length - 1]).match(/└─ (\d+) lines/)?.[1] ?? NaN,
-);
+// The card draws a bounded window whether or not the file was captured; the
+// box's own footer count is asserted through the card interface in
+// test/tool-card.test.mjs.
+const WINDOW_LIMIT = 12;
 assert.ok(
-  counted > 0 && counted < 100,
-  `the card counts the rows it drew, not the 20001 lines in the file (counted ${counted})`,
+  bigFrame.length <= WINDOW_LIMIT,
+  `the card draws a bounded window, not the 20001 lines in the file (drew ${bigFrame.length} rows)`,
 );
 
 // --- an oversized file is not read twice just to show a diff ----------------
@@ -404,7 +394,8 @@ assert.equal(
   "an oversized file is not read at all: the diff comes from the tool",
 );
 
-const hugeCard = guardedEdit.renderResult(
+const hugeCard = guardedEdit.renderCall(hugeArgs, theme, hugeContext);
+guardedEdit.renderResult(
   hugeResult,
   { isPartial: false, expanded: false },
   theme,
@@ -417,12 +408,9 @@ assert.ok(
   hugeFrame.join("\n").includes("line 5000 CHANGED"),
   "the card still draws the change, from the diff the tool reports",
 );
-const hugeRows = Number(
-  plain(hugeFrame[hugeFrame.length - 1]).match(/└─ (\d+) lines/)?.[1] ?? NaN,
-);
 assert.ok(
-  hugeRows > 0 && hugeRows < 20,
-  `the oversized card draws the host's bounded context, not the file (${hugeRows} rows)`,
+  hugeFrame.length > 0 && hugeFrame.length < 20,
+  `the oversized card draws the host's bounded context, not the file (${hugeFrame.length} rows)`,
 );
 
 // The write tool reports no diff of its own, so its capture is the only source
@@ -450,7 +438,8 @@ const writeContext = {
   toolCallId: "call-write",
   state: {},
 };
-const writeCard = guardedWrite.renderResult(
+const writeCard = guardedWrite.renderCall(writeArgs, theme, writeContext);
+guardedWrite.renderResult(
   writeResult,
   { isPartial: false, expanded: false },
   theme,
@@ -493,8 +482,11 @@ const smallContext = {
   args: smallArgs,
   toolCallId: "call-small",
   state: {},
+  // The host's row state is what the card reads its expansion from.
+  expanded: true,
 };
-const smallCard = guardedEdit.renderResult(
+const smallCard = guardedEdit.renderCall(smallArgs, theme, smallContext);
+guardedEdit.renderResult(
   smallResult,
   { isPartial: false, expanded: true },
   theme,
@@ -510,5 +502,5 @@ assert.ok(
 assert.ok(smallFrame.includes("row 30 CHANGED"), "and shows the change");
 
 console.log(
-  `pi-diff: ok (asked for ${asked.length} of 3001 lines, capped file counted ${counted})`,
+  `pi-diff: ok (asked for ${asked.length} of 3001 lines, the capped card drew ${bigFrame.length} rows)`,
 );

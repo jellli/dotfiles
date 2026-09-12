@@ -4,6 +4,7 @@
 // Frame's internals are not the subject.
 // Run: node .pi/agent/extensions/test/tool-card.test.mjs
 import assert from "node:assert/strict";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createTestJiti, here } from "./jiti-setup.mjs";
 
@@ -1078,5 +1079,133 @@ assert.equal(
   " └─ Example Page · 6000 chars",
   "the fetch card reports the page title and its size on the result line",
 );
+
+// ---------------------------------------------------------------------------
+// The diff card the extension ships
+// ---------------------------------------------------------------------------
+// pi-diff keeps the diff box; the Frame draws the badge, the header, the
+// connector, the column indent, the spinner, and the error preview. The box's
+// own geometry is asserted in test/pi-diff.test.mjs.
+
+const diff = await jiti(join(extensionsDir, "ui/pi-diff.ts"));
+// A short prefix on purpose: the header fits a path of this length in 80
+// columns, so the assertions below can name the whole line.
+const diffDir = mkdtempSync("/tmp/tool-card-diff-");
+const diffFile = join(diffDir, "a.ts");
+writeFileSync(diffFile, "one\ntwo\nthree\n");
+
+const diffTools = [];
+diff.registerPiDiff(
+  { registerTool: (toolDefinition) => diffTools.push(toolDefinition), on() {} },
+  { tokenize: async (value) => [{ content: value }] },
+);
+const diffEdit = diffTools.find(
+  (toolDefinition) => toolDefinition.name === "edit",
+);
+
+/** One settled edit, drawn through the host's two slots. */
+async function settledEdit(id, args) {
+  events.agent_start();
+  const result = await diffEdit.execute(
+    id,
+    args,
+    new AbortController().signal,
+    () => {},
+    { cwd: diffDir },
+  );
+  const row = hostRow(id, args);
+  row.call(diffEdit);
+  row.result(diffEdit, result);
+  frame(diffEdit, row); // the first frame primes the highlight batch
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  return row;
+}
+
+const diffArgs = {
+  path: diffFile,
+  edits: [{ oldText: "two", newText: "TWO" }],
+};
+const editRow = await settledEdit("diff-1", diffArgs);
+const editFrame = frame(diffEdit, editRow);
+assert.equal(
+  editFrame[0],
+  ` EDIT  [${diffFile}]`,
+  "the path is the header detail, bracketed by the Frame",
+);
+assert.ok(
+  editFrame[1].startsWith(" └─┌") && editFrame[1].endsWith("┐"),
+  "the diff box glues its top border to the Frame's connector",
+);
+assert.ok(
+  editFrame.join("\n").includes("TWO"),
+  "and the change is drawn inside it",
+);
+const diffFooter = editFrame.at(-1);
+assert.match(
+  diffFooter,
+  /^ {3}└─ \d+ lines /,
+  "the box closes with its row count, indented to the result column",
+);
+assert.ok(diffFooter.endsWith("┘"), "under the box's right edge");
+
+// A running edit: the body has nothing to draw yet, so the Frame's spinner.
+events.agent_start();
+const runningEdit = hostRow("diff-running-1", { path: diffFile, edits: [] });
+assert.deepEqual(
+  frame(diffEdit, runningEdit),
+  [` EDIT  [${diffFile}]`, " └─ ●"],
+  "a running edit is the Frame's spinner",
+);
+
+// A failed edit draws no diff: the Frame's error preview stands.
+events.agent_start();
+const failedEdit = hostRow("diff-failed-1", { path: diffFile, edits: [] });
+failedEdit.call(diffEdit);
+failedEdit.result(
+  diffEdit,
+  { content: [{ type: "text", text: "boom: nope\nsecond line" }] },
+  { isError: true },
+);
+assert.deepEqual(
+  frame(diffEdit, failedEdit),
+  [` EDIT  [${diffFile}]`, " └─ boom: nope ..."],
+  "a failed edit gets the Frame's error preview instead of a box",
+);
+
+// The host re-renders the component it was handed: the Frame is handed back.
+assert.equal(
+  editRow.call(diffEdit),
+  editRow.call(diffEdit),
+  "a re-render of the call slot is the same Frame",
+);
+
+// A body turns aggregation off (invariant 2), so two consecutive edits draw two
+// boxes: a group would have to pick which row's body draws the shared card.
+events.agent_start();
+const pairRows = [];
+for (const name of ["pair-a.ts", "pair-b.ts"]) {
+  const path = join(diffDir, name);
+  writeFileSync(path, "one\ntwo\nthree\n");
+  const args = { path, edits: [{ oldText: "two", newText: "TWO" }] };
+  const id = `diff-two-${pairRows.length + 1}`;
+  const result = await diffEdit.execute(
+    id,
+    args,
+    new AbortController().signal,
+    () => {},
+    { cwd: diffDir },
+  );
+  const row = hostRow(id, args);
+  row.call(diffEdit);
+  row.result(diffEdit, result);
+  pairRows.push({ row, path });
+}
+const pair = frame(diffEdit, pairRows[1].row);
+assert.equal(
+  pair[0],
+  ` EDIT  [${pairRows[1].path}]`,
+  "a consecutive edit draws its own header instead of a group row",
+);
+assert.ok(!pair.join("\n").includes("×"), "so a body card never groups");
 
 console.log("tool-card: ok");

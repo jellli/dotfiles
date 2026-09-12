@@ -12,31 +12,12 @@ import {
   type ExtensionAPI,
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import { Text, type Component, visibleWidth } from "@earendil-works/pi-tui";
+import { type Component, visibleWidth } from "@earendil-works/pi-tui";
 import { cardLifecycle } from "../card/lifecycle.js";
-import {
-  spinnerChar,
-  syncSpinner,
-  type SpinnerState,
-} from "../card/spinner.js";
-import {
-  fitLine,
-  bracketDetail,
-  RESULT_LINE_INDENT,
-  resultLine,
-  toolHeader,
-} from "../card/text.js";
+import { fitLine } from "../card/text.js";
+import { toolCard, type CardSpec } from "../card/tool-card.js";
 
 type ToolArgs = Record<string, unknown>;
-type Theme = Parameters<
-  NonNullable<ToolDefinition<any, any, any>["renderCall"]>
->[1];
-type RenderContext = Parameters<
-  NonNullable<ToolDefinition<any, any, any>["renderCall"]>
->[2];
-type RenderOptions = Parameters<
-  NonNullable<ToolDefinition<any, any, any>["renderResult"]>
->[1];
 type RenderResultTheme = Parameters<
   NonNullable<ToolDefinition<any, any, any>["renderResult"]>
 >[2];
@@ -52,6 +33,8 @@ type DiffState = {
   stats?: string;
   totalLines?: number;
   invalidate?: () => void;
+  /** The box this row draws; the card module's body keeps it here. */
+  viewer?: DiffViewer;
 };
 
 type DiffRow = {
@@ -745,10 +728,11 @@ class MutationDiffViewer implements Component {
   }
 
   /**
-   * Re-render in the current theme.
+   * Re-render the box in the current theme; the card module's body calls this on
+   * every frame.
    *
    * The host re-renders the whole transcript when the theme changes but hands
-   * back the same component, so the palette has to be rebuilt here or the card on
+   * back the same component, so the palette has to be rebuilt here or the box on
    * screen keeps the colors it was built with. It is rebuilt on every call rather
    * than on a change of theme identity: the theme the host passes is one stable
    * object whose accessors read the live theme, so identity never changes and an
@@ -759,7 +743,7 @@ class MutationDiffViewer implements Component {
   setTheme(theme: RenderResultTheme): void {
     this.theme = theme;
     const colors = resolveDiffColors(theme);
-    // The result line's summary embeds the diff colors, so it is rebuilt only
+    // The box's top border carries the diff colors (+N -N), so it is rebuilt only
     // when they actually moved.
     if (!sameColors(colors, this.colors)) this.state.stats = undefined;
     this.colors = colors;
@@ -767,24 +751,20 @@ class MutationDiffViewer implements Component {
 
   invalidate(): void {}
 
+  /** The diff box: rows the Frame glues to its connector and indents. */
   render(width: number): string[] {
-    const targetWidth = Math.max(1, width);
+    // The Frame hands over the result column (its connector already subtracted),
+    // which is exactly the box's width.
+    const boxWidth = Math.max(1, width);
     this.ensureSource();
-    // The whole box sits in the result-line column: `└─ ` on the top border.
-    const boxWidth = Math.max(1, targetWidth - RESULT_LINE_INDENT);
     const innerWidth = Math.max(1, boxWidth - 2);
-    const indent = " ".repeat(RESULT_LINE_INDENT);
     return boxed(
       this.layout(innerWidth),
       boxWidth,
       this.state.totalLines ?? 0,
       this.theme,
       this.state.stats,
-    )
-      .map((line, i) =>
-        i === 0 ? resultLine(this.theme, line, true) : `${indent}${line}`,
-      )
-      .map((line) => fitLine(line, targetWidth, "", 0));
+    );
   }
 
   private ensureSource(): void {
@@ -895,8 +875,9 @@ class MutationDiffViewer implements Component {
   }
 }
 
-/** The diff card as the host sees it: a component that follows the expand key
- * and repaints when the theme changes. */
+/** The diff box as the card module sees it: a component that follows the expand
+ * key and repaints when the theme changes. The card module's Frame owns the
+ * header, the connector, and the column indent around it. */
 export type DiffViewer = Component & {
   setExpanded(expanded: boolean): void;
   setTheme(theme: RenderResultTheme): void;
@@ -944,134 +925,117 @@ function selectCollapsedRows(rows: DiffRow[], limit: number): DiffWindow {
   return { rows: rows.slice(start, end), start };
 }
 
-function header(
-  path: string,
-  tool: string,
-  theme: Theme,
-  context: RenderContext,
-): Component {
-  const text = new Text("", 0, 0);
-  const spinner = context.state as SpinnerState;
-  syncSpinner(spinner, context.isPartial, context.invalidate);
-  const lines = [
-    toolHeader(theme, tool, bracketDetail(theme, theme.fg("accent", path))),
-  ];
-  if (context.isPartial) {
-    lines.push(resultLine(theme, theme.fg("muted", spinnerChar(spinner))));
-  }
-  text.setText(lines.join("\n"));
-  return text;
+/** The result shape the host hands a card: text blocks plus the tool's details. */
+type MutationResult = {
+  content?: Array<{ type: string; text?: string }>;
+  details?: unknown;
+};
+
+/**
+ * The card the mutation tools hand the Frame: the path in the header, the diff
+ * box in the body.
+ *
+ * The Frame owns the badge, the header brackets, the `└─` connector, the column
+ * indent, the spinner, and the error preview; this module owns the box. A body
+ * with nothing to draw (still running, failed with no diff) yields nothing and
+ * the Frame's own result area stands.
+ */
+function mutationSpec(tokenize: DiffTokenizer): CardSpec {
+  return {
+    detail: (args, theme) =>
+      theme.fg("accent", stringArg(args, "path", "<missing path>")),
+    body: ({ args, result, options, theme, context, width }) => {
+      if (!result || options.isPartial) return undefined;
+      if (context.isError) {
+        // No diff is drawn for a failed call, so the capture is dead weight from
+        // here on.
+        captures.delete(context.toolCallId);
+        return undefined;
+      }
+
+      const state = (context.state as DiffState) ?? {};
+      state.invalidate = context.invalidate;
+      state.capture ??= captures.get(context.toolCallId);
+      if (!state.capture && state.rows === undefined) {
+        const nativeDiff = resultDiff((result as MutationResult).details);
+        if (nativeDiff !== undefined) {
+          state.rows = addWordRanges(parseDisplayDiff(nativeDiff));
+          state.totalLines = state.rows.length;
+        }
+      }
+
+      // The host re-renders the card on every frame (a resize, an expand, the
+      // async highlight landing), so the box lives on the row and is handed the
+      // theme again each time: the theme object the host passes reads the live
+      // theme, so its identity never changes (see MutationDiffViewer.setTheme).
+      const viewer = (state.viewer ??= createDiffViewer({
+        state,
+        path: stringArg(args, "path", "<missing path>"),
+        theme,
+        expanded: options.expanded,
+        tokenize,
+      }));
+      viewer.setExpanded(options.expanded);
+      viewer.setTheme(theme);
+      captures.delete(context.toolCallId);
+      return viewer.render(width);
+    },
+  };
 }
 
 function wrapMutation<T extends ToolDefinition<any, any, any>>(
+  pi: ExtensionAPI,
   tool: T,
   cwd: string,
   tokenize: DiffTokenizer,
   capture: CaptureSource,
 ): T {
   const originalExecute = tool.execute;
-  return {
-    ...tool,
-    renderShell: "self",
-    async execute(
-      toolCallId: string,
-      args: ToolArgs,
-      signal: AbortSignal,
-      onUpdate: unknown,
-      context: { cwd?: string },
-    ) {
-      const executionCwd = context?.cwd || cwd;
-      const path = targetPath(args, executionCwd);
-      // Decide before reading: the line cap can only be applied to text that is
-      // already in memory, which is exactly what an oversized file must avoid.
-      const worthReading =
-        capture.size(path) <= MAX_CAPTURE_BYTES ||
-        CAPTURE_ONLY_TOOLS.has(tool.name);
-      const oldText = worthReading ? await capture.read(path) : "";
-      const result = await originalExecute(
-        toolCallId,
-        args,
-        signal,
-        onUpdate as never,
-        context as never,
-      );
-      const newText = worthReading ? await capture.read(path) : "";
-
-      // A whole-file diff costs one row object per line. When the tool reports a
-      // bounded diff of its own, a huge file uses that instead; without one
-      // (write) the capture is the only source of a diff, so it is kept.
-      const tooLarge =
-        lineCount(oldText) > MAX_CAPTURE_LINES ||
-        lineCount(newText) > MAX_CAPTURE_LINES;
-      if (
-        worthReading &&
-        (!tooLarge || resultDiff(result?.details) === undefined)
+  return toolCard(
+    pi,
+    {
+      ...tool,
+      async execute(
+        toolCallId: string,
+        args: ToolArgs,
+        signal: AbortSignal,
+        onUpdate: unknown,
+        context: { cwd?: string },
       ) {
-        captures.set(toolCallId, { oldText, newText });
-      }
-      return result;
-    },
-    renderCall(args: ToolArgs, theme: Theme, context: RenderContext) {
-      return header(
-        stringArg(args, "path", "<missing path>"),
-        tool.name,
-        theme,
-        context,
-      );
-    },
-    renderResult(
-      result: {
-        content: Array<{ type: string; text?: string }>;
-        details?: unknown;
-      },
-      options: RenderOptions,
-      theme: RenderResultTheme,
-      context: RenderContext,
-    ) {
-      if (options.isPartial) return context.lastComponent ?? new Text("", 0, 0);
-      if (context.isError) {
-        // The card will not draw a diff for a failed call, so the capture is
-        // dead weight from here on.
-        captures.delete(context.toolCallId);
-        const message =
-          result.content?.find((item) => item.type === "text")?.text ??
-          "Tool failed";
-        return new Text(
-          resultLine(theme, theme.fg("error", message.split("\n")[0])),
-          0,
-          0,
+        const executionCwd = context?.cwd || cwd;
+        const path = targetPath(args, executionCwd);
+        // Decide before reading: the line cap can only be applied to text that is
+        // already in memory, which is exactly what an oversized file must avoid.
+        const worthReading =
+          capture.size(path) <= MAX_CAPTURE_BYTES ||
+          CAPTURE_ONLY_TOOLS.has(tool.name);
+        const oldText = worthReading ? await capture.read(path) : "";
+        const result = await originalExecute(
+          toolCallId,
+          args,
+          signal,
+          onUpdate as never,
+          context as never,
         );
-      }
-      const state = (context.state as DiffState) ?? {};
-      state.invalidate = context.invalidate;
-      state.capture ??= captures.get(context.toolCallId);
-      if (!state.capture && state.rows === undefined) {
-        const nativeDiff = resultDiff(result.details);
-        if (nativeDiff !== undefined) {
-          state.rows = addWordRanges(parseDisplayDiff(nativeDiff));
-          state.totalLines = state.rows.length;
+        const newText = worthReading ? await capture.read(path) : "";
+
+        // A whole-file diff costs one row object per line. When the tool reports
+        // a bounded diff of its own, a huge file uses that instead; without one
+        // (write) the capture is the only source of a diff, so it is kept.
+        const tooLarge =
+          lineCount(oldText) > MAX_CAPTURE_LINES ||
+          lineCount(newText) > MAX_CAPTURE_LINES;
+        if (
+          worthReading &&
+          (!tooLarge || resultDiff(result?.details) === undefined)
+        ) {
+          captures.set(toolCallId, { oldText, newText });
         }
-      }
-      const pathArg =
-        context.args && typeof context.args === "object"
-          ? (context.args as ToolArgs)
-          : {};
-      const component =
-        context.lastComponent instanceof MutationDiffViewer
-          ? context.lastComponent
-          : createDiffViewer({
-              state,
-              path: stringArg(pathArg, "path", "<missing path>"),
-              theme,
-              expanded: options.expanded,
-              tokenize,
-            });
-      component.setExpanded(options.expanded);
-      component.setTheme(theme);
-      captures.delete(context.toolCallId);
-      return component;
-    },
-  } as T;
+        return result;
+      },
+    } as T,
+    mutationSpec(tokenize),
+  );
 }
 
 export function registerPiDiff(
@@ -1082,10 +1046,10 @@ export function registerPiDiff(
   const tokenize = options.tokenize ?? shikiTokenizer;
   const capture = options.capture ?? fileCapture;
   pi.registerTool(
-    wrapMutation(createEditToolDefinition(cwd), cwd, tokenize, capture),
+    wrapMutation(pi, createEditToolDefinition(cwd), cwd, tokenize, capture),
   );
   pi.registerTool(
-    wrapMutation(createWriteToolDefinition(cwd), cwd, tokenize, capture),
+    wrapMutation(pi, createWriteToolDefinition(cwd), cwd, tokenize, capture),
   );
   // The captures are keyed by tool call id and die with the session: released
   // through the same registry as the rest of the extension, so /reload leaves

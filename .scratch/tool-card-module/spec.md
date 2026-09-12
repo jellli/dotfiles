@@ -1,6 +1,6 @@
 # Tool card module — 把 card language 收进一个深 module
 
-**Status:** ready-for-agent
+**Status:** done
 
 2026-09-12 架构评审（candidate 01）的结论。`CONTEXT.md` 定义的 card language（badge、result line、summary、expansion）今天有四份 renderer、三份 badge 实现：`ui/lib/pi-ui.ts`、`ui/lib/aggregation.ts`、`ui/compact-tool-cards.ts`（手抄的 `compactDefinition`）、`ui/foreign-tool-cards.ts`（`contentCard`），外加 codegraph 的又一份。本计划把它收进一个 module。
 
@@ -47,4 +47,4 @@ interface 形态由三份并行设计（最小 interface / 最大灵活性 / 最
 | 02 | compact cards 改成 spec | 01 | done |
 | 03 | foreign card 收敛成一次调用 | 01 | done |
 | 04 | 外部调用方迁移（brave / ollama / todo） | 01 | done |
-| 05 | pi-diff 降为 body slot adapter | 01 | ready-for-agent |
+| 05 | pi-diff 降为 body slot adapter | 01 | done |
