@@ -13,17 +13,19 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Text, type Component, visibleWidth } from "@earendil-works/pi-tui";
-import { uiLifecycle } from "./lib/lifecycle.js";
+import { cardLifecycle } from "../card/lifecycle.js";
+import {
+  spinnerChar,
+  syncSpinner,
+  type SpinnerState,
+} from "../card/spinner.js";
 import {
   fitLine,
   bracketDetail,
   RESULT_LINE_INDENT,
   resultLine,
-  spinnerChar,
-  syncSpinner,
   toolHeader,
-  type SpinnerState,
-} from "./lib/pi-ui.js";
+} from "../card/text.js";
 
 type ToolArgs = Record<string, unknown>;
 type Theme = Parameters<
@@ -1088,5 +1090,5 @@ export function registerPiDiff(
   // The captures are keyed by tool call id and die with the session: released
   // through the same registry as the rest of the extension, so /reload leaves
   // nothing of the old runtime behind.
-  uiLifecycle.add(() => captures.clear());
+  cardLifecycle.add(() => captures.clear());
 }

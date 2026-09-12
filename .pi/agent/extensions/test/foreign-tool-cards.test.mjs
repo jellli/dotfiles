@@ -54,49 +54,9 @@ assert.deepEqual(
 
 // --- header data ------------------------------------------------------------
 
-assert.equal(
-  plain(mod.argDetail({ server: "figma", tool: "get_file" }, theme)),
-  "[figma]",
-  "first short string argument becomes the header detail",
-);
-assert.equal(
-  mod.argDetail({ path: "x".repeat(200) }, theme),
-  "",
-  "an over-long argument is skipped",
-);
-assert.equal(
-  mod.argDetail({ depth: 3 }, theme),
-  "",
-  "non-string arguments are skipped",
-);
-assert.equal(mod.argDetail({}, theme), "", "no argument means no detail");
-assert.equal(
-  plain(mod.outputSummary("only line", theme)),
-  "only line",
-  "a single-line output shows itself",
-);
-assert.equal(
-  plain(mod.outputSummary("a\nb\nc", theme)),
-  "3 lines",
-  "a longer output shows a count",
-);
-
-assert.deepEqual(
-  mod.runDisplay({ display: "milestone" }),
-  { name: "milestone" },
-  "a bare display string becomes the name",
-);
-assert.deepEqual(
-  mod.runDisplay({ display: { name: "n", description: "d" } }),
-  { name: "n", description: "d" },
-  "display name and description are read",
-);
-assert.deepEqual(
-  mod.runDisplay({ display: { name: "  " } }),
-  {},
-  "blank display fields are dropped",
-);
-assert.deepEqual(mod.runDisplay({}), {}, "no display means no title");
+// The header-default derivations (the first short argument, `display.*`, the
+// summary for a text output) live in the card module now; their assertions are
+// in test/tool-card.test.mjs.
 
 // --- background stripping ---------------------------------------------------
 
@@ -122,7 +82,7 @@ assert.equal(
 
 // --- the strip memo evicts the oldest line, it does not wipe the table -------
 
-const memoMod = await jiti(join(extensionsDir, "ui/lib/line-memo.ts"));
+const memoMod = await jiti(join(extensionsDir, "card/line-memo.ts"));
 
 // One-character lines cost two bytes each in and out, so three of them fit.
 let computed = 0;
@@ -195,16 +155,15 @@ const definition = (name) => ({
 });
 
 const calls = [];
-const aggregation = {
-  wrap(tool, options) {
-    calls.push(tool.name);
-    return {
-      ...tool,
-      renderShell: "self",
-      renderCall: () => null,
-      renderResult: () => null,
-    };
-  },
+/** Stands in for the card module's `toolCard`: records what it was handed. */
+const cardFactory = (tool) => {
+  calls.push(tool.name);
+  return {
+    ...tool,
+    renderShell: "self",
+    renderCall: () => null,
+    renderResult: () => null,
+  };
 };
 
 class FakeRunner {
@@ -248,7 +207,7 @@ const runner = new FakeRunner([
 let wrappedNames = [];
 const install = mod.installForeignToolCards({
   constructors: [FakeRunner],
-  aggregation,
+  card: cardFactory,
   isExcepted: mod.exceptionMatcher(["brave_*"]),
   ownRoot: extensionsDir,
   onWrapped: (names) => {
@@ -318,7 +277,7 @@ const siblingTool = {
 const boundaryRunner = new BoundaryRunner([siblingTool]);
 const boundary = mod.installForeignToolCards({
   constructors: [BoundaryRunner],
-  aggregation,
+  card: cardFactory,
   isExcepted: () => false,
   ownRoot: extensionsDir,
 });
@@ -344,7 +303,7 @@ const withRenderer = {
   renderCall: () => child,
   renderResult: () => child,
 };
-const card = mod.wrapForeignDefinition(withRenderer, "mcp", aggregation);
+const card = mod.wrapForeignDefinition(withRenderer, "mcp", cardFactory);
 
 const context = {
   args: { server: "figma", tool: "get_file" },
@@ -413,7 +372,7 @@ const titled = {
   }),
 };
 const titledCall = mod
-  .wrapForeignDefinition(titled, "mcp", aggregation)
+  .wrapForeignDefinition(titled, "mcp", cardFactory)
   .renderCall(context.args, theme, context)
   .render(80)
   .map(plainLine);
@@ -432,7 +391,7 @@ const empty = {
   renderCall: () => ({ render: () => [], invalidate() {} }),
   renderResult: () => ({ render: () => [], invalidate() {} }),
 };
-const emptyCard = mod.wrapForeignDefinition(empty, "mcp", aggregation);
+const emptyCard = mod.wrapForeignDefinition(empty, "mcp", cardFactory);
 const emptyResult = emptyCard
   .renderResult(result, { isPartial: false, expanded: false }, theme, context)
   .render(80)
@@ -468,7 +427,7 @@ const recorder = {
     return { render: () => ["body"], invalidate() {} };
   },
 };
-const recorderCard = mod.wrapForeignDefinition(recorder, "mcp", aggregation);
+const recorderCard = mod.wrapForeignDefinition(recorder, "mcp", cardFactory);
 const collapsedContext = { ...context, expanded: false, state: {} };
 recorderCard.renderCall(context.args, theme, collapsedContext).render(80);
 assert.equal(
@@ -548,12 +507,12 @@ const renderOwnCard = (definition) =>
     .map(plainLine);
 
 // The registry the extension wires to session_shutdown, exercised here on its own.
-const lifecycleMod = await jiti(join(extensionsDir, "ui/lib/lifecycle.ts"));
+const lifecycleMod = await jiti(join(extensionsDir, "card/lifecycle.ts"));
 const reloadLifecycle = lifecycleMod.createLifecycle();
 
 const installOptions = {
   constructors: [FakeRunner],
-  aggregation,
+  card: cardFactory,
   isExcepted: () => false,
   ownRoot: extensionsDir,
   lifecycle: reloadLifecycle,
@@ -648,7 +607,7 @@ assert.equal(
 
 // --- the registry covers a live spinner timer too ---------------------------
 
-const spinnerMod = await jiti(join(extensionsDir, "ui/lib/pi-ui.ts"));
+const spinnerMod = await jiti(join(extensionsDir, "card/spinner.ts"));
 const spinnerState = {};
 let spinnerTicks = 0;
 spinnerMod.syncSpinner(spinnerState, true, () => {
@@ -660,7 +619,7 @@ await new Promise((resolve) => setTimeout(resolve, 170));
 assert.ok(spinnerTicks > 0, "the spinner ticks while the tool runs");
 
 // The registry the entry point disposes on session_shutdown.
-lifecycleMod.uiLifecycle.disposeAll();
+lifecycleMod.cardLifecycle.disposeAll();
 const ticksAtTeardown = spinnerTicks;
 await new Promise((resolve) => setTimeout(resolve, 170));
 assert.equal(spinnerTicks, ticksAtTeardown, "teardown stops the spinner timer");

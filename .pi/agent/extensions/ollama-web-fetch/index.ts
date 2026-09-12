@@ -3,7 +3,7 @@
  *
  * Same API contract as the upstream tool (url/offset/full/refresh params,
  * disk cache with 24h success / 15min failure TTL at the same path) but the
- * tool card is rendered in the local pi-ui card language (see CONTEXT.md) and
+ * tool card is rendered in the local card language (see CONTEXT.md) and
  * `ollama_web_search` is gone — brave_web_search covers search.
  *
  * The tool definition is exposed as a factory (`createWebFetchTool`) so tests
@@ -31,17 +31,19 @@ import {
   httpError,
 } from "./utils";
 import {
+  spinnerChar,
+  syncSpinner,
+  type SpinnerState,
+} from "../card/spinner.js";
+import {
   bracketDetail,
   errorPreviewLine,
   resultLine,
   shorten,
-  spinnerChar,
-  syncSpinner,
   textOutput,
   toolHeader,
-  type SpinnerState,
   type UiTheme,
-} from "../ui/lib/pi-ui.js";
+} from "../card/text.js";
 
 const WEB_TOOLS_TIMEOUT_MS = 15000;
 // Fetch chunks are capped so a single call never floods the context window;

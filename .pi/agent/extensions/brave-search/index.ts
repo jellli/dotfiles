@@ -9,10 +9,10 @@
  * Setup:
  *   ~/.pi/agent/brave-search/auth.json   { "apiKey": "<subscription token>" }
  *
- * The card presentation follows the tool-card language defined in
- * agent/extensions/ui (see CONTEXT.md): badge header, `└─ ` result line with
+ * The card presentation follows the tool-card language defined by
+ * agent/extensions/card/ (see CONTEXT.md): badge header, `└─ ` result line with
  * a muted summary when collapsed, full output on expand. Helpers are imported
- * from ../ui/lib/pi-ui.js so the cards stay visually identical; keep the two
+ * from ../card/text.js so the cards stay visually identical; keep the two
  * extensions in sync.
  */
 import { readFileSync } from "node:fs";
@@ -28,17 +28,19 @@ import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import type { Dispatcher } from "undici";
 import {
+  spinnerChar,
+  syncSpinner,
+  type SpinnerState,
+} from "../card/spinner.js";
+import {
   bracketDetail,
   errorPreviewLine,
   resultLine,
   shorten,
-  spinnerChar,
-  syncSpinner,
   textOutput,
   toolHeader,
-  type SpinnerState,
   type UiTheme,
-} from "../ui/lib/pi-ui.js";
+} from "../card/text.js";
 
 const BRAVE_BASE = "https://api.search.brave.com/res/v1/web/search";
 const AUTH_PATH = join(homedir(), ".pi", "agent", "brave-search", "auth.json");

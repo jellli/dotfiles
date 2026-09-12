@@ -16,8 +16,7 @@ import {
   type TodoItem as Item,
   type TodoPhase as Phase,
 } from "./todo-state.js";
-import { createToolAggregation } from "../ui/lib/aggregation.js";
-import { bracketDetail } from "../ui/lib/pi-ui.js";
+import { toolCard } from "../card/tool-card.js";
 
 const TOOL_NAME = "todo";
 const ENTRY_TYPE = "oh-my-pi-todo";
@@ -455,10 +454,9 @@ function awaitsUserReply(text: string | undefined): boolean {
 }
 
 export default function (pi: ExtensionAPI): void {
-  const aggregation = createToolAggregation(pi);
-
   pi.registerTool(
-    aggregation.wrap(
+    toolCard(
+      pi,
       {
         name: TOOL_NAME,
         label: "Todo",
@@ -496,13 +494,13 @@ export default function (pi: ExtensionAPI): void {
         },
       },
       {
-        line: (args, theme) => {
+        detail: (args, theme) => {
           const params = args as Params;
           const target =
             params.task ?? params.phase ?? params.items?.join(", ") ?? "";
-          return bracketDetail(
-            theme,
-            theme.fg("toolOutput", `${params.op}${target ? ` ${target}` : ""}`),
+          return theme.fg(
+            "toolOutput",
+            `${params.op}${target ? ` ${target}` : ""}`,
           );
         },
       },

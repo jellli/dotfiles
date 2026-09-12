@@ -15,8 +15,12 @@ import {
   truncateToWidth,
   visibleWidth,
 } from "@earendil-works/pi-tui";
-import { createToolAggregation } from "./lib/aggregation.js";
-import { uiLifecycle, type Lifecycle } from "./lib/lifecycle.js";
+import { cardLifecycle, type Lifecycle } from "../card/lifecycle.js";
+import {
+  spinnerChar,
+  syncSpinner,
+  type SpinnerState,
+} from "../card/spinner.js";
 import {
   fitLine,
   fitPath,
@@ -24,11 +28,9 @@ import {
   bracketDetail,
   RESULT_LINE_INDENT,
   resultLine,
-  spinnerChar,
-  syncSpinner,
   toolHeader,
-  type SpinnerState,
-} from "./lib/pi-ui.js";
+} from "../card/text.js";
+import { toolCard } from "../card/tool-card.js";
 import { highlightBashLines } from "./pi-diff.js";
 
 type ToolArgs = Record<string, unknown>;
@@ -107,7 +109,7 @@ function compactionColor(
 
 export function installCompactCompactionRenderer(
   componentClass: typeof CompactionSummaryMessageComponent,
-  lifecycle: Lifecycle = uiLifecycle,
+  lifecycle: Lifecycle = cardLifecycle,
 ): void {
   const prototype =
     componentClass.prototype as unknown as CompactionRenderPrototype;
@@ -554,8 +556,6 @@ export function registerCompactToolCards(pi: ExtensionAPI) {
   void installBundleCompactionRenderer();
   const cwd = process.cwd();
 
-  const aggregation = createToolAggregation(pi);
-
   const readSummary: ResultFormatter = (output, theme) =>
     theme.fg("muted", `${output.split("\n").length} lines`);
   const grepSummary: ResultFormatter = (output, theme) => {
@@ -577,23 +577,16 @@ export function registerCompactToolCards(pi: ExtensionAPI) {
 
   // Registering matching names replaces only the built-in renderers above.
   pi.registerTool(
-    aggregation.wrap(createReadToolDefinition(cwd), {
-      line: (args, theme) => bracketDetail(theme, readCallLine(args, theme)),
+    toolCard(pi, createReadToolDefinition(cwd), {
+      detail: (args, theme) => readCallLine(args, theme),
       row: readCallRow,
       summary: readSummary,
     }),
   );
   pi.registerTool(
-    aggregation.wrap(createGrepToolDefinition(cwd), {
-      line: (args, theme) =>
-        bracketDetail(
-          theme,
-          theme.fg(
-            "toolOutput",
-            `"${shorten(stringArg(args, "pattern"), 48)}" in ${shorten(stringArg(args, "path", "."), 48)}`,
-          ),
-        ),
-      row: (args, theme) =>
+    toolCard(pi, createGrepToolDefinition(cwd), {
+      // The Frame draws the detail in a group row too, so grep needs no `row`.
+      detail: (args, theme) =>
         theme.fg(
           "toolOutput",
           `"${shorten(stringArg(args, "pattern"), 48)}" in ${shorten(stringArg(args, "path", "."), 48)}`,

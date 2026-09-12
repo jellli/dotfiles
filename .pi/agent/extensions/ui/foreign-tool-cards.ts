@@ -9,8 +9,9 @@
  * schema, and the prompt metadata stay untouched - this is display only.
  *
  * Two card shapes:
- * - no own renderer -> the shared aggregation draws the card (badge header,
- *   summary result line, consecutive-call groups, raw text when expanded).
+ * - no own renderer -> the card module's Frame derives the whole card from the
+ *   definition (badge header, summary result line, consecutive-call groups,
+ *   raw text when expanded).
  * - own renderer -> a local card draws the header and result line, and the
  *   tool's own component draws inside the expanded block.
  *
@@ -29,24 +30,28 @@ import type {
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Text, type Component } from "@earendil-works/pi-tui";
+import { cardLifecycle, type Lifecycle } from "../card/lifecycle.js";
+import { createTextMemo } from "../card/line-memo.js";
 import {
-  createToolAggregation,
-  type ToolAggregationOptions,
-} from "./lib/aggregation.js";
-import { uiLifecycle, type Lifecycle } from "./lib/lifecycle.js";
-import { createTextMemo } from "./lib/line-memo.js";
+  spinnerChar,
+  syncSpinner,
+  type SpinnerState,
+} from "../card/spinner.js";
 import {
   bracketDetail,
   errorPreviewLine,
   fitLine,
   resultLine,
-  shorten,
-  spinnerChar,
-  syncSpinner,
   textOutput,
   toolHeader,
-  type SpinnerState,
-} from "./lib/pi-ui.js";
+} from "../card/text.js";
+import {
+  defaultSummary,
+  firstShortArgument,
+  installCardHooks,
+  runDisplay,
+  toolCard,
+} from "../card/tool-card.js";
 
 type AnyTheme = Parameters<
   NonNullable<ToolDefinition<any, any, any>["renderCall"]>
@@ -87,12 +92,10 @@ type Hub = {
   owners?: Map<string, Listener>;
 };
 
-type AggregationWrapper = {
-  wrap(
-    tool: ToolDefinition<any, any, any>,
-    options?: ToolAggregationOptions,
-  ): ToolDefinition<any, any, any>;
-};
+/** Cards one definition; the card module's `toolCard`. */
+type CardFactory = (
+  definition: ToolDefinition<any, any, any>,
+) => ToolDefinition<any, any, any>;
 
 const HUB_KEY = Symbol.for("dotfiles.foreign-tool-cards.v1");
 export const CONFIG_PATH = join(homedir(), ".pi", "agent", "tool-cards.json");
@@ -333,28 +336,6 @@ export function exceptionMatcher(
 // Card content
 // ---------------------------------------------------------------------------
 
-/** Header detail: the first short single-line string argument, if any. */
-export function argDetail(args: unknown, theme: AnyTheme): string {
-  const record =
-    args && typeof args === "object" ? (args as Record<string, unknown>) : {};
-  for (const value of Object.values(record)) {
-    if (typeof value !== "string") continue;
-    const text = value.trim();
-    if (text === "" || text.length > 96 || text.includes("\n")) continue;
-    return bracketDetail(theme, theme.fg("toolOutput", shorten(text, 56)));
-  }
-  return "";
-}
-
-/** Result line: a single-line output shows itself, a longer one shows a count. */
-export function outputSummary(output: string, theme: AnyTheme): string {
-  const lines = output.split("\n");
-  if (lines.length === 1) {
-    return theme.fg("toolOutput", shorten(lines[0], 96));
-  }
-  return theme.fg("muted", `${lines.length} lines`);
-}
-
 /**
  * Background colors off: a third-party card paints its own backgrounds (fabric's
  * tool-call background and diff highlighting). The local card has none, so the
@@ -397,36 +378,6 @@ const stripCache = createTextMemo(STRIP_CACHE_BUDGET, stripBackgroundUncached);
 /** Strip backgrounds from one rendered line, memoized across re-renders. */
 export function stripBackground(text: string): string {
   return stripCache.get(text);
-}
-
-/**
- * `display.name` / `display.description`: the title and objective a tool
- * declares for its own UI (fabric's activity UI is the reference).
- */
-export function runDisplay(args: unknown): {
-  name?: string;
-  description?: string;
-} {
-  const record =
-    args && typeof args === "object" ? (args as Record<string, unknown>) : {};
-  const display = record.display;
-  if (typeof display === "string") {
-    const text = display.trim();
-    return text === "" ? {} : { name: text };
-  }
-  if (!display || typeof display !== "object") return {};
-  const { name, description } = display as {
-    name?: unknown;
-    description?: unknown;
-  };
-  return {
-    ...(typeof name === "string" && name.trim() !== ""
-      ? { name: name.trim() }
-      : {}),
-    ...(typeof description === "string" && description.trim() !== ""
-      ? { description: description.trim() }
-      : {}),
-  };
 }
 
 /**
@@ -501,11 +452,12 @@ function contentCard(
 
       // The badge is the tool's identity; the tool's own title line stays in its
       // card, so its `display.name` is not repeated here.
-      const display = runDisplay(args);
+      const detail =
+        runDisplay(args).description ?? firstShortArgument(args, theme);
       const header = toolHeader(
         theme,
         label,
-        display.description ?? argDetail(args, theme),
+        detail === "" ? "" : bracketDetail(theme, detail),
       );
 
       const child = ownComponent(
@@ -536,13 +488,13 @@ function contentCard(
       context: AnyContext,
     ) {
       const state = context.state as ContentState;
-      const output = textOutput(result as { content: ToolTextResultContent });
+      const output = textOutput(result);
       const fallback = options.isPartial
         ? ""
         : context.isError
           ? errorPreviewLine(theme, output, options.expanded)
           : output
-            ? resultLine(theme, outputSummary(output, theme))
+            ? resultLine(theme, defaultSummary(output, theme))
             : "";
 
       const child = ownComponent(
@@ -560,8 +512,6 @@ function contentCard(
     },
   };
 }
-
-type ToolTextResultContent = Array<{ type: string; text?: string }>;
 
 function ownComponent(
   state: ContentState,
@@ -598,15 +548,13 @@ function ownComponent(
 export function wrapForeignDefinition(
   definition: ToolDefinition<any, any, any>,
   name: string,
-  aggregation: AggregationWrapper,
+  card: CardFactory,
 ): ToolDefinition<any, any, any> {
   if (definition.renderCall || definition.renderResult) {
     return contentCard(definition, name);
   }
-  return aggregation.wrap(definition, {
-    line: (args, theme) => argDetail(args, theme),
-    summary: (output, theme) => outputSummary(output, theme),
-  });
+  // No renderer of its own: the Frame derives the whole card from the tool.
+  return card(definition);
 }
 
 // ---------------------------------------------------------------------------
@@ -662,7 +610,7 @@ const OWNER = "dotfiles.foreign-tool-cards";
 
 export function installForeignToolCards(options: {
   constructors: RunnerConstructor[];
-  aggregation: AggregationWrapper;
+  card: CardFactory;
   isExcepted: (name: string) => boolean;
   ownRoot: string;
   onWrapped?: (names: string[]) => void;
@@ -671,7 +619,7 @@ export function installForeignToolCards(options: {
   /** Identity this install replaces on the hub; one per extension. */
   owner?: string;
 }): { dispose(): void } {
-  const lifecycle = options.lifecycle ?? uiLifecycle;
+  const lifecycle = options.lifecycle ?? cardLifecycle;
   const owner = options.owner ?? OWNER;
   const hubs = options.constructors
     .map((ctor) => hubFor(ctor))
@@ -695,7 +643,7 @@ export function installForeignToolCards(options: {
 
       let card = cards.get(definition);
       if (!card) {
-        card = wrapForeignDefinition(definition, name, options.aggregation);
+        card = wrapForeignDefinition(definition, name, options.card);
         cards.set(definition, card);
       }
       names.push(name);
@@ -747,12 +695,16 @@ function ownExtensionsRoot(): string {
 export async function registerForeignToolCards(
   pi: ExtensionAPI,
 ): Promise<void> {
+  // The aggregation boundaries are wire-once per pi; installing them here keeps
+  // group closes working even when no definition ends up wrapped.
+  installCardHooks(pi);
+
   const constructors = await discoverRunnerConstructors();
   if (constructors.length === 0) return;
 
   installForeignToolCards({
     constructors,
-    aggregation: createToolAggregation(pi),
+    card: (definition) => toolCard(pi, definition),
     isExcepted: exceptionMatcher(readExceptionList()),
     ownRoot: ownExtensionsRoot(),
   });
