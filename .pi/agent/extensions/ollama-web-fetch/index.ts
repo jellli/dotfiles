@@ -50,6 +50,11 @@ interface FetchDetails {
 /** First line of the tool's text output; the summary reads title and size back. */
 const FETCH_HEADER = /^Title: (.*) \((\d+) chars total\)$/;
 
+/** Header line of the tool's own output, e.g. `Title: Example Page (6000 chars total)`. */
+export function fetchHeader(title: string | undefined, total: number): string {
+  return `Title: ${title} (${total} chars total)`;
+}
+
 /**
  * What the card hands the Frame: the URL in the header, and the result line
  * derived from the text the tool returns. The badge, the `└─ ` line, the error
@@ -272,7 +277,7 @@ export function createWebFetchTool(options: WebFetchToolOptions = {}) {
       const start = params.offset ?? 0;
       const end = params.full ? total : Math.min(start + READ_CHUNK, total);
       const lines = [
-        `Title: ${entry.title} (${total} chars total)`,
+        fetchHeader(entry.title, total),
         start >= total
           ? "Already at the end, no more content."
           : `Chars ${start + 1}-${end} of ${total}${end < total ? ` (${total - end} remaining)` : ""}:`,

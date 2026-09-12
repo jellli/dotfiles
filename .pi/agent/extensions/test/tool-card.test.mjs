@@ -45,7 +45,7 @@ const pi = {
  * per render slot; emulating that here means a re-render behaves exactly like
  * `updateDisplay()` does (both slots re-run, then the component renders).
  */
-function hostRow(id, args = {}) {
+function hostRow(id, args = {}, cardTheme = theme) {
   const slots = { call: undefined, result: undefined };
   const row = {
     id,
@@ -71,11 +71,11 @@ function hostRow(id, args = {}) {
         },
       };
     },
-    call(definition, nextArgs) {
+    call(definition, nextArgs, callTheme = cardTheme) {
       if (nextArgs !== undefined) row.args = nextArgs;
       const component = definition.renderCall(
         row.args,
-        theme,
+        callTheme,
         row.context("call"),
       );
       slots.call = component;
@@ -88,7 +88,7 @@ function hostRow(id, args = {}) {
       const component = definition.renderResult(
         result,
         { isPartial: row.isPartial, expanded: row.expanded },
-        theme,
+        cardTheme,
         row.context("result"),
       );
       slots.result = component;
@@ -99,8 +99,8 @@ function hostRow(id, args = {}) {
 }
 
 /** What the host draws on an updateDisplay: re-run the call slot, then render. */
-const frame = (definition, row, width = 80) =>
-  row.call(definition).render(width).map(plain);
+const frame = (definition, row, width = 80, cardTheme) =>
+  row.call(definition, undefined, cardTheme).render(width).map(plain);
 
 // ---------------------------------------------------------------------------
 // Badge, bracketed detail, result line
@@ -406,14 +406,60 @@ listingRow.call(listing);
 listingRow.result(listing, text(""));
 assert.deepEqual(
   frame(listing, listingRow),
-  [" LISTING  [ls]", " └─ first row", "    second row"],
-  "a block that is not a box keeps the connector's space, and lines up under it",
+  [" LISTING  [ls]", " └─first row", "   second row"],
+  "a block glues to the connector and indents the rest under it",
 );
+
+// A real theme paints the border through `fg`, so the row starts with an SGR
+// sequence: the connector rule reads the row count, never the first byte.
+const painted = {
+  fg: (_color, value) => `\x1b[38;2;100;100;100m${value}\x1b[39m`,
+  bg: (_color, value) => value,
+  bold: (value) => value,
+};
+const paintedBox = mod.toolCard(pi, tool("painted_box"), {
+  detail: () => "ls",
+  body: ({ theme: bodyTheme, width }) =>
+    box(width).map((line) => bodyTheme.fg("accent", line)),
+});
+const paintedRow = hostRow("painted-1", {}, painted);
+paintedRow.call(paintedBox);
+paintedRow.result(paintedBox, text(""));
+const paintedFrame = frame(paintedBox, paintedRow, 80, painted);
+const [boxTop, ...boxRest] = box(80 - 3);
+assert.deepEqual(
+  paintedFrame,
+  [
+    " PAINTED_BOX  [ls]",
+    ` └─${boxTop}`,
+    ...boxRest.map((line) => `   ${line}`),
+  ],
+  "a box painted with SGR still glues to the connector and keeps its geometry",
+);
+assert.equal(
+  paintedFrame[1].length,
+  80,
+  "so its right border lands flush with the card instead of being clipped",
+);
+assert.equal(paintedFrame.at(-1).length, 80, "bottom edge included");
 
 assert.throws(
   () => mod.toolCard(pi, tool("bash"), { body: () => [], aggregate: true }),
   /body with aggregate/,
   "body + aggregate: true is rejected where the card is attached",
+);
+assert.throws(
+  () =>
+    mod.toolCard(
+      pi,
+      {
+        ...tool("mcp_aggregated"),
+        renderCall: () => ({ render: () => ["row"], invalidate() {} }),
+      },
+      { aggregate: true },
+    ),
+  /body with aggregate/,
+  "and so is the body the Frame derives for a tool that draws its own card",
 );
 
 // ---------------------------------------------------------------------------
@@ -496,6 +542,23 @@ assert.equal(
 );
 assert.ok(settled[0].includes("DERIVED_"), "and the badge is still there");
 
+// A definition that hands in nothing still aggregates: consecutive calls of one
+// tool share a header, the way read and grep do.
+const derivedGroup = mod.toolCard(pi, tool("figma_grouped"));
+const groupedOne = hostRow("figma-group-1", { server: "figma" });
+const groupedTwo = hostRow("figma-group-2", { server: "figma" });
+groupedOne.call(derivedGroup);
+groupedTwo.call(derivedGroup);
+assert.ok(
+  frame(derivedGroup, groupedOne)[0].includes("×2"),
+  "a tool that hands in nothing aggregates its consecutive calls",
+);
+assert.deepEqual(
+  frame(derivedGroup, groupedOne).slice(1),
+  ["  ├─ figma", "  └─ figma"],
+  "and each row is the detail the Frame derived for that call",
+);
+
 // ---------------------------------------------------------------------------
 // A tool that draws its own card: the Frame derives a body for it
 // ---------------------------------------------------------------------------
@@ -521,8 +584,27 @@ const painting = mod.toolCard(
 const paintingRow = hostRow("mcp-1", { server: "figma", tool: "get_file" });
 assert.deepEqual(
   frame(painting, paintingRow),
-  [" MCP  [figma]", " └─ child header", "    child body"],
+  [" MCP  [figma]", " └─child header", "   child body"],
   "the tool's own rows draw in the result column under the Frame's connector",
+);
+
+// The badge is the tool's identity; the objective it declares is the detail.
+const declaredRow = hostRow("mcp-declared-1", {
+  display: {
+    name: "Add badge helper",
+    description: "Wire the badge into the header",
+  },
+});
+assert.equal(
+  frame(
+    mod.toolCard(
+      pi,
+      drawingTool("mcp_declared", () => ownCard(["call"])),
+    ),
+    declaredRow,
+  )[0],
+  " MCP_DECLARED  [Wire the badge into the header]",
+  "display.description becomes the header detail of a tool's own card too",
 );
 
 // The Frame calls the tool's call renderer while the call runs and its result
@@ -540,6 +622,7 @@ assert.equal(
   frame(slots, slotsRow).at(-1),
   " └─ call card",
   "a running call draws the tool's own call component",
+  // One row is result-line content; only a block glues to the connector.
 );
 slotsRow.result(slots, text("one\ntwo"));
 assert.equal(
@@ -1068,10 +1151,11 @@ assert.deepEqual(
   [" OLLAMA_WEB_FETCH  [https://example.com/page]", " └─ ●"],
   "the shipped fetch card brackets the URL",
 );
+// The header the summary parses is the text the tool itself writes.
 page.result(
   fetchCard,
   text(
-    "Title: Example Page (6000 chars total)\n\nChars 1-3000 of 6000 (3000 remaining):\nhello\n\n# live query",
+    `${webFetch.fetchHeader("Example Page", 6000)}\n\nChars 1-3000 of 6000 (3000 remaining):\nhello\n\n# live query`,
   ),
 );
 assert.equal(
@@ -1094,10 +1178,16 @@ const diffDir = mkdtempSync("/tmp/tool-card-diff-");
 const diffFile = join(diffDir, "a.ts");
 writeFileSync(diffFile, "one\ntwo\nthree\n");
 
+let diffTokenized = 0;
 const diffTools = [];
 diff.registerPiDiff(
   { registerTool: (toolDefinition) => diffTools.push(toolDefinition), on() {} },
-  { tokenize: async (value) => [{ content: value }] },
+  {
+    tokenize: async (value) => {
+      diffTokenized += 1;
+      return [{ content: value }];
+    },
+  },
 );
 const diffEdit = diffTools.find(
   (toolDefinition) => toolDefinition.name === "edit",
@@ -1139,6 +1229,16 @@ assert.ok(
 assert.ok(
   editFrame.join("\n").includes("TWO"),
   "and the change is drawn inside it",
+);
+
+// The box lives on the row, so a redraw keeps the rows it already tokenized.
+const tokenizedAtSettle = diffTokenized;
+assert.ok(tokenizedAtSettle > 0, "the box tokenized the rows it drew");
+frame(diffEdit, editRow);
+assert.equal(
+  diffTokenized,
+  tokenizedAtSettle,
+  "a redraw reuses that box instead of tokenizing the window again",
 );
 const diffFooter = editFrame.at(-1);
 assert.match(

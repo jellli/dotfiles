@@ -31,16 +31,6 @@ import type {
 import { cardLifecycle, type Lifecycle } from "../card/lifecycle.js";
 import { installCardHooks, toolCard } from "../card/tool-card.js";
 
-type AnyTheme = Parameters<
-  NonNullable<ToolDefinition<any, any, any>["renderCall"]>
->[1];
-type AnyContext = Parameters<
-  NonNullable<ToolDefinition<any, any, any>["renderCall"]>
->[2];
-type AnyResult = {
-  content?: Array<{ type: string; text?: string }>;
-};
-
 /** The registered-tool shape the host hands out; only two fields are needed. */
 type RegisteredToolLike = {
   definition: ToolDefinition<any, any, any>;

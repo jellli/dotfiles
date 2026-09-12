@@ -15,7 +15,9 @@
  *    column; a body that yields nothing (no body, `undefined`, `[]`) leaves the
  *    Frame to draw the summary, the error preview, or the expansion itself.
  * 2. A `body` turns aggregation off. Asking for both (`aggregate: true`) throws
- *    where the card is attached instead of failing quietly at render time. 3. `context.invalidate` is only ever called by the Frame, and only for the
+ *    where the card is attached instead of failing quietly at render time; a body
+ *    the Frame derives for a tool that draws its own card counts as one.
+ * 3. `context.invalidate` is only ever called by the Frame, and only for the
  *    group owner. A non-owner settling notifies the owner once, and the owner
  *    never propagates, so `invalidate() -> updateDisplay() -> render` cannot
  *    bounce back (no render storm).
@@ -87,10 +89,10 @@ export type CardBodyInput = {
  * Rows a body hands the Frame for the result area.
  *
  * The Frame places them: one row is result-line content (`└─ exit 0`), several
- * rows are a block. A block whose top row is a box border glues to the connector
- * (`└─┌───┐`, the diff and bash boxes); any other block keeps the connector's
- * space and its remaining rows line up under the first row's content. A body
- * therefore draws geometry only and never touches the connector.
+ * rows are a block whose top row glues to the connector (`└─┌───┐`, the diff and
+ * bash boxes) and whose remaining rows indent to the same column, so a box lines
+ * up with its own top border. A body therefore draws geometry only and never
+ * touches the connector.
  */
 export type CardBody = (input: CardBodyInput) => string[] | undefined;
 
@@ -636,18 +638,18 @@ class Frame implements Component {
   /**
    * Place the rows a body handed over (see CardBody).
    *
-   * A box glues its top border to the connector (`└─┌───┐`), so its left edge
-   * lands flush with the card's; any other block keeps the connector's space and
-   * its remaining rows line up under the first row's content.
+   * A block glues its top row to the connector (`└─┌───┐`) and indents the rest to
+   * the same column; a single row is result-line content. The test is the row
+   * count, not the glyph: a body paints its border through the theme, so the first
+   * byte of a border row is an SGR sequence, not the border itself.
    */
   private placeBody(rows: string[], width: number): string[] {
     const [first, ...rest] = rows;
-    const box = rest.length > 0 && first.startsWith("┌");
     const head =
-      box && rest.length > 0
+      rest.length > 0
         ? resultLine(this.theme, first, true)
         : resultLine(this.theme, first);
-    const indent = " ".repeat(RESULT_LINE_INDENT + (box ? 0 : 1));
+    const indent = " ".repeat(RESULT_LINE_INDENT);
     return [head, ...rest.map((line) => `${indent}${line}`)].map((line) =>
       fitLine(line, width, "", 0),
     );
@@ -690,23 +692,26 @@ export function toolCard<T extends ToolDefinition<any, any, any>>(
   tool: T,
   spec: CardSpec = {},
 ): T {
-  // A body owns the whole result area, so a group would have to pick which row's
-  // body draws the shared card. Reject the pair where the card is attached
-  // rather than silently dropping one of them at render time.
-  if (spec.body && spec.aggregate) {
-    throw new Error(
-      `toolCard: ${tool.name} cannot combine a body with aggregate: true`,
-    );
-  }
   installCardHooks(pi);
 
   // A tool that draws its own card hands the Frame a default body, so the Frame
   // keeps everything around that card. A spec that declares how the result reads
   // (`summary`) or draws it (`body`) owns the result area itself - which is how
   // the compact cards replace the renderer a built-in tool ships with.
-  const declared = Boolean(tool.renderCall || tool.renderResult);
+  const shipsOwnRenderer = Boolean(tool.renderCall || tool.renderResult);
   const body =
-    spec.body ?? (declared && !spec.summary ? ownBody(tool) : undefined);
+    spec.body ??
+    (shipsOwnRenderer && !spec.summary ? ownBody(tool) : undefined);
+
+  // A body owns the whole result area, so a group would have to pick which row's
+  // body draws the shared card. Reject the pair where the card is attached rather
+  // than silently dropping one of them at render time; a derived body counts as
+  // one.
+  if (body !== undefined && spec.aggregate) {
+    throw new Error(
+      `toolCard: ${tool.name} cannot combine a body with aggregate: true`,
+    );
+  }
 
   const resolved: ResolvedSpec = {
     detail: spec.detail ?? defaultDetail,
@@ -714,9 +719,7 @@ export function toolCard<T extends ToolDefinition<any, any, any>>(
     summary: spec.summary ?? defaultSummary,
     body,
   };
-  // A body owns the whole result area, so a group would have to pick which row's
-  // body draws the shared card.
-  const aggregate = body ? false : spec.aggregate !== false;
+  const aggregate = body !== undefined ? false : spec.aggregate !== false;
 
   return {
     ...tool,
