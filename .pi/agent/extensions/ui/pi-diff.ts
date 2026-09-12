@@ -1,3 +1,4 @@
+import { statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 import {
@@ -12,6 +13,7 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Text, type Component, visibleWidth } from "@earendil-works/pi-tui";
+import { uiLifecycle } from "./lib/lifecycle.js";
 import {
   fitLine,
   bracketDetail,
@@ -93,6 +95,22 @@ const COLLAPSED_DIFF_LINES = 8;
 const HIGHLIGHT_CHUNK = 500;
 /** Above this many lines a whole-file capture is not worth its row objects. */
 const MAX_CAPTURE_LINES = 20_000;
+
+/**
+ * Above this many bytes the file is not read for a capture at all.
+ *
+ * The line cap above only decides what to keep once the file has already been
+ * read twice (before and after the tool ran). A 9.6MB file measured 51ms of
+ * reads and ~19MB of resident text, and the pre-execution read delays the edit
+ * itself by half a round trip - seconds on a network mount. Below the budget the
+ * capture gives full-context rows and word-level emphasis; above it the diff
+ * comes from the tool's own result (the host's +-4 context lines).
+ */
+const MAX_CAPTURE_BYTES = 2 * 1024 * 1024;
+
+/** Tools whose result reports no diff of its own: the capture is the only source
+ * of a diff for them, whatever the file size (see MAX_CAPTURE_LINES). */
+const CAPTURE_ONLY_TOOLS = new Set(["write"]);
 const SPLIT_MIN_WIDTH = 150;
 const DIM = "\x1b[2m";
 const RST = "\x1b[0m";
@@ -183,13 +201,33 @@ function targetPath(args: ToolArgs, cwd: string): string {
   return path.startsWith("/") ? path : resolve(cwd, path);
 }
 
-async function readText(path: string): Promise<string> {
-  try {
-    return normalize(await readFile(path, "utf8"));
-  } catch {
-    return "";
-  }
-}
+/**
+ * The whole-file reads a capture is built from; injected so the byte guard can
+ * be exercised without a multi-megabyte fixture.
+ */
+export type CaptureSource = {
+  /** The file text, normalized; `""` when it cannot be read. */
+  read(path: string): Promise<string>;
+  /** File size in bytes; 0 when unknown, which reads anyway. */
+  size(path: string): number;
+};
+
+const fileCapture: CaptureSource = {
+  async read(path: string): Promise<string> {
+    try {
+      return normalize(await readFile(path, "utf8"));
+    } catch {
+      return "";
+    }
+  },
+  size(path: string): number {
+    try {
+      return statSync(path).size;
+    } catch {
+      return 0;
+    }
+  },
+};
 
 function changedRows(oldText: string, newText: string): DiffRow[] {
   const rows: DiffRow[] = [];
@@ -362,6 +400,12 @@ function resolveDiffColors(theme: RenderResultTheme): DiffColors {
     bgAddW,
     bgDelW,
   };
+}
+
+/** Whether two resolved palettes paint the same colors. */
+function sameColors(left: DiffColors, right: DiffColors): boolean {
+  const keys = Object.keys(left) as Array<keyof DiffColors>;
+  return keys.every((key) => left[key] === right[key]);
 }
 
 // ---------------------------------------------------------------------------
@@ -698,6 +742,27 @@ class MutationDiffViewer implements Component {
     this.expanded = expanded;
   }
 
+  /**
+   * Re-render in the current theme.
+   *
+   * The host re-renders the whole transcript when the theme changes but hands
+   * back the same component, so the palette has to be rebuilt here or the card on
+   * screen keeps the colors it was built with. It is rebuilt on every call rather
+   * than on a change of theme identity: the theme the host passes is one stable
+   * object whose accessors read the live theme, so identity never changes and an
+   * identity check would keep the old colors forever. Re-deriving costs a dozen
+   * accessor calls. The highlighted lines come from the fixed shiki theme, not
+   * from this palette, so they stay.
+   */
+  setTheme(theme: RenderResultTheme): void {
+    this.theme = theme;
+    const colors = resolveDiffColors(theme);
+    // The result line's summary embeds the diff colors, so it is rebuilt only
+    // when they actually moved.
+    if (!sameColors(colors, this.colors)) this.state.stats = undefined;
+    this.colors = colors;
+  }
+
   invalidate(): void {}
 
   render(width: number): string[] {
@@ -828,8 +893,12 @@ class MutationDiffViewer implements Component {
   }
 }
 
-/** The diff card as the host sees it: a component that follows the expand key. */
-export type DiffViewer = Component & { setExpanded(expanded: boolean): void };
+/** The diff card as the host sees it: a component that follows the expand key
+ * and repaints when the theme changes. */
+export type DiffViewer = Component & {
+  setExpanded(expanded: boolean): void;
+  setTheme(theme: RenderResultTheme): void;
+};
 
 export function createDiffViewer(options: {
   state: DiffState;
@@ -896,6 +965,7 @@ function wrapMutation<T extends ToolDefinition<any, any, any>>(
   tool: T,
   cwd: string,
   tokenize: DiffTokenizer,
+  capture: CaptureSource,
 ): T {
   const originalExecute = tool.execute;
   return {
@@ -910,7 +980,12 @@ function wrapMutation<T extends ToolDefinition<any, any, any>>(
     ) {
       const executionCwd = context?.cwd || cwd;
       const path = targetPath(args, executionCwd);
-      const oldText = await readText(path);
+      // Decide before reading: the line cap can only be applied to text that is
+      // already in memory, which is exactly what an oversized file must avoid.
+      const worthReading =
+        capture.size(path) <= MAX_CAPTURE_BYTES ||
+        CAPTURE_ONLY_TOOLS.has(tool.name);
+      const oldText = worthReading ? await capture.read(path) : "";
       const result = await originalExecute(
         toolCallId,
         args,
@@ -918,7 +993,7 @@ function wrapMutation<T extends ToolDefinition<any, any, any>>(
         onUpdate as never,
         context as never,
       );
-      const newText = await readText(path);
+      const newText = worthReading ? await capture.read(path) : "";
 
       // A whole-file diff costs one row object per line. When the tool reports a
       // bounded diff of its own, a huge file uses that instead; without one
@@ -926,7 +1001,10 @@ function wrapMutation<T extends ToolDefinition<any, any, any>>(
       const tooLarge =
         lineCount(oldText) > MAX_CAPTURE_LINES ||
         lineCount(newText) > MAX_CAPTURE_LINES;
-      if (!tooLarge || resultDiff(result?.details) === undefined) {
+      if (
+        worthReading &&
+        (!tooLarge || resultDiff(result?.details) === undefined)
+      ) {
         captures.set(toolCallId, { oldText, newText });
       }
       return result;
@@ -987,6 +1065,7 @@ function wrapMutation<T extends ToolDefinition<any, any, any>>(
               tokenize,
             });
       component.setExpanded(options.expanded);
+      component.setTheme(theme);
       captures.delete(context.toolCallId);
       return component;
     },
@@ -995,11 +1074,19 @@ function wrapMutation<T extends ToolDefinition<any, any, any>>(
 
 export function registerPiDiff(
   pi: ExtensionAPI,
-  options: { tokenize?: DiffTokenizer } = {},
+  options: { tokenize?: DiffTokenizer; capture?: CaptureSource } = {},
 ): void {
   const cwd = process.cwd();
   const tokenize = options.tokenize ?? shikiTokenizer;
-  pi.registerTool(wrapMutation(createEditToolDefinition(cwd), cwd, tokenize));
-  pi.registerTool(wrapMutation(createWriteToolDefinition(cwd), cwd, tokenize));
-  pi.on("session_shutdown", () => captures.clear());
+  const capture = options.capture ?? fileCapture;
+  pi.registerTool(
+    wrapMutation(createEditToolDefinition(cwd), cwd, tokenize, capture),
+  );
+  pi.registerTool(
+    wrapMutation(createWriteToolDefinition(cwd), cwd, tokenize, capture),
+  );
+  // The captures are keyed by tool call id and die with the session: released
+  // through the same registry as the rest of the extension, so /reload leaves
+  // nothing of the old runtime behind.
+  uiLifecycle.add(() => captures.clear());
 }

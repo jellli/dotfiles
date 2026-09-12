@@ -16,6 +16,7 @@ import {
   visibleWidth,
 } from "@earendil-works/pi-tui";
 import { createToolAggregation } from "./lib/aggregation.js";
+import { uiLifecycle, type Lifecycle } from "./lib/lifecycle.js";
 import {
   fitLine,
   fitPath,
@@ -50,8 +51,22 @@ type RenderContext = Parameters<
   NonNullable<ToolDefinition<any, any, any>["renderCall"]>
 >[2];
 
-const COMPACTION_RENDER_PATCH = "__dotfilesCompactCompactionRender";
+export const COMPACTION_RENDER_PATCH = "__dotfilesCompactCompactionRender";
+export const COMPACTION_PATCH_OWNER = "dotfiles.compact-tool-cards";
 const PI_THEME_KEY = Symbol.for("@earendil-works/pi-coding-agent:theme");
+
+/** Identity of this module evaluation: `/reload` runs the module again, so a
+ * different token means the live patch was left behind by an older instance. */
+const PATCH_TOKEN = {};
+
+/** What an install leaves on the prototype: the render it replaced plus the
+ * patch it installed, so a later install can take it off again. */
+type CompactionPatch = {
+  owner: string;
+  token: object;
+  original: (this: CompactionRenderPrototype, width: number) => string[];
+  patched: (this: CompactionRenderPrototype, width: number) => string[];
+};
 
 type CompactionTheme = {
   fg(
@@ -64,10 +79,7 @@ type CompactionRenderPrototype = {
   expanded: boolean;
   message: { tokensBefore: number };
   render(width: number): string[];
-  [COMPACTION_RENDER_PATCH]?: (
-    this: CompactionRenderPrototype,
-    width: number,
-  ) => string[];
+  [COMPACTION_RENDER_PATCH]?: CompactionPatch;
 };
 
 function compactionTheme(): CompactionTheme | undefined {
@@ -93,16 +105,26 @@ function compactionColor(
   return `\x1b[${fallback}m${text}\x1b[${reset}m`;
 }
 
-function installCompactCompactionRenderer(
+export function installCompactCompactionRenderer(
   componentClass: typeof CompactionSummaryMessageComponent,
+  lifecycle: Lifecycle = uiLifecycle,
 ): void {
   const prototype =
     componentClass.prototype as unknown as CompactionRenderPrototype;
-  if (prototype[COMPACTION_RENDER_PATCH]) return;
+  const existing = prototype[COMPACTION_RENDER_PATCH];
+  // The same module instance patching the same class twice (the entry point and
+  // the registration both install it) changes nothing.
+  if (existing?.token === PATCH_TOKEN) return;
+
+  // An older module instance's patch is still live: take it off before patching,
+  // so /reload picks up the new render code instead of leaving the old closure in
+  // place, and so the two patches never stack.
+  if (existing && prototype.render === existing.patched) {
+    prototype.render = existing.original;
+  }
 
   const originalRender = prototype.render;
-  prototype[COMPACTION_RENDER_PATCH] = originalRender;
-  prototype.render = function (width: number): string[] {
+  const patched = function (this: CompactionRenderPrototype, width: number) {
     if (this.expanded) return originalRender.call(this, width);
 
     const tokenCount = this.message.tokensBefore.toLocaleString();
@@ -110,6 +132,21 @@ function installCompactCompactionRenderer(
     const line = `${compactionColor("customMessageLabel", "[compaction]")} ${compactionColor("customMessageText", "Compacted from")} ${compactionColor("accent", `${tokenCount} tokens`)} ${compactionColor("customMessageText", `(${compactionColor("dim", `${hint} to expand`)})`)}`;
     return [truncateToWidth(line, Math.max(1, width), "", false)];
   };
+  prototype.render = patched;
+  prototype[COMPACTION_RENDER_PATCH] = {
+    owner: COMPACTION_PATCH_OWNER,
+    token: PATCH_TOKEN,
+    original: originalRender,
+    patched,
+  };
+
+  lifecycle.add(() => {
+    const live = prototype[COMPACTION_RENDER_PATCH];
+    if (live?.owner === COMPACTION_PATCH_OWNER && live.token === PATCH_TOKEN) {
+      delete prototype[COMPACTION_RENDER_PATCH];
+    }
+    if (prototype.render === patched) prototype.render = originalRender;
+  });
 }
 
 async function installBundleCompactionRenderer(): Promise<void> {

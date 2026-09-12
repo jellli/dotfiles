@@ -33,6 +33,8 @@ import {
   createToolAggregation,
   type ToolAggregationOptions,
 } from "./lib/aggregation.js";
+import { uiLifecycle, type Lifecycle } from "./lib/lifecycle.js";
+import { createTextMemo } from "./lib/line-memo.js";
 import {
   bracketDetail,
   errorPreviewLine,
@@ -70,7 +72,20 @@ type RunnerPrototype = {
 export type RunnerConstructor = { prototype: RunnerPrototype };
 
 type Listener = (tools: RegisteredToolLike[]) => RegisteredToolLike[];
-type Hub = { listeners: Set<Listener> };
+
+/**
+ * One listener per hub, plus the owner each listener was installed under.
+ *
+ * The hub lives on the host prototype and survives `/reload`, while the module
+ * that installed a listener does not. Keying listeners by owner lets a fresh
+ * install take its predecessor off the hub instead of adding a second one that
+ * would wrap every definition a second time.
+ */
+type Hub = {
+  listeners: Set<Listener>;
+  /** Absent on a hub an older module instance created. */
+  owners?: Map<string, Listener>;
+};
 
 type AggregationWrapper = {
   wrap(
@@ -100,7 +115,7 @@ function hubFor(ctor: RunnerConstructor): Hub | undefined {
   const original = prototype.getAllRegisteredTools;
   if (typeof original !== "function") return undefined;
 
-  const hub: Hub = { listeners: new Set() };
+  const hub: Hub = { listeners: new Set(), owners: new Map() };
   Object.defineProperty(prototype, HUB_KEY, {
     value: hub,
     configurable: false,
@@ -371,19 +386,17 @@ function stripBackgroundUncached(text: string): string {
 }
 
 // Stripping runs on every re-render, for every line of every foreign card, and
-// the same lines come back frame after frame.
-const STRIP_CACHE_LIMIT = 2000;
-const stripCache = new Map<string, string>();
+// the same lines come back frame after frame: 4.3us per line cold against
+// 0.054us warm (measured 2026-09-12), which is why the memo is what keeps a long
+// transcript cheap. The budget counts retained text (String#length in and out,
+// which tracks memory closely enough for sizing): 4M units is roughly ten
+// thousand rendered lines, so a card of any realistic length stays cached.
+const STRIP_CACHE_BUDGET = 4 * 1024 * 1024;
+const stripCache = createTextMemo(STRIP_CACHE_BUDGET, stripBackgroundUncached);
 
 /** Strip backgrounds from one rendered line, memoized across re-renders. */
 export function stripBackground(text: string): string {
-  const cached = stripCache.get(text);
-  if (cached !== undefined) return cached;
-
-  const stripped = stripBackgroundUncached(text);
-  if (stripCache.size >= STRIP_CACHE_LIMIT) stripCache.clear();
-  stripCache.set(text, stripped);
-  return stripped;
+  return stripCache.get(text);
 }
 
 /**
@@ -645,13 +658,21 @@ function safeRealPath(path: string): string {
   }
 }
 
+const OWNER = "dotfiles.foreign-tool-cards";
+
 export function installForeignToolCards(options: {
   constructors: RunnerConstructor[];
   aggregation: AggregationWrapper;
   isExcepted: (name: string) => boolean;
   ownRoot: string;
   onWrapped?: (names: string[]) => void;
+  /** Registry the teardown lands in; defaults to the extension's own. */
+  lifecycle?: Lifecycle;
+  /** Identity this install replaces on the hub; one per extension. */
+  owner?: string;
 }): { dispose(): void } {
+  const lifecycle = options.lifecycle ?? uiLifecycle;
+  const owner = options.owner ?? OWNER;
   const hubs = options.constructors
     .map((ctor) => hubFor(ctor))
     .filter((hub): hub is Hub => hub !== undefined);
@@ -684,11 +705,30 @@ export function installForeignToolCards(options: {
     return next;
   };
 
-  for (const hub of hubs) hub.listeners.add(listener);
+  for (const hub of hubs) {
+    const owners = (hub.owners ??= new Map<string, Listener>());
+    const previous = owners.get(owner);
+    if (previous) hub.listeners.delete(previous);
+    owners.set(owner, listener);
+    hub.listeners.add(listener);
+  }
+
+  const remove = () => {
+    for (const hub of hubs) {
+      hub.listeners.delete(listener);
+      if (hub.owners?.get(owner) === listener) hub.owners.delete(owner);
+    }
+  };
+
+  // Registered so `session_shutdown` releases the hub listener before /reload
+  // binds the new module instance; the returned handle also unregisters, so an
+  // explicit dispose leaves nothing behind.
+  const release = lifecycle.add(remove);
 
   return {
     dispose() {
-      for (const hub of hubs) hub.listeners.delete(listener);
+      remove();
+      release();
     },
   };
 }

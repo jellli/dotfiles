@@ -15,6 +15,7 @@
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerCompactToolCards } from "./compact-tool-cards.js";
+import { uiLifecycle } from "./lib/lifecycle.js";
 import { registerForeignToolCards } from "./foreign-tool-cards.js";
 import { registerPiDiff } from "./pi-diff.js";
 
@@ -22,6 +23,11 @@ import { registerPiDiff } from "./pi-diff.js";
 // session builds its tool registry. Keep the install awaited: a late patch
 // leaves the session with the unwrapped definitions.
 export default async function (pi: ExtensionAPI): Promise<void> {
+  // /reload emits session_shutdown for this runtime, then re-evaluates these
+  // modules: release every prototype patch and hub listener here, or the new
+  // instance stacks a second one on top of the old.
+  pi.on("session_shutdown", () => uiLifecycle.disposeAll());
+
   registerCompactToolCards(pi);
   registerPiDiff(pi);
   await registerForeignToolCards(pi);

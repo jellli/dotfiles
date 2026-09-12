@@ -120,6 +120,69 @@ assert.equal(
   "a bare reset survives: dropping it leaks the foreground into the next line",
 );
 
+// --- the strip memo evicts the oldest line, it does not wipe the table -------
+
+const memoMod = await jiti(join(extensionsDir, "ui/lib/line-memo.ts"));
+
+// One-character lines cost two bytes each in and out, so three of them fit.
+let computed = 0;
+const memo = memoMod.createTextMemo(6, (text) => {
+  computed += 1;
+  return text;
+});
+
+for (const line of ["a", "b", "c"]) memo.get(line);
+assert.equal(computed, 3, "a cold line is computed once");
+
+assert.equal(memo.get("b"), "b", "a retained line is served from the memo");
+assert.equal(computed, 3, "a hit does not recompute");
+
+memo.get("d"); // over budget
+assert.ok(
+  memo.size <= 3,
+  `the memo stays within its budget (kept ${memo.size} entries)`,
+);
+assert.equal(memo.get("c"), "c", "an older retained line still hits");
+assert.equal(computed, 4, "a retained line is not recomputed after eviction");
+
+memo.get("a");
+assert.equal(computed, 5, "the line the budget pushed out is recomputed");
+
+// A card longer than an entry cap must still be a hit on the next frame: the
+// acceptance for ticket 05 (3000 distinct lines, under 1/10 the cost from
+// frame 2 on).
+const esc = String.fromCharCode(27);
+const frame = [];
+for (let index = 0; index < 3000; index += 1)
+  frame.push(`${esc}[38;2;1;2;3mline ${index}${esc}[39m`);
+
+const passOverCard = () => {
+  const start = performance.now();
+  for (const line of frame) mod.stripBackground(line);
+  return performance.now() - start;
+};
+
+const cold = passOverCard();
+// A single frame's wall time is noisy, so the cache-hit cost is read off the
+// fastest of 20 passes: a cache that dropped the card would make every pass cost
+// the cold one.
+let fastestWarm = Number.POSITIVE_INFINITY;
+let warmTotal = 0;
+for (let round = 0; round < 20; round += 1) {
+  const elapsed = passOverCard();
+  fastestWarm = Math.min(fastestWarm, elapsed);
+  warmTotal += elapsed;
+}
+
+assert.ok(
+  fastestWarm * 10 < cold,
+  `a frame after the first costs a tenth of the cold frame (cold ${cold.toFixed(2)}ms, fastest warm ${fastestWarm.toFixed(3)}ms)`,
+);
+assert.ok(
+  warmTotal < cold * 10,
+  `20 frames stay near the price of one cold frame (cold ${cold.toFixed(2)}ms, 20 warm frames ${warmTotal.toFixed(2)}ms)`,
+);
+
 // --- install: wrap, skip, cache, dispose ------------------------------------
 
 const execute = async () => ({ content: [], details: {} });
@@ -446,6 +509,241 @@ assert.equal(
   seenResultOptions.expanded,
   true,
   "expanded state reaches the tool's result renderer",
+);
+
+// --- reload hygiene: a re-install replaces the listener, it does not stack ---
+
+const hubKey = Symbol.for("dotfiles.foreign-tool-cards.v1");
+
+const reloadDefinition = (name) => ({
+  ...definition(name),
+  renderCall: () => ({
+    render: () => [`the tool's own card: ${name}`],
+    invalidate() {},
+  }),
+});
+
+const reloadTool = {
+  definition: reloadDefinition("figma_reload"),
+  sourceInfo: { path: "/tmp/node_modules/pi-figma/index.ts" },
+};
+const reloadRunner = new FakeRunner([reloadTool]);
+
+const badgeLines = (lines) =>
+  lines.filter((line) => plain(line).includes("FIGMA_RELOAD")).length;
+
+const renderOwnCard = (definition) =>
+  definition
+    .renderCall({}, theme, {
+      args: {},
+      toolCallId: "reload-call",
+      isPartial: false,
+      isError: false,
+      expanded: false,
+      state: {},
+      lastComponent: undefined,
+      invalidate() {},
+    })
+    .render(80)
+    .map(plainLine);
+
+// The registry the extension wires to session_shutdown, exercised here on its own.
+const lifecycleMod = await jiti(join(extensionsDir, "ui/lib/lifecycle.ts"));
+const reloadLifecycle = lifecycleMod.createLifecycle();
+
+const installOptions = {
+  constructors: [FakeRunner],
+  aggregation,
+  isExcepted: () => false,
+  ownRoot: extensionsDir,
+  lifecycle: reloadLifecycle,
+};
+
+const firstReload = mod.installForeignToolCards(installOptions);
+assert.equal(
+  badgeLines(renderOwnCard(reloadRunner.getAllRegisteredTools()[0].definition)),
+  1,
+  "a foreign card carries one header",
+);
+assert.equal(reloadLifecycle.size, 1, "the install registers its teardown");
+
+// What /reload does: the host still holds the original definition, and the new
+// module instance installs its own listener for it.
+const secondReload = mod.installForeignToolCards(installOptions);
+const reloadHub = FakeRunner.prototype[hubKey];
+assert.equal(
+  reloadHub.listeners.size,
+  1,
+  "one listener per hub, not one per reload",
+);
+assert.equal(
+  badgeLines(renderOwnCard(reloadRunner.getAllRegisteredTools()[0].definition)),
+  1,
+  "no double header after a reload",
+);
+
+// The failure the owner key prevents, reproduced: a listener that does not know
+// about the one already installed wraps the card a second time.
+const strangerReload = mod.installForeignToolCards({
+  ...installOptions,
+  owner: "someone-else",
+});
+assert.equal(
+  reloadHub.listeners.size,
+  2,
+  "a different owner is a second listener",
+);
+assert.equal(
+  badgeLines(renderOwnCard(reloadRunner.getAllRegisteredTools()[0].definition)),
+  2,
+  "two listeners draw two headers: what /reload used to do",
+);
+strangerReload.dispose();
+assert.equal(reloadHub.listeners.size, 1, "disposing the stranger leaves ours");
+
+reloadLifecycle.disposeAll();
+assert.equal(reloadHub.listeners.size, 0, "teardown releases the hub listener");
+assert.equal(
+  reloadRunner.getAllRegisteredTools()[0].definition,
+  reloadTool.definition,
+  "and the definition goes back to the host's own",
+);
+secondReload.dispose();
+firstReload.dispose();
+
+// --- the teardown registry: LIFO, once, and a removal handle ----------------
+
+const teardownOrder = [];
+const registry = lifecycleMod.createLifecycle();
+const removeFirst = registry.add(() => teardownOrder.push("first"));
+registry.add(() => teardownOrder.push("second"));
+registry.add(() => teardownOrder.push("third"));
+removeFirst();
+assert.equal(registry.size, 2, "a removal handle unregisters the teardown");
+
+registry.disposeAll();
+assert.deepEqual(
+  teardownOrder,
+  ["third", "second"],
+  "teardowns run newest first",
+);
+assert.equal(registry.size, 0, "the registry is empty after teardown");
+
+const onceRegistry = lifecycleMod.createLifecycle();
+let runs = 0;
+onceRegistry.add(() => {
+  runs += 1;
+  throw new Error("a failing teardown must not stop the rest");
+});
+onceRegistry.add(() => {
+  runs += 1;
+});
+onceRegistry.disposeAll();
+onceRegistry.disposeAll();
+assert.equal(
+  runs,
+  2,
+  "every teardown runs once, and a failure does not stop the rest",
+);
+
+// --- the registry covers a live spinner timer too ---------------------------
+
+const spinnerMod = await jiti(join(extensionsDir, "ui/lib/pi-ui.ts"));
+const spinnerState = {};
+let spinnerTicks = 0;
+spinnerMod.syncSpinner(spinnerState, true, () => {
+  spinnerTicks += 1;
+});
+assert.ok(spinnerState.timer, "a running spinner starts a timer");
+
+await new Promise((resolve) => setTimeout(resolve, 170));
+assert.ok(spinnerTicks > 0, "the spinner ticks while the tool runs");
+
+// The registry the entry point disposes on session_shutdown.
+lifecycleMod.uiLifecycle.disposeAll();
+const ticksAtTeardown = spinnerTicks;
+await new Promise((resolve) => setTimeout(resolve, 170));
+assert.equal(spinnerTicks, ticksAtTeardown, "teardown stops the spinner timer");
+assert.equal(spinnerState.timer, undefined, "and forgets the timer");
+
+// The lifecycle does not stop after a teardown: a new spinner registers again.
+spinnerMod.syncSpinner(spinnerState, true, () => {});
+assert.ok(spinnerState.timer, "a spinner started after teardown runs");
+spinnerMod.syncSpinner(spinnerState, false, () => {});
+assert.equal(spinnerState.timer, undefined, "settling stops it directly");
+
+// --- reload hygiene: the [compaction] patch is replaced, not stacked --------
+
+const compactMod = await jiti(join(extensionsDir, "ui/compact-tool-cards.ts"));
+const patchKey = compactMod.COMPACTION_RENDER_PATCH;
+
+function FakeCompaction() {}
+FakeCompaction.prototype.expanded = false;
+FakeCompaction.prototype.message = { tokensBefore: 1234 };
+
+const hostRender = function () {
+  return ["the host's own summary"];
+};
+
+// The state a previous module instance leaves behind: the host render it
+// replaced, and the patch it installed.
+function staleRender() {
+  return ["the old module's summary"];
+}
+FakeCompaction.prototype.render = staleRender;
+FakeCompaction.prototype[patchKey] = {
+  owner: compactMod.COMPACTION_PATCH_OWNER,
+  token: {},
+  original: hostRender,
+  patched: staleRender,
+};
+
+const patchLifecycle = lifecycleMod.createLifecycle();
+compactMod.installCompactCompactionRenderer(FakeCompaction, patchLifecycle);
+assert.equal(
+  patchLifecycle.size,
+  1,
+  "the prototype patch registers its teardown",
+);
+
+const collapsedSummary = FakeCompaction.prototype.render.call({
+  expanded: false,
+  message: { tokensBefore: 1234 },
+});
+assert.ok(
+  collapsedSummary.join("\n").includes("[compaction]"),
+  "the new module's render code is live after a reload",
+);
+
+FakeCompaction.prototype.expanded = true;
+const expandedSummary = FakeCompaction.prototype.render.call({
+  expanded: true,
+  message: { tokensBefore: 1234 },
+});
+assert.deepEqual(
+  expandedSummary,
+  ["the host's own summary"],
+  "the stale patch was restored before the new one, so nothing stacks",
+);
+FakeCompaction.prototype.expanded = false;
+
+// Installing again from the same module instance is a no-op.
+compactMod.installCompactCompactionRenderer(FakeCompaction, patchLifecycle);
+assert.equal(patchLifecycle.size, 1, "a repeat install registers nothing new");
+assert.deepEqual(
+  FakeCompaction.prototype.render.call({
+    expanded: true,
+    message: { tokensBefore: 1234 },
+  }),
+  ["the host's own summary"],
+  "and does not stack a second patch",
+);
+
+patchLifecycle.disposeAll();
+assert.equal(
+  FakeCompaction.prototype.render,
+  hostRender,
+  "teardown restores the host's own render",
 );
 
 // --- probe: the host class is still reachable -------------------------------

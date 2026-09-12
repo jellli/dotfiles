@@ -1,4 +1,5 @@
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { uiLifecycle } from "./lifecycle.js";
 
 export type UiTheme = {
   fg(color: any, text: string): string;
@@ -116,6 +117,8 @@ const SPINNER_INTERVAL_MS = 140;
 export type SpinnerState = {
   timer?: ReturnType<typeof setInterval>;
   frame?: number;
+  /** Unregisters the timer's teardown from the extension lifecycle. */
+  release?: () => void;
 };
 
 /** Advance the spinner frame while `isPartial`; call on every render. */
@@ -128,15 +131,30 @@ export function syncSpinner(
     state.frame ??= 0;
     if (!state.timer) {
       // Scoped to this tool execution and never keeps Pi alive.
-      state.timer = setInterval(() => {
+      const timer = setInterval(() => {
         state.frame = ((state.frame ?? 0) + 1) % SPINNER_FRAMES.length;
         invalidate();
       }, SPINNER_INTERVAL_MS);
-      state.timer.unref();
+      timer.unref();
+      state.timer = timer;
+      // Registered so a reload while a tool is streaming does not leave the old
+      // runtime's interval ticking against a transcript nobody draws.
+      state.release = uiLifecycle.add(() => stopSpinner(state, timer));
     }
   } else if (state.timer) {
-    clearInterval(state.timer);
+    stopSpinner(state, state.timer);
+  }
+}
+
+function stopSpinner(
+  state: SpinnerState,
+  timer: ReturnType<typeof setInterval>,
+): void {
+  clearInterval(timer);
+  if (state.timer === timer) {
     state.timer = undefined;
+    state.release?.();
+    state.release = undefined;
   }
 }
 
