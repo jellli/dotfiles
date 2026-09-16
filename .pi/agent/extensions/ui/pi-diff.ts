@@ -24,17 +24,22 @@ type RenderResultTheme = Parameters<
 type Language = string;
 
 type Capture = { oldText: string; newText: string };
+
+/** What the box draws: the whole-file capture `execute` took, or the diff the
+ * tool's own result reports. Neither is available after a reload, and then the
+ * box says so. */
+export type DiffSource = { capture: Capture } | { diff: string };
+
+/** The viewer's own state. Private to `MutationDiffViewer`: the card module's
+ * body only holds the box (see `DiffViewer`), never this. */
 type DiffState = {
-  capture?: Capture;
+  source?: DiffSource;
   rows?: DiffRow[];
   /** Highlighted lines by row index: only the rows the view has drawn. */
   highlighted?: Map<number, string>;
   highlightPending?: boolean;
   stats?: string;
   totalLines?: number;
-  invalidate?: () => void;
-  /** The box this row draws; the card module's body keeps it here. */
-  viewer?: DiffViewer;
 };
 
 type DiffRow = {
@@ -699,27 +704,41 @@ function boxed(
   ];
 }
 
-class MutationDiffViewer implements Component {
-  private state: DiffState;
-  private path = "";
-  private theme!: RenderResultTheme;
-  private colors!: DiffColors;
-  private expanded = false;
-  private readonly tokenize!: DiffTokenizer;
+/**
+ * What one box is built from.
+ *
+ * `source`, `path` and `tokenize` are per row and go in once; `theme` and
+ * `expanded` are also the first frame's, but they follow the host through the
+ * setters below. `redraw` is a capability, not a render input: the box asks for
+ * a repaint through it once an async highlight lands.
+ */
+export type DiffViewerOptions = {
+  source: DiffSource | undefined;
+  path: string;
+  theme: RenderResultTheme;
+  expanded: boolean;
+  tokenize?: DiffTokenizer;
+  /** Asks for a repaint when an async highlight lands; the Frame's `redraw()`. */
+  redraw?: () => void;
+};
 
-  constructor(
-    state: DiffState,
-    path: string,
-    theme: RenderResultTheme,
-    expanded: boolean,
-    tokenize: DiffTokenizer,
-  ) {
-    this.state = state;
-    this.path = path;
-    this.theme = theme;
-    this.colors = resolveDiffColors(theme);
-    this.expanded = expanded;
-    this.tokenize = tokenize;
+class MutationDiffViewer implements Component {
+  private readonly state: DiffState;
+  private readonly path: string;
+  private theme: RenderResultTheme;
+  private colors: DiffColors;
+  private expanded: boolean;
+  private readonly tokenize: DiffTokenizer;
+  private readonly redraw?: () => void;
+
+  constructor(options: DiffViewerOptions) {
+    this.state = { source: options.source };
+    this.path = options.path;
+    this.theme = options.theme;
+    this.colors = resolveDiffColors(options.theme);
+    this.expanded = options.expanded;
+    this.tokenize = options.tokenize ?? shikiTokenizer;
+    this.redraw = options.redraw;
     this.ensureSource();
   }
 
@@ -767,17 +786,22 @@ class MutationDiffViewer implements Component {
     );
   }
 
+  /** Parse the source into rows, once: the rows are the viewer's from here on. */
   private ensureSource(): void {
-    if (this.state.rows !== undefined) return;
-    const capture = this.state.capture;
-    if (!capture) {
-      this.state.rows = [];
+    const state = this.state;
+    if (state.rows !== undefined) return;
+    const source = state.source;
+    if (!source) {
+      state.rows = [];
       return;
     }
-    this.state.rows = addWordRanges(
-      changedRows(capture.oldText, capture.newText),
-    );
-    this.state.totalLines = this.state.rows.length;
+    state.rows =
+      "capture" in source
+        ? addWordRanges(
+            changedRows(source.capture.oldText, source.capture.newText),
+          )
+        : addWordRanges(parseDisplayDiff(source.diff));
+    state.totalLines = state.rows.length;
   }
 
   private highlighted(): Map<number, string> {
@@ -815,12 +839,12 @@ class MutationDiffViewer implements Component {
     )
       .then((lines) => {
         batch.forEach((index, position) => code.set(index, lines[position]));
-        this.state.invalidate?.();
+        this.redraw?.();
       })
       .catch(() => {
         // A failing tokenizer must not retry on every frame: show plain text.
         for (const index of batch) code.set(index, rows[index]?.text ?? "");
-        this.state.invalidate?.();
+        this.redraw?.();
       })
       .finally(() => {
         this.state.highlightPending = false;
@@ -883,20 +907,8 @@ export type DiffViewer = Component & {
   setTheme(theme: RenderResultTheme): void;
 };
 
-export function createDiffViewer(options: {
-  state: DiffState;
-  path: string;
-  theme: RenderResultTheme;
-  expanded: boolean;
-  tokenize?: DiffTokenizer;
-}): DiffViewer {
-  return new MutationDiffViewer(
-    options.state,
-    options.path,
-    options.theme,
-    options.expanded,
-    options.tokenize ?? shikiTokenizer,
-  );
+export function createDiffViewer(options: DiffViewerOptions): DiffViewer {
+  return new MutationDiffViewer(options);
 }
 
 function styleStats(rows: DiffRow[], theme: RenderResultTheme): string {
@@ -940,15 +952,16 @@ type MutationResult = {
  * with nothing to draw (still running, failed with no diff) yields nothing and
  * the Frame's own result area stands.
  */
-function mutationSpec(tokenize: DiffTokenizer): CardSpec<DiffState> {
+function mutationSpec(
+  tokenize: DiffTokenizer,
+): CardSpec<{ viewer?: DiffViewer }> {
   return {
     detail: (input) =>
       input.theme.fg("accent", stringArg(input.args, "path", "<missing path>")),
     body: (input) => {
-      const { options, theme } = input;
+      const { options, state, theme } = input;
       if (!input.result || options.isPartial) return undefined;
 
-      const state = input.state;
       // The capture `execute` took is keyed by the tool call's id, which the row
       // carries in its state (`CardState.toolCallId`): the card input has no id
       // of its own.
@@ -960,29 +973,33 @@ function mutationSpec(tokenize: DiffTokenizer): CardSpec<DiffState> {
         return undefined;
       }
 
-      // The box tokenizes the lines it draws in the background and then asks for a
-      // repaint; it goes through the Frame's `redraw()`, since the Frame is the
-      // only one that calls the host's invalidate (invariant 3).
-      state.invalidate = input.redraw;
-      state.capture ??= captures.get(callId);
-      if (!state.capture && state.rows === undefined) {
-        const nativeDiff = resultDiff((input.result as MutationResult).details);
-        if (nativeDiff !== undefined) {
-          state.rows = addWordRanges(parseDisplayDiff(nativeDiff));
-          state.totalLines = state.rows.length;
-        }
-      }
+      // The capture is the richer source - the whole file as context - but a file
+      // past the byte or line cap has none, and then the diff the tool's own
+      // result reports stands in. Neither: the box says the diff is unavailable.
+      const capture = captures.get(callId);
+      const nativeDiff = resultDiff((input.result as MutationResult).details);
+      const source: DiffSource | undefined = capture
+        ? { capture }
+        : nativeDiff === undefined
+          ? undefined
+          : { diff: nativeDiff };
 
       // The host re-renders the card on every frame (a resize, an expand, the
       // async highlight landing), so the box lives on the row and is handed the
       // theme again each time: the theme object the host passes reads the live
       // theme, so its identity never changes (see MutationDiffViewer.setTheme).
+      // The source goes in once, here: the rebuilt box would otherwise re-parse
+      // (and re-tokenize) a diff it had already drawn.
       const viewer = (state.viewer ??= createDiffViewer({
-        state,
+        source,
         path: stringArg(input.args, "path", "<missing path>"),
         theme,
         expanded: options.expanded,
         tokenize,
+        // The box tokenizes the lines it draws in the background and then asks
+        // for a repaint; it goes through the Frame's `redraw()`, since the Frame
+        // is the only one that calls the host's invalidate (invariant 3).
+        redraw: input.redraw,
       }));
       viewer.setExpanded(options.expanded);
       viewer.setTheme(theme);

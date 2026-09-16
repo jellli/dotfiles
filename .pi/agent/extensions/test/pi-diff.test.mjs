@@ -39,9 +39,23 @@ const tokenize = async (text) => {
   return [{ content: text }];
 };
 
-const state = { capture: bigCapture() };
+// The capture is read only when the source is parsed: the viewer's two accesses
+// (`oldText`, `newText`) are the whole of "parsing the source".
+let captureReads = 0;
+const big = bigCapture();
 const viewer = mod.createDiffViewer({
-  state,
+  source: {
+    capture: {
+      get oldText() {
+        captureReads += 1;
+        return big.oldText;
+      },
+      get newText() {
+        captureReads += 1;
+        return big.newText;
+      },
+    },
+  },
   path: "/tmp/big-file.ts",
   theme,
   expanded: false,
@@ -73,6 +87,21 @@ assert.ok(
   "a line far outside the window is never tokenized",
 );
 
+// --- the source goes in once, at construction --------------------------------
+
+// A source the viewer re-parsed on every frame would re-tokenize the window it
+// had already highlighted. The viewer is built once per row and handed the same
+// source, so a second render draws the rows it already had.
+const askedAfterPaint = asked.length;
+const thirdFrame = plainLines(viewer.render(80)).join("\n");
+assert.equal(
+  asked.length,
+  askedAfterPaint,
+  `a second render does not re-tokenize the window (asked ${asked.length - askedAfterPaint} more lines)`,
+);
+assert.equal(thirdFrame, secondFrame, "and draws the rows it already had");
+assert.equal(captureReads, 2, "and never reads the capture again");
+
 // --- a theme change re-renders the card without re-tokenizing it ------------
 
 const esc = String.fromCharCode(27);
@@ -98,12 +127,11 @@ const palette = (key, addFg, baseBg) => ({
 const firstTheme = palette("a", `${esc}[38;2;1;1;1m`, `${esc}[48;2;10;10;10m`);
 const secondTheme = palette("b", `${esc}[38;2;2;2;2m`, `${esc}[48;2;20;20;20m`);
 
-const themedState = {
-  capture: { oldText: "alpha\nbeta\ngamma", newText: "alpha\nBETA\ngamma" },
-};
 let themedTokenized = 0;
 const themedViewer = mod.createDiffViewer({
-  state: themedState,
+  source: {
+    capture: { oldText: "alpha\nbeta\ngamma", newText: "alpha\nBETA\ngamma" },
+  },
   path: "/tmp/themed.ts",
   theme: firstTheme,
   expanded: false,
