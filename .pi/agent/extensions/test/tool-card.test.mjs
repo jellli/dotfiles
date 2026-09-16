@@ -1028,9 +1028,9 @@ assert.ok(memoRow.state.startedAt > 0, "the Frame stamps the row's start time");
 // No card surface shows wall time yet (bash's box does, from ticket 02 on), so
 // the clock is asserted on the helper a body reads it through.
 assert.match(
-  mod.elapsedText(memoRow.state),
+  mod.elapsedText({ startedAt: Date.now() - 500 }),
   /^[0-9.]+s$|^[0-9]+m[0-9]+s$/,
-  "elapsed reads off the Frame's clock",
+  "a running row reads off the Frame's clock",
 );
 assert.equal(
   mod.elapsedText({ startedAt: Date.now() - 60_000 }),
@@ -1038,6 +1038,81 @@ assert.equal(
   "a minute or more is shown in minutes and seconds",
 );
 assert.equal(mod.elapsedText({}), "", "a row with no start time shows nothing");
+assert.equal(
+  mod.elapsedText({ startedAt: Date.now() - 600_000, settled: true }),
+  "",
+  "and a settled row reports nothing when nobody measured its run",
+);
+
+// ---------------------------------------------------------------------------
+// The run time is the tool's own
+// ---------------------------------------------------------------------------
+// The Frame's clock can only say how long a row has been on screen, and the host
+// restarts it for every row it rebuilds from the session (`/reload`). A card
+// that reports a duration asks for the execution to be timed instead, by tool
+// call id, in a registry that outlives the rebuild.
+
+const realClock = Date.now;
+let clock = 1_700_000_000_000;
+Date.now = () => clock;
+try {
+  const timed = mod.toolCard(
+    pi,
+    mod.withRunTime({
+      ...tool("timed"),
+      execute: async () => {
+        clock += 1_200;
+        return { content: [], details: {} };
+      },
+    }),
+    {
+      summary: (input) => `ran ${mod.elapsedText(input.state) || "unknown"}`,
+    },
+  );
+
+  /** The host's order: the tool runs, then the row is handed its result. */
+  const runThenSettle = async (row) => {
+    events.agent_start();
+    const component = row.call(timed);
+    await timed.execute(row.id, row.args, undefined, () => {}, {
+      cwd: "/tmp",
+    });
+    row.result(timed, text("out"));
+    return component;
+  };
+
+  const timedRow = hostRow("timed-1", {});
+  await runThenSettle(timedRow);
+  assert.equal(
+    frame(timed, timedRow).at(-1),
+    " └─ ran 1.2s",
+    "a settled row reports the run its own tool measured",
+  );
+
+  // What /reload does to the host: the store is reset, and every row is rendered
+  // again from the session with a fresh state and its result replayed.
+  events.session_shutdown();
+  const rebuiltTimed = hostRow("timed-1", {});
+  rebuiltTimed.call(timed);
+  rebuiltTimed.result(timed, text("out"));
+  assert.equal(
+    frame(timed, rebuiltTimed).at(-1),
+    " └─ ran 1.2s",
+    "and the row the host rebuilds keeps the run time reported after the rebuild",
+  );
+
+  const neverRan = hostRow("timed-2", {});
+  events.agent_start();
+  neverRan.call(timed);
+  neverRan.result(timed, text("out"));
+  assert.equal(
+    frame(timed, neverRan).at(-1),
+    " └─ ran unknown",
+    "a call this process never ran shows no time instead of a made-up one",
+  );
+} finally {
+  Date.now = realClock;
+}
 
 // ---------------------------------------------------------------------------
 // The compact cards the extension ships
@@ -1110,8 +1185,21 @@ try {
     "the shipped ls card is a spec too",
   );
 
-  // The bash card: the command in the header, the output box in the body.
-  const bashCard = mod.toolCard(pi, tool("bash"), compact.bashSpec);
+  // The bash card: the command in the header, the output box in the body. Its
+  // bottom edge reports how long the command ran, so the host times the
+  // execution the way `registerCompactToolCards` wires the real one.
+  const bashCard = mod.toolCard(
+    pi,
+    mod.withRunTime(tool("bash")),
+    compact.bashSpec,
+  );
+  /** The host's order: the tool runs, then the row is handed its result. */
+  const settle = async (row, result, options) => {
+    await bashCard.execute(row.id, row.args, undefined, () => {}, {
+      cwd: "/tmp",
+    });
+    row.result(bashCard, result, options);
+  };
   // A box the Frame hands the result column to: `inner` wide without borders.
   const inner = 80 - 3 - 2;
   const boxRow = (value) => `   │${value.padEnd(inner)}│`;
@@ -1131,7 +1219,7 @@ try {
     "a running call with no output yet is the spinner and the Frame's clock",
   );
 
-  shellRow.result(bashCard, text("one\ntwo\nthree"));
+  await settle(shellRow, text("one\ntwo\nthree"));
   assert.deepEqual(
     frame(bashCard, shellRow),
     [
@@ -1179,7 +1267,7 @@ try {
 
   const manyRow = hostRow("compact-bash-3", { command: "ls -la" });
   manyRow.call(bashCard);
-  manyRow.result(bashCard, text("one\ntwo\nthree\nfour\nfive"));
+  await settle(manyRow, text("one\ntwo\nthree\nfour\nfive"));
   const preview = frame(bashCard, manyRow);
   assert.deepEqual(
     preview.slice(2, 5),
@@ -1195,7 +1283,7 @@ try {
 
   const silentRow = hostRow("compact-bash-4", { command: "true" });
   silentRow.call(bashCard);
-  silentRow.result(bashCard, text(""));
+  await settle(silentRow, text(""));
   assert.deepEqual(
     frame(bashCard, silentRow),
     [" BASH  [true]", " └─ exit 0 · 0.0s"],
@@ -1204,7 +1292,7 @@ try {
 
   const failedRow = hostRow("compact-bash-5", { command: "false" });
   failedRow.call(bashCard);
-  failedRow.result(bashCard, text("boom: first line\nsecond line"), {
+  await settle(failedRow, text("boom: first line\nsecond line"), {
     isError: true,
   });
   const failed = frame(bashCard, failedRow);
@@ -1235,7 +1323,7 @@ try {
   // highlight landing.
   const highlightedRow = hostRow("compact-bash-6", { command: "echo hi" });
   highlightedRow.call(bashCard);
-  highlightedRow.result(bashCard, text("hi"));
+  await settle(highlightedRow, text("hi"));
   const plainHeader = " BASH  [echo hi]";
   const header = () => frame(bashCard, highlightedRow)[0];
   assert.equal(header(), plainHeader, "the header starts as the plain command");

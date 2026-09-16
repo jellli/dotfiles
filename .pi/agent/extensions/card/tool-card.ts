@@ -63,6 +63,7 @@ type AnyTheme = Parameters<
 type AnyContext = Parameters<
   NonNullable<ToolDefinition<any, any, any>["renderCall"]>
 >[2];
+type AnyExecute = ToolDefinition<any, any, any>["execute"];
 type AnyRenderCall = NonNullable<ToolDefinition<any, any, any>["renderCall"]>;
 type AnyRenderResult = NonNullable<
   ToolDefinition<any, any, any>["renderResult"]
@@ -125,13 +126,15 @@ type OwnCardRows = {
 export type CardState = SpinnerState & {
   startedAt?: number;
   /**
-   * Wall time this row ran, frozen when its result settled (see `elapsedText`).
+   * Wall time this call ran, measured around its execution (see `withRunTime`).
    *
-   * Without it the number a card shows is the row's *age*: every repaint of the
-   * transcript recomputes `now - startedAt`, so a box that finished an hour ago
-   * reports `60m0s`, and every reload restarts the count from its rebuild.
+   * The row's own clock cannot answer this: the host rebuilds every row from the
+   * session when it reloads an extension, so a rebuilt row would report its time
+   * since the rebuild, not since the command ran.
    */
   ranMs?: number;
+  /** Whether the result settled; a settled row no longer ticks (see `elapsedText`). */
+  settled?: boolean;
   /** Bumped whenever the host re-runs a render slot (see `markRepaint`). */
   repaint?: number;
   /** The card a tool draws itself, when it ships a renderer (see `ownBody`). */
@@ -300,17 +303,65 @@ export function defaultSummary(input: CardInput): string {
  * clock on the result line: for a card that draws no body the outcome line is
  * the whole result, and a ticking number beside it is noise.
  *
- * A row ticks while it runs and stops when its result settles (`ranMs`): the
- * number then reads the run, not the row's age.
+ * A row ticks while it runs. Once its result settles the number is the run the
+ * tool measured for it (`withRunTime`) - never the row's age, which grows with
+ * every repaint of the transcript and restarts from every rebuild. A settled row
+ * whose call this process never ran has no run time to show, and then this
+ * answers nothing rather than a made-up `0.0s`.
  */
 export function elapsedText(state: CardState): string {
-  const ran = state?.ranMs;
   const startedAt = state?.startedAt;
-  const ms = ran ?? (startedAt ? Date.now() - startedAt : undefined);
-  if (ms === undefined) return "";
+  const ms =
+    state?.ranMs ??
+    (state?.settled || !startedAt ? undefined : Date.now() - startedAt);
+  return ms === undefined ? "" : elapsedLabel(ms);
+}
+
+/** `1.2s` / `1m30s`: a wall time the way a card shows it. */
+export function elapsedLabel(ms: number): string {
   const seconds = ms / 1000;
   if (seconds < 60) return `${seconds.toFixed(1)}s`;
   return `${Math.floor(seconds / 60)}m${Math.round(seconds % 60)}s`;
+}
+
+/**
+ * How long each call took, by tool call id.
+ *
+ * Process-global, like the aggregation store: a row the host rebuilds after a
+ * reload still finds its own number. Only the calls this process ran are in it.
+ */
+const RUN_TIMES_KEY = Symbol.for("dotfiles.pi-tool-run-times");
+const runTimes = ((
+  globalThis as unknown as Record<symbol, Map<string, number> | undefined>
+)[RUN_TIMES_KEY] ??= new Map<string, number>());
+
+/**
+ * Time a tool's execution, so its card can report how long it took.
+ *
+ * A card asks for this where it registers: `toolCard(pi, withRunTime(def), spec)`.
+ * The number is kept by tool call id, so it survives the host rebuilding every
+ * row on `/reload` - which is exactly when the Frame's own clock stops meaning
+ * anything (a rebuilt row's first frame is the rebuild).
+ */
+export function withRunTime<T extends ToolDefinition<any, any, any>>(
+  tool: T,
+): T {
+  const execute = tool.execute as AnyExecute;
+  const timed: AnyExecute = async (
+    toolCallId,
+    params,
+    signal,
+    onUpdate,
+    context,
+  ) => {
+    const startedAt = Date.now();
+    try {
+      return await execute(toolCallId, params, signal, onUpdate, context);
+    } finally {
+      runTimes.set(toolCallId, Date.now() - startedAt);
+    }
+  };
+  return { ...tool, execute: timed } as T;
 }
 
 // ---------------------------------------------------------------------------
@@ -520,10 +571,12 @@ function updateResult(
   if (!entry) return;
 
   const output = textOutput(result);
-  if (!options.isPartial && entry.state.ranMs === undefined) {
-    // The row's clock stops here: what a body shows from now on is how long it
-    // ran, not how old it is.
-    entry.state.ranMs = Date.now() - (entry.state.startedAt ?? Date.now());
+  if (!options.isPartial) {
+    // The row's clock stops at the settle, and the run time it reports from now
+    // on is the one its tool measured (`withRunTime`): what the Frame watched is
+    // only how long the row was on screen.
+    entry.state.ranMs ??= runTimes.get(entry.state.toolCallId ?? "");
+    entry.state.settled = true;
   }
   entry.epoch +=
     moved(result, entry.result) +

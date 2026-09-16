@@ -16,6 +16,7 @@ import { fitPath, padLine, shorten } from "../card/text.js";
 import {
   elapsedText,
   toolCard,
+  withRunTime,
   type CardBodyInput,
   type CardSpec,
   type CardState,
@@ -443,5 +444,10 @@ export function registerCompactToolCards(pi: ExtensionAPI) {
   pi.registerTool(toolCard(pi, createGrepToolDefinition(cwd), grepSpec));
   pi.registerTool(toolCard(pi, createFindToolDefinition(cwd), findSpec));
   pi.registerTool(toolCard(pi, createLsToolDefinition(cwd), lsSpec));
-  pi.registerTool(toolCard(pi, createBashToolDefinition(cwd), bashSpec));
+  // The bash box reports how long the command ran, which only the execution
+  // knows: the card's own clock is restarted by every host rebuild (see
+  // `withRunTime`).
+  pi.registerTool(
+    toolCard(pi, withRunTime(createBashToolDefinition(cwd)), bashSpec),
+  );
 }
