@@ -124,6 +124,14 @@ type OwnCardRows = {
 /** Per-row render state the Frame owns: the spinner frame and the start time. */
 export type CardState = SpinnerState & {
   startedAt?: number;
+  /**
+   * Wall time this row ran, frozen when its result settled (see `elapsedText`).
+   *
+   * Without it the number a card shows is the row's *age*: every repaint of the
+   * transcript recomputes `now - startedAt`, so a box that finished an hour ago
+   * reports `60m0s`, and every reload restarts the count from its rebuild.
+   */
+  ranMs?: number;
   /** Bumped whenever the host re-runs a render slot (see `markRepaint`). */
   repaint?: number;
   /** The card a tool draws itself, when it ships a renderer (see `ownBody`). */
@@ -291,11 +299,16 @@ export function defaultSummary(input: CardInput): string {
  * from here instead of timing the execution itself. The Frame does not put a
  * clock on the result line: for a card that draws no body the outcome line is
  * the whole result, and a ticking number beside it is noise.
+ *
+ * A row ticks while it runs and stops when its result settles (`ranMs`): the
+ * number then reads the run, not the row's age.
  */
 export function elapsedText(state: CardState): string {
+  const ran = state?.ranMs;
   const startedAt = state?.startedAt;
-  if (!startedAt) return "";
-  const seconds = (Date.now() - startedAt) / 1000;
+  const ms = ran ?? (startedAt ? Date.now() - startedAt : undefined);
+  if (ms === undefined) return "";
+  const seconds = ms / 1000;
   if (seconds < 60) return `${seconds.toFixed(1)}s`;
   return `${Math.floor(seconds / 60)}m${Math.round(seconds % 60)}s`;
 }
@@ -507,6 +520,11 @@ function updateResult(
   if (!entry) return;
 
   const output = textOutput(result);
+  if (!options.isPartial && entry.state.ranMs === undefined) {
+    // The row's clock stops here: what a body shows from now on is how long it
+    // ran, not how old it is.
+    entry.state.ranMs = Date.now() - (entry.state.startedAt ?? Date.now());
+  }
   entry.epoch +=
     moved(result, entry.result) +
     moved(output, entry.output) +

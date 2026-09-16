@@ -1145,6 +1145,18 @@ try {
     "the box glues to the connector, fills the result column, and reports exit stats on its bottom edge",
   );
 
+  // The clock stops when the result lands: the number on the bottom edge is how
+  // long the row ran, not how old it is. Otherwise every repaint pushes it up,
+  // and every /reload restarts the count from its rebuild.
+  const settledEdge = frame(bashCard, shellRow).at(-1);
+  Date.now = () => 1_700_000_000_000 + 300_000;
+  assert.equal(
+    frame(bashCard, shellRow).at(-1),
+    settledEdge,
+    "a settled box keeps its run time when the wall clock moves on",
+  );
+  Date.now = () => 1_700_000_000_000;
+
   const liveRow = hostRow("compact-bash-2", { command: "make" });
   liveRow.call(bashCard);
   liveRow.result(bashCard, text("building\nlinking"), { isPartial: true });
