@@ -447,7 +447,7 @@ let spinnerTicks = 0;
 spinnerMod.syncSpinner(spinnerState, true, () => {
   spinnerTicks += 1;
 });
-assert.ok(spinnerState.timer, "a running spinner starts a timer");
+assert.ok(spinnerState.spin, "a running spinner joins the tick");
 
 await new Promise((resolve) => setTimeout(resolve, 170));
 assert.ok(spinnerTicks > 0, "the spinner ticks while the tool runs");
@@ -457,13 +457,35 @@ lifecycleMod.cardLifecycle.disposeAll();
 const ticksAtTeardown = spinnerTicks;
 await new Promise((resolve) => setTimeout(resolve, 170));
 assert.equal(spinnerTicks, ticksAtTeardown, "teardown stops the spinner timer");
-assert.equal(spinnerState.timer, undefined, "and forgets the timer");
+assert.equal(spinnerState.spin, undefined, "and leaves the tick");
 
 // The lifecycle does not stop after a teardown: a new spinner registers again.
 spinnerMod.syncSpinner(spinnerState, true, () => {});
-assert.ok(spinnerState.timer, "a spinner started after teardown runs");
+assert.ok(spinnerState.spin, "a spinner started after teardown runs");
 spinnerMod.syncSpinner(spinnerState, false, () => {});
-assert.equal(spinnerState.timer, undefined, "settling stops it directly");
+assert.equal(spinnerState.spin, undefined, "settling stops it directly");
+
+// Concurrent tool calls share one tick. Per-row timers tick at their own
+// offsets, so each one repaints the whole transcript for its own row: the frame
+// rate multiplies with the number of running tools and the screen shimmers.
+const tickedAt = { a: [], b: [] };
+const spinnerA = {};
+const spinnerB = {};
+spinnerMod.syncSpinner(spinnerA, true, () => tickedAt.a.push(Date.now()));
+await new Promise((resolve) => setTimeout(resolve, 70));
+spinnerMod.syncSpinner(spinnerB, true, () => tickedAt.b.push(Date.now()));
+await new Promise((resolve) => setTimeout(resolve, 300));
+spinnerMod.syncSpinner(spinnerA, false, () => {});
+spinnerMod.syncSpinner(spinnerB, false, () => {});
+assert.ok(
+  tickedAt.a.length > 0 && tickedAt.b.length > 0,
+  "two running rows both tick",
+);
+// B joined 70ms after A: a timer of its own would land 70ms away from A's.
+assert.ok(
+  Math.abs(tickedAt.a.at(-1) - tickedAt.b.at(-1)) < 30,
+  "and they advance in the same tick instead of on timers of their own",
+);
 
 // --- reload hygiene: the [compaction] patch is replaced, not stacked --------
 
