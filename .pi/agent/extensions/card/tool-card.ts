@@ -64,11 +64,47 @@ type AnyResult = {
 type RenderOptions = { expanded: boolean; isPartial: boolean };
 
 /** A tool's own component, cached per row and render slot (see `ownBody`). */
-type OwnCardState = { call?: Component; result?: Component };
+type OwnCardState = {
+  call?: Component;
+  result?: Component;
+  /** The rows the own card last drew, and the inputs they were derived from. */
+  drawn?: OwnCardRows;
+};
+
+/** The slot an own card was derived for: the call while it runs, the result after. */
+type OwnSlot = "call" | "result";
+
+/**
+ * Rows a tool's own card drew, with the inputs its renderer saw.
+ *
+ * Re-deriving them re-runs the tool's whole renderer, and a third-party renderer
+ * rebuilds its card from scratch on every call (fabric's fabric_exec: ~0.5ms a
+ * row, against ~0.02ms to re-render the component it had already returned). The
+ * host calls a renderer once per `updateDisplay` and re-renders what it returned
+ * on every frame, so the Frame has to do the same: otherwise a long transcript
+ * pays for every row on every keystroke and on every spinner tick (measured
+ * 2026-09-16 over a real session: 68ms a frame for its 143 settled fabric_exec
+ * rows, 0.6ms once they are cached).
+ *
+ * A row that is still streaming is re-derived every frame instead: its own card
+ * animates, its progress line moves, and only the one live row is ever at stake.
+ */
+type OwnCardRows = {
+  slot: OwnSlot;
+  /** The host repaint these were derived at (see `CardState.repaint`). */
+  repaint: number;
+  expanded: boolean;
+  width: number;
+  theme: AnyTheme;
+  /** `undefined` when the tool drew nothing; the Frame's fallback stands. */
+  rows?: string[];
+};
 
 /** Per-row render state the Frame owns: the spinner frame and the start time. */
 export type CardState = SpinnerState & {
   startedAt?: number;
+  /** Bumped whenever the host re-runs a render slot (see `markRepaint`). */
+  repaint?: number;
   /** The card a tool draws itself, when it ships a renderer (see `ownBody`). */
   own?: OwnCardState;
 };
@@ -231,6 +267,17 @@ type Entry = {
   // what they were derived from.
   summary?: Memo<string>;
   body?: Memo<string[]>;
+  /** The result column a body drew, already placed and fitted (see placeBody). */
+  placed?: Placed;
+};
+
+/** Rows a body handed over, placed inside the result column and fitted. */
+type Placed = {
+  /** The array the body returned; identity is the cache key (see placeBody). */
+  rows: string[];
+  width: number;
+  theme: AnyTheme;
+  lines: string[];
 };
 
 type Group = {
@@ -291,6 +338,18 @@ function invalidateOwner(group: Group, exceptId?: string): void {
   if (owner && owner.id !== exceptId) owner.invalidate?.();
 }
 
+/**
+ * Note that the host re-ran a render slot (`updateDisplay`).
+ *
+ * It is the one thing that can change what a tool's own card would draw: the
+ * Frame draws those rows from `OwnCardRows` instead of calling the renderer on
+ * every frame.
+ */
+function markRepaint(context: AnyContext): void {
+  const state = context.state as CardState | undefined;
+  if (state) state.repaint = (state.repaint ?? 0) + 1;
+}
+
 function registerEntry(
   tool: ToolDefinition<any, any, any>,
   detail: string,
@@ -298,6 +357,7 @@ function registerEntry(
   aggregate: boolean,
   context: AnyContext,
 ): Entry {
+  markRepaint(context);
   const existing = store.entries.get(context.toolCallId);
   if (existing) {
     existing.invalidate = context.invalidate;
@@ -351,6 +411,7 @@ function updateResult(
   options: { isPartial: boolean },
   context: AnyContext,
 ): void {
+  markRepaint(context);
   const entry = store.entries.get(context.toolCallId);
   if (!entry) return;
 
@@ -433,62 +494,102 @@ function expandedLines(entry: Entry, theme: AnyTheme, width: number): string[] {
  * would re-run this render forever. The component is cached per row and slot, so
  * the tool's own state survives a redraw, and it is handed back to the renderer
  * as `lastComponent` the way the host hands back its own.
+ *
+ * The rows are kept with the component (see `OwnCardRows`): the renderer runs
+ * when the host re-runs the slots, while the call is streaming, or when the
+ * geometry moved - never once per frame, which is what a long transcript would
+ * otherwise pay for every settled row.
  */
 function ownBody(tool: ToolDefinition<any, any, any>): CardBody {
   return (input) => {
     const state = input.context.state as CardState | undefined;
     const own: OwnCardState = state ? (state.own ??= {}) : {};
-    const nested = {
-      ...input.context,
-      expanded: input.options.expanded,
-      invalidate: () => {},
-    } as AnyContext;
-    const options = {
-      isPartial: input.options.isPartial,
-      expanded: input.options.expanded,
-    };
-
-    let component: Component | undefined;
-    if (input.result === undefined) {
-      const renderCall = tool.renderCall as AnyRenderCall | undefined;
-      if (!renderCall) return undefined;
-      try {
-        component = renderCall(input.args, input.theme, {
-          ...nested,
-          lastComponent: own.call,
-        });
-      } catch {
-        return undefined;
-      }
-      own.call = component;
-    } else {
-      const renderResult = tool.renderResult as AnyRenderResult | undefined;
-      if (!renderResult) return undefined;
-      try {
-        component = renderResult(
-          // The Frame keeps whatever the tool returned; only the tool's own
-          // renderer knows that shape.
-          input.result as Parameters<AnyRenderResult>[0],
-          options,
-          input.theme,
-          { ...nested, lastComponent: own.result },
-        );
-      } catch {
-        return undefined;
-      }
-      own.result = component;
+    const expanded = input.options.expanded;
+    const isPartial = input.options.isPartial;
+    const slot: OwnSlot = input.result === undefined ? "call" : "result";
+    const repaint = state?.repaint ?? 0;
+    const drawn = own.drawn;
+    if (
+      drawn !== undefined &&
+      !isPartial &&
+      drawn.slot === slot &&
+      drawn.repaint === repaint &&
+      drawn.expanded === expanded &&
+      drawn.width === input.width &&
+      drawn.theme === input.theme
+    ) {
+      return drawn.rows;
     }
 
-    let rows: string[] | undefined;
+    const rows = drawOwnCard(tool, input, own, slot, expanded, isPartial);
+    own.drawn = {
+      slot,
+      repaint,
+      expanded,
+      width: input.width,
+      theme: input.theme,
+      rows,
+    };
+    return rows;
+  };
+}
+
+/** Run a tool's own renderer once and hand its rows over (see `ownBody`). */
+function drawOwnCard(
+  tool: ToolDefinition<any, any, any>,
+  input: CardBodyInput,
+  own: OwnCardState,
+  slot: OwnSlot,
+  expanded: boolean,
+  isPartial: boolean,
+): string[] | undefined {
+  const nested = {
+    ...input.context,
+    expanded,
+    invalidate: () => {},
+  } as AnyContext;
+  const options = { isPartial, expanded };
+
+  let component: Component | undefined;
+  if (slot === "call") {
+    const renderCall = tool.renderCall as AnyRenderCall | undefined;
+    if (!renderCall) return undefined;
     try {
-      rows = component.render(input.width);
+      component = renderCall(input.args, input.theme, {
+        ...nested,
+        lastComponent: own.call,
+      });
     } catch {
       return undefined;
     }
-    // Nothing drawn: the Frame's own summary / error preview / expansion stands.
-    if (!rows || rows.length === 0) return undefined;
-    return rows.map((line) => stripBackground(line));
-  };
+    own.call = component;
+  } else {
+    const renderResult = tool.renderResult as AnyRenderResult | undefined;
+    if (!renderResult) return undefined;
+    try {
+      component = renderResult(
+        // The Frame keeps whatever the tool returned; only the tool's own
+        // renderer knows that shape.
+        input.result as Parameters<AnyRenderResult>[0],
+        options,
+        input.theme,
+        { ...nested, lastComponent: own.result },
+      );
+    } catch {
+      return undefined;
+    }
+    own.result = component;
+  }
+
+  let rows: string[] | undefined;
+  try {
+    rows = component.render(input.width);
+  } catch {
+    return undefined;
+  }
+  // Nothing drawn: the Frame's own summary / error preview / expansion stands.
+  if (!rows || rows.length === 0) return undefined;
+  return rows.map((line) => stripBackground(line));
 }
 
 // ---------------------------------------------------------------------------
@@ -608,9 +709,11 @@ class Frame implements Component {
         width: Math.max(1, width - RESULT_LINE_INDENT),
       });
       // A body is called on every render rather than memoized: it may draw
-      // render-time state of its own (lazy highlighting, a streaming box) that
-      // no key the Frame holds can see.
-      if (rows && rows.length > 0) return this.placeBody(rows, width);
+      // render-time state of its own (lazy highlighting, a streaming box) that no
+      // key the Frame holds can see. A body wrapping a renderer this repo does
+      // not own keeps its own rows instead (see `ownBody`).
+      if (rows && rows.length > 0)
+        return placeBody(entry, rows, width, this.theme);
     }
 
     if (entry.isPartial) {
@@ -634,26 +737,51 @@ class Frame implements Component {
     const content = summaryLine(entry, this.theme, width, this.spec.summary);
     return [fitLine(resultLine(this.theme, content), width, "", 0)];
   }
+}
 
-  /**
-   * Place the rows a body handed over (see CardBody).
-   *
-   * A block glues its top row to the connector (`└─┌───┐`) and indents the rest to
-   * the same column; a single row is result-line content. The test is the row
-   * count, not the glyph: a body paints its border through the theme, so the first
-   * byte of a border row is an SGR sequence, not the border itself.
-   */
-  private placeBody(rows: string[], width: number): string[] {
-    const [first, ...rest] = rows;
-    const head =
-      rest.length > 0
-        ? resultLine(this.theme, first, true)
-        : resultLine(this.theme, first);
-    const indent = " ".repeat(RESULT_LINE_INDENT);
-    return [head, ...rest.map((line) => `${indent}${line}`)].map((line) =>
-      fitLine(line, width, "", 0),
-    );
+/**
+ * Place the rows a body handed over (see CardBody).
+ *
+ * A block glues its top row to the connector (`└─┌───┐`) and indents the rest to
+ * the same column; a single row is result-line content. The test is the row
+ * count, not the glyph: a body paints its border through the theme, so the first
+ * byte of a border row is an SGR sequence, not the border itself.
+ *
+ * The result is cached against the array the body returned. Fitting a row is not
+ * free - an SGR-painted row cannot take pi-tui's printable-ASCII fast path, and
+ * its 512-entry width cache evicts the oldest line, so a transcript longer than
+ * that re-measures every row on every frame (measured 2026-09-16: the 60
+ * fabric_exec rows of the same session cost 7ms a frame in `visibleWidth` alone).
+ * A body that derives its rows
+ * once per repaint hands back the same array every frame, so this runs once per
+ * host repaint for it; one that draws fresh rows each frame (the shipped cards,
+ * which animate) pays what it did before.
+ */
+function placeBody(
+  entry: Entry,
+  rows: string[],
+  width: number,
+  theme: AnyTheme,
+): string[] {
+  const placed = entry.placed;
+  if (
+    placed &&
+    placed.rows === rows &&
+    placed.width === width &&
+    placed.theme === theme
+  ) {
+    return placed.lines;
   }
+
+  const [first, ...rest] = rows;
+  const head =
+    rest.length > 0 ? resultLine(theme, first, true) : resultLine(theme, first);
+  const indent = " ".repeat(RESULT_LINE_INDENT);
+  const lines = [head, ...rest.map((line) => `${indent}${line}`)].map((line) =>
+    fitLine(line, width, "", 0),
+  );
+  entry.placed = { rows, width, theme, lines };
+  return lines;
 }
 
 // ---------------------------------------------------------------------------

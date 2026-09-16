@@ -760,6 +760,101 @@ assert.equal(
   "and never reached the host's invalidate, so the Frame cannot re-enter",
 );
 
+// The host runs a renderer on every updateDisplay and re-renders the component
+// it returned on every frame; the Frame re-derives on the same schedule, so a
+// long transcript does not pay for every settled row on every keystroke.
+let settledRenders = 0;
+const settledOwn = mod.toolCard(
+  pi,
+  drawingTool(
+    "mcp_settled",
+    () => ownCard(["call"]),
+    () => {
+      settledRenders += 1;
+      return ownCard([`result ${settledRenders}`]);
+    },
+  ),
+);
+const settledRow = hostRow("mcp-settled-1", {});
+settledRow.call(settledOwn);
+settledRow.result(settledOwn, text("one\ntwo"));
+const settledFrame = settledRow.call(settledOwn);
+const settledLines = settledFrame.render(80).map(plain);
+assert.deepEqual(
+  settledLines,
+  [" MCP_SETTLED", " └─ result 1"],
+  "a settled card draws what its renderer returned",
+);
+assert.equal(settledRenders, 1, "a settled card is derived once");
+for (let redraw = 0; redraw < 4; redraw += 1) {
+  assert.deepEqual(
+    settledFrame.render(80).map(plain),
+    settledLines,
+    "a frame with no updateDisplay draws the rows the renderer last drew",
+  );
+}
+assert.equal(
+  settledRenders,
+  1,
+  "so a redraw alone does not run the tool's renderer again",
+);
+settledRow.result(settledOwn, text("one\ntwo\nthree"));
+assert.deepEqual(
+  settledFrame.render(80).map(plain),
+  [" MCP_SETTLED", " └─ result 2"],
+  "an updateDisplay re-derives, the way the host re-runs the slot",
+);
+assert.equal(settledRenders, 2, "once per repaint");
+
+// A row that is still streaming is derived on every frame: its own card animates
+// while it runs, and only the one live row is ever at stake.
+let liveRenders = 0;
+const liveOwn = mod.toolCard(
+  pi,
+  drawingTool("mcp_live", () => {
+    liveRenders += 1;
+    return ownCard([`frame ${liveRenders}`]);
+  }),
+);
+const liveRow = hostRow("mcp-live-1", {});
+const liveComponent = liveRow.call(liveOwn);
+assert.deepEqual(
+  liveComponent.render(80).map(plain),
+  [" MCP_LIVE", " └─ frame 1"],
+  "a running card draws what its renderer returned",
+);
+assert.deepEqual(
+  liveComponent.render(80).map(plain),
+  [" MCP_LIVE", " └─ frame 2"],
+  "and is derived again on the next frame, so it keeps drawing",
+);
+assert.equal(liveRenders, 2, "a running row's renderer runs on every frame");
+
+// Fitting is memoized per (width, ellipsis, minimumWidth): the key must keep
+// them apart, or a card would draw a line fitted for another width.
+const textMod = await jiti(join(extensionsDir, "card/text.ts"));
+const longLine = `${"\x1b[38;2;1;2;3m"}${"x".repeat(40)}${"\x1b[39m"}`;
+assert.equal(
+  plain(textMod.fitLine(longLine, 20)).length,
+  20,
+  "a line too wide for the column is truncated to it",
+);
+assert.equal(
+  textMod.fitLine(longLine, 40),
+  longLine,
+  "the same line at another width is fitted for that width",
+);
+assert.notEqual(
+  textMod.fitLine(longLine, 20, "\u2026"),
+  textMod.fitLine(longLine, 20),
+  "and another ellipsis is fitted again",
+);
+assert.equal(
+  plain(textMod.fitLine(longLine, 20)).length,
+  20,
+  "so the first width's line is not served to the second",
+);
+
 // ---------------------------------------------------------------------------
 // The memos
 // ---------------------------------------------------------------------------

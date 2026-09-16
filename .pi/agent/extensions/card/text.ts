@@ -1,4 +1,5 @@
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { createTextMemo, type TextMemo } from "./line-memo.js";
 
 export type UiTheme = {
   fg(color: any, text: string): string;
@@ -6,16 +7,61 @@ export type UiTheme = {
   bold(text: string): string;
 };
 
+function fitLineUncached(
+  line: string,
+  width: number,
+  ellipsis: string,
+  minimumWidth: number,
+): string {
+  const targetWidth = Math.max(minimumWidth, width);
+  return visibleWidth(line) <= targetWidth
+    ? line
+    : truncateToWidth(line, targetWidth, ellipsis, false);
+}
+
+/**
+ * Fitted lines, memoized per (width, ellipsis, minimumWidth).
+ *
+ * Every card line is measured before it is drawn, and a card line is painted with
+ * SGR, so it cannot take pi-tui's printable-ASCII fast path. pi-tui then answers
+ * from a width cache that holds 512 strings: once a transcript renders more
+ * distinct lines than that - a few hundred tool cards - every card is measured
+ * again on every frame, with the grapheme segmenter and the east-asian tables
+ * (measured 2026-09-16: 600 settled fabric_exec rows cost 23.6ms a frame, ~16ms
+ * of it inside `visibleWidth`). The fitted line is a pure function of those four
+ * values, so a card line is measured once and reused for the life of the session.
+ *
+ * The budget is the same text budget the background stripper uses, and it counts
+ * text in and out: ~2M units holds roughly three thousand fitted card lines, and
+ * a session that outgrows it behaves exactly as it does today.
+ */
+const FIT_CACHE_BUDGET = 2 * 1024 * 1024;
+const fitCaches = new Map<string, TextMemo>();
+
+function fitCache(
+  width: number,
+  ellipsis: string,
+  minimumWidth: number,
+): TextMemo {
+  const key = `${width}\u0001${ellipsis}\u0001${minimumWidth}`;
+  let memo = fitCaches.get(key);
+  if (!memo) {
+    const uncached = (line: string) =>
+      fitLineUncached(line, width, ellipsis, minimumWidth);
+    memo = createTextMemo(FIT_CACHE_BUDGET, uncached);
+    fitCaches.set(key, memo);
+  }
+  return memo;
+}
+
+/** Fit one line to `width` columns, memoized across re-renders. */
 export function fitLine(
   line: string,
   width: number,
   ellipsis = "...",
   minimumWidth = 1,
 ): string {
-  const targetWidth = Math.max(minimumWidth, width);
-  return visibleWidth(line) <= targetWidth
-    ? line
-    : truncateToWidth(line, targetWidth, ellipsis, false);
+  return fitCache(width, ellipsis, minimumWidth).get(line);
 }
 
 /**
