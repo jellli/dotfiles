@@ -442,15 +442,17 @@ function registerEntry(
     // renders, so a first frame with an incomplete path ("<missing path>") is
     // overwritten by the real one on the redraw the host already asked for.
     existing.epoch +=
-      moved(args, existing.args) +
-      moved(context.cwd, existing.cwd) +
-      moved(context.isPartial, existing.isPartial) +
-      moved(context.isError, existing.isError);
+      moved(args, existing.args) + moved(context.cwd, existing.cwd);
     existing.args = args;
     existing.cwd = context.cwd;
-    existing.isPartial = context.isPartial;
-    existing.isError = context.isError;
     existing.invalidate = context.invalidate;
+    // `isPartial` and `isError` are the result slot's to write, never this one's.
+    // The host rebuilds every row from the session when it reloads an extension:
+    // the rebuilt component is new, so it reports the row as pending until its
+    // result message reaches it - while the row already holds the outcome it was
+    // given. Reading them here would un-settle a settled row, i.e. restart the
+    // spinner and its repaint (140ms) on every card the reload touched, with the
+    // wall clock of every settled bash box climbing along with it.
     if (existing.group.ownerId === existing.id)
       existing.group.expanded = context.expanded;
     return existing;

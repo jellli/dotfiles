@@ -973,6 +973,53 @@ assert.notEqual(
 );
 
 // ---------------------------------------------------------------------------
+// A row the host rebuilds after /reload
+// ---------------------------------------------------------------------------
+// The host rebuilds every row from the session when it reloads an extension: a
+// new component with its own fresh `state`, the same tool call id, and no result
+// message yet - so the call slot reports the row as pending. The row already
+// holds the outcome its result slot gave it, and a rebuilding call slot must not
+// un-settle it: the Frame starts the spinner (a repaint every 140ms) for a
+// partial row, which restarts on every settled card the reload touched and takes
+// their wall clock up with it.
+
+const rebuiltCard = mod.toolCard(pi, tool("rebuilt"), { detail: () => "x" });
+const settledOnce = hostRow("rebuilt-1", {});
+settledOnce.call(rebuiltCard);
+settledOnce.result(rebuiltCard, text("one\ntwo"));
+assert.deepEqual(
+  frame(rebuiltCard, settledOnce).at(-1),
+  " └─ 2 lines",
+  "a row settles on the result its result slot was handed",
+);
+const rebuiltRow = hostRow("rebuilt-1", {});
+assert.deepEqual(
+  frame(rebuiltCard, rebuiltRow),
+  [" REBUILT  [x]", " └─ 2 lines"],
+  "so the row the host rebuilds after a reload is still settled, spinner and all",
+);
+
+const rebuiltError = mod.toolCard(pi, tool("rebuilt_error"), {
+  detail: () => "x",
+});
+const failedRow = hostRow("rebuilt-error-1", {});
+failedRow.call(rebuiltError);
+failedRow.result(rebuiltError, text("boom: first line\nsecond line"), {
+  isError: true,
+});
+assert.deepEqual(
+  frame(rebuiltError, failedRow).at(-1),
+  " └─ boom: first line ...",
+  "a failed row draws its error preview",
+);
+const rebuiltFailedRow = hostRow("rebuilt-error-1", {});
+assert.deepEqual(
+  frame(rebuiltError, rebuiltFailedRow).at(-1),
+  " └─ boom: first line ...",
+  "and keeps the error its result reported when the host rebuilds it",
+);
+
+// ---------------------------------------------------------------------------
 // The elapsed clock
 // ---------------------------------------------------------------------------
 
