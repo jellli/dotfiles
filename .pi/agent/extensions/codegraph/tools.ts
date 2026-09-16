@@ -17,8 +17,16 @@ import { keyText } from "@earendil-works/pi-coding-agent";
 import type {
   ExtensionContext,
   ExtensionAPI,
-  ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
+import { padLine, shorten } from "../card/text.js";
+import { spinnerChar } from "../card/spinner.js";
+import {
+  elapsedText,
+  toolCard,
+  type CardBodyInput,
+  type CardInput,
+  type CardSpec,
+} from "../card/tool-card.js";
 import type {
   CodeGraph as CodeGraphType,
   IndexProgress,
@@ -96,28 +104,11 @@ function numberArg(
   return typeof value === "number" ? value : fallback;
 }
 
-function shorten(value: string, max = 56): string {
-  return value.length > max ? `${value.slice(0, max - 3)}...` : value;
-}
-
-type ToolTheme = Parameters<
-  NonNullable<ToolDefinition<any, any, any>["renderCall"]>
->[1];
-type ToolContext = Parameters<
-  NonNullable<ToolDefinition<any, any, any>["renderCall"]>
->[2];
-type ToolRenderResult = { content: Array<{ type: string; text?: string }> };
-
-function toolTitle(name: string): string {
-  const action = name.replace(/^codegraph_/, "");
-  return `CodeGraph ${action}`;
-}
-
 /** One-line summaries keep CodeGraph calls consistent with the compact tool cards. */
 function toolLine(
   name: string,
   args: Record<string, unknown>,
-  theme: ToolTheme,
+  theme: CardInput["theme"],
 ): string {
   switch (name) {
     case "codegraph_explore":
@@ -138,233 +129,75 @@ function toolLine(
   }
 }
 
-function resultText(result: ToolRenderResult): string {
-  return result.content
-    .filter((content) => content.type === "text")
-    .map((content) => content.text ?? "")
-    .join("\n")
-    .trim();
+const CODEGRAPH_PREVIEW_LINES = 3;
+
+/** Non-empty lines: `12 lines` counts content the card actually shows. */
+function contentLines(output: string): string[] {
+  return output.split("\n").filter((line) => line.trim() !== "");
 }
 
-const ANSI_SEQUENCE = /^\x1b\[[0-?]*[ -/]*[@-~]/;
-
-function visibleWidth(text: string): number {
-  return text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").length;
-}
-
-function fitLine(line: string, width: number): string {
-  const target = Math.max(1, width);
-  if (visibleWidth(line) <= target) return line;
-  if (target <= 3) return ".".repeat(target);
-
-  let result = "";
-  let used = 0;
-  for (let index = 0; index < line.length && used < target - 3;) {
-    if (line[index] === "\x1b") {
-      const escape = line.slice(index).match(ANSI_SEQUENCE)?.[0];
-      if (escape) {
-        result += escape;
-        index += escape.length;
-        continue;
-      }
-    }
-    result += line[index++];
-    used += 1;
+/**
+ * The rows inside the box: the first few non-empty lines collapsed, the whole
+ * output expanded. A running call has nothing to show yet, so it says so.
+ */
+function codegraphBoxRows(input: CardBodyInput): string[] {
+  const { options, theme, output } = input;
+  const lines = contentLines(output);
+  if (options.isPartial && lines.length === 0) {
+    return [theme.fg("muted", "… querying graph")];
   }
-  return `${result}\x1b[0m...`;
+  if (options.expanded) {
+    return output.split("\n").map((line) => theme.fg("toolOutput", line));
+  }
+  const preview = lines.slice(0, CODEGRAPH_PREVIEW_LINES);
+  const rows = preview.map((line) => theme.fg("toolOutput", line.trimEnd()));
+  const hidden = lines.length - preview.length;
+  if (hidden > 0) {
+    const hint = keyText("app.tools.expand") || "Ctrl+O";
+    rows.push(theme.fg("muted", `… ${hidden} more lines (${hint} to expand)`));
+  }
+  return rows;
 }
 
-function boxedResult(
-  lines: string[],
-  width: number,
-  topLabel: string,
-  bottomLabel: string,
-  theme: ToolTheme,
-  borderColor: "dim" | "error",
-): string[] {
-  const targetWidth = Math.max(1, width);
-  if (targetWidth < 4) {
-    return [
-      ...lines.map((line) => fitLine(line, targetWidth)),
-      fitLine(theme.fg(borderColor, bottomLabel), targetWidth),
-    ];
+/** `◐ 1.2s` while the graph is queried, `12 lines` once it answered. */
+function codegraphEdgeText(input: CardBodyInput): string {
+  if (!input.options.isPartial) {
+    return `${contentLines(input.output).length} lines`;
   }
+  const elapsed = elapsedText(input.state);
+  return `${spinnerChar(input.state)}${elapsed ? ` ${elapsed}` : ""}`;
+}
 
-  const innerWidth = targetWidth - 2;
-  const side = theme.fg(borderColor, "│");
-  const topPrefix = `┌─ ${topLabel} `;
-  const bottomPrefix = `└─ ${bottomLabel} `;
-  const top = `${topPrefix}${"─".repeat(Math.max(1, targetWidth - visibleWidth(topPrefix) - 1))}┐`;
-  const bottom = `${bottomPrefix}${"─".repeat(Math.max(1, targetWidth - visibleWidth(bottomPrefix) - 1))}┘`;
+/**
+ * The result box, in bash's shape: a bare top border, and a bottom edge that
+ * carries the state. A failed call draws no box - the Frame's red preview is
+ * the failure.
+ */
+function codegraphBox(input: CardBodyInput): string[] | undefined {
+  if (input.options.isError) return undefined;
 
+  const { theme, width } = input;
+  const border: "accent" | "dim" = input.options.isPartial ? "accent" : "dim";
+  const painted = (line: string) => theme.fg(border, line);
+  const innerWidth = Math.max(1, width - 2);
+  const rows = codegraphBoxRows(input).map((row) =>
+    painted(`│${padLine(row, innerWidth)}│`),
+  );
+
+  const left = `└─ ${codegraphEdgeText(input)} `;
+  const pad = "─".repeat(Math.max(0, innerWidth + 2 - left.length - 1));
   return [
-    fitLine(theme.fg(borderColor, top), targetWidth),
-    ...lines.map(
-      (line) =>
-        `${side}${fitLine(line, innerWidth)}${" ".repeat(Math.max(0, innerWidth - visibleWidth(fitLine(line, innerWidth))))}${side}`,
-    ),
-    fitLine(theme.fg(borderColor, bottom), targetWidth),
+    painted(`┌${"─".repeat(innerWidth)}┐`),
+    ...rows,
+    painted(`${left}${pad}┘`),
   ];
 }
 
-class CodeGraphCallCard {
-  constructor(private readonly name: string) {}
-
-  private detail = "";
-  private partial = true;
-  private error = false;
-  private theme!: ToolTheme;
-  private context!: ToolContext;
-
-  update(detail: string, theme: ToolTheme, context: ToolContext): void {
-    this.detail = detail;
-    this.theme = theme;
-    this.context = context;
-    this.partial = context.isPartial;
-    this.error = context.isError;
-  }
-
-  invalidate(): void {}
-
-  render(width: number): string[] {
-    const marker = this.error ? "×" : this.partial ? "·" : "√";
-    const markerColor = this.error
-      ? "error"
-      : this.partial
-        ? "muted"
-        : "success";
-    const detail = this.detail ? ` ${this.detail}` : "";
-    const line = `${this.theme.fg(markerColor, marker)} ${this.theme.fg("toolTitle", this.theme.bold(toolTitle(this.name)))}${detail}`;
-    return [fitLine(line, width)];
-  }
-}
-
-class CodeGraphResultCard {
-  constructor(private readonly name: string) {}
-
-  private output = "";
-  private partial = true;
-  private error = false;
-  private expanded = false;
-  private theme!: ToolTheme;
-  private context!: ToolContext;
-
-  updateResult(
-    result: ToolRenderResult,
-    options: { isPartial: boolean; expanded?: boolean },
-    theme: ToolTheme,
-    context: ToolContext,
-  ): void {
-    this.theme = theme;
-    this.context = context;
-    this.partial = options.isPartial;
-    this.error = context.isError;
-    this.expanded = options.expanded ?? context.expanded;
-    this.output = resultText(result);
-  }
-
-  invalidate(): void {}
-
-  render(width: number): string[] {
-    const action = this.name.replace(/^codegraph_/, "");
-    const lines = this.output.split("\n");
-    const totalLines = lines.filter((line) => line.trim()).length;
-    const borderColor = this.error ? "error" : "dim";
-
-    if (this.partial) {
-      return boxedResult(
-        [this.theme.fg("muted", "  … querying graph")],
-        width,
-        `result · ${action}`,
-        "working",
-        this.theme,
-        borderColor,
-      );
-    }
-
-    if (this.error) {
-      const message =
-        this.output.split("\n").find((line) => line.trim()) ??
-        "CodeGraph request failed";
-      return boxedResult(
-        [this.theme.fg("error", message)],
-        width,
-        `result · ${action}`,
-        "failed",
-        this.theme,
-        borderColor,
-      );
-    }
-
-    if (!this.output) {
-      return boxedResult(
-        [this.theme.fg("muted", "no results")],
-        width,
-        `result · ${action}`,
-        "0 lines",
-        this.theme,
-        borderColor,
-      );
-    }
-
-    const displayLines = this.expanded
-      ? lines
-      : lines
-          .map((line) => line.trimEnd())
-          .filter((line) => line.trim())
-          .slice(0, 3);
-    const body = displayLines.map((line) => this.theme.fg("toolOutput", line));
-    const hidden = totalLines - displayLines.length;
-    const hint = keyText("app.tools.expand") || "Ctrl+O";
-    const footer = this.expanded
-      ? `${totalLines} lines`
-      : hidden > 0
-        ? `${totalLines} lines · ${hint} to expand`
-        : `${totalLines} lines`;
-
-    return boxedResult(
-      body,
-      width,
-      `result · ${action}`,
-      footer,
-      this.theme,
-      borderColor,
-    );
-  }
-}
-
-function compactCodeGraphTool(
-  tool: ToolDefinition<any, any, any>,
-  line: (args: Record<string, unknown>, theme: ToolTheme) => string,
-): ToolDefinition<any, any, any> {
+/** codegraph's card: `toolLine` in the header, the box in the body slot. */
+function codegraphSpec(name: string): CardSpec {
   return {
-    ...tool,
-    renderShell: "self",
-    renderCall(args: unknown, theme: ToolTheme, context: ToolContext) {
-      const normalizedArgs =
-        args && typeof args === "object"
-          ? (args as Record<string, unknown>)
-          : {};
-      const card =
-        context.lastComponent instanceof CodeGraphCallCard
-          ? context.lastComponent
-          : new CodeGraphCallCard(tool.name);
-      card.update(line(normalizedArgs, theme), theme, context);
-      return card;
-    },
-    renderResult(
-      result: ToolRenderResult,
-      options: { isPartial: boolean; expanded?: boolean },
-      theme: ToolTheme,
-      context: ToolContext,
-    ) {
-      const card =
-        context.lastComponent instanceof CodeGraphResultCard
-          ? context.lastComponent
-          : new CodeGraphResultCard(tool.name);
-      card.updateResult(result, options, theme, context);
-      return card;
-    },
+    detail: (input) => toolLine(name, input.args, input.theme),
+    body: (input) => codegraphBox(input),
   };
 }
 
@@ -717,7 +550,8 @@ async function status(params: StatusParams, ctx: ExtensionContext) {
 
 export function registerTools(pi: ExtensionAPI): void {
   pi.registerTool(
-    compactCodeGraphTool(
+    toolCard(
+      pi,
       {
         name: "codegraph_explore",
         label: "CodeGraph explore",
@@ -733,12 +567,13 @@ export function registerTools(pi: ExtensionAPI): void {
           return explore(params as ExploreParams, ctx);
         },
       },
-      (args, theme) => toolLine("codegraph_explore", args, theme),
+      codegraphSpec("codegraph_explore"),
     ),
   );
 
   pi.registerTool(
-    compactCodeGraphTool(
+    toolCard(
+      pi,
       {
         name: "codegraph_query",
         label: "CodeGraph query",
@@ -754,12 +589,13 @@ export function registerTools(pi: ExtensionAPI): void {
           return query(params as QueryParams, ctx);
         },
       },
-      (args, theme) => toolLine("codegraph_query", args, theme),
+      codegraphSpec("codegraph_query"),
     ),
   );
 
   pi.registerTool(
-    compactCodeGraphTool(
+    toolCard(
+      pi,
       {
         name: "codegraph_impact",
         label: "CodeGraph impact",
@@ -775,12 +611,13 @@ export function registerTools(pi: ExtensionAPI): void {
           return impact(params as ImpactParams, ctx);
         },
       },
-      (args, theme) => toolLine("codegraph_impact", args, theme),
+      codegraphSpec("codegraph_impact"),
     ),
   );
 
   pi.registerTool(
-    compactCodeGraphTool(
+    toolCard(
+      pi,
       {
         name: "codegraph_status",
         label: "CodeGraph status",
@@ -796,7 +633,7 @@ export function registerTools(pi: ExtensionAPI): void {
           return status(params as StatusParams, ctx);
         },
       },
-      (args, theme) => toolLine("codegraph_status", args, theme),
+      codegraphSpec("codegraph_status"),
     ),
   );
 }

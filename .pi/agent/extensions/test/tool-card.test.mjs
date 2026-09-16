@@ -1409,6 +1409,109 @@ try {
 }
 
 // ---------------------------------------------------------------------------
+// The card codegraph ships
+// ---------------------------------------------------------------------------
+// codegraph used to hand-roll its own card language, box geometry included; it
+// is a Card spec now, so its box is asserted through the registration that
+// ships - the same interface as the cards above.
+
+const codegraph = await jiti(join(extensionsDir, "codegraph/index.ts"));
+
+const cgRegistered = new Map();
+codegraph.default({
+  on() {},
+  registerTool(definition) {
+    cgRegistered.set(definition.name, definition);
+  },
+  registerCommand() {},
+});
+
+/** The box the Frame hands the result column: `cgInner` wide without borders. */
+const cgInner = 80 - 3 - 2;
+const cgRow = (value) => `   │${value.padEnd(cgInner)}│`;
+const cgBottom = (label) =>
+  `   └─ ${label} ${"─".repeat(80 - 3 - 1 - `└─ ${label} `.length)}┘`;
+
+const realCgNow = Date.now;
+Date.now = () => 1_700_000_000_000;
+
+try {
+  // The header is `toolLine`, and impact keeps its `depth` suffix.
+  const impactCard = cgRegistered.get("codegraph_impact");
+  assert.equal(
+    frame(
+      impactCard,
+      hostRow("cg-impact-1", { symbol: "UserService.findUser" }),
+    )[0],
+    " CODEGRAPH IMPACT  [UserService.findUser depth 3]",
+    "the codegraph header is the one-line detail the tool always had",
+  );
+  assert.equal(
+    frame(
+      impactCard,
+      hostRow("cg-impact-2", { symbol: "findUser", maxDepth: 5 }),
+    )[0],
+    " CODEGRAPH IMPACT  [findUser depth 5]",
+    "and reports the depth the call asked for",
+  );
+
+  // While the graph is queried the box has no rows yet, so its bottom edge
+  // carries the state: the spinner and the Frame's clock.
+  const exploreCard = cgRegistered.get("codegraph_explore");
+  const running = hostRow("cg-explore-1", {
+    query: "how does a request reach the db",
+  });
+  const runningFrame = frame(exploreCard, running);
+  assert.deepEqual(
+    runningFrame.slice(0, 2),
+    [
+      " CODEGRAPH EXPLORE  [how does a request reach the db]",
+      ` └─┌${"─".repeat(cgInner)}┐`,
+    ],
+    "a running call is the badge, the bracketed query, and the box",
+  );
+  assert.match(
+    runningFrame.at(-1),
+    /^ {3}└─ [◐◓◑◒] 0\.0s ─+┘$/,
+    "and the bottom edge is the spinner and the clock",
+  );
+
+  // Settled: the first three non-empty lines, then how many are hidden.
+  const settled = hostRow("cg-explore-2", { query: "findUser" });
+  settled.call(exploreCard);
+  settled.result(exploreCard, text("one\ntwo\nthree\nfour\nfive"));
+  assert.deepEqual(
+    frame(exploreCard, settled),
+    [
+      " CODEGRAPH EXPLORE  [findUser]",
+      ` └─┌${"─".repeat(cgInner)}┐`,
+      cgRow("one"),
+      cgRow("two"),
+      cgRow("three"),
+      cgRow("… 2 more lines (Ctrl+O to expand)"),
+      cgBottom("5 lines"),
+    ],
+    "a settled box previews the first non-empty lines and counts them on its bottom edge",
+  );
+
+  // Expanded: the whole output, and the count on the bottom edge does not move.
+  settled.expanded = true;
+  const expanded = frame(exploreCard, settled);
+  assert.deepEqual(
+    expanded.slice(2, 7),
+    [cgRow("one"), cgRow("two"), cgRow("three"), cgRow("four"), cgRow("five")],
+    "expanding the box shows the whole output",
+  );
+  assert.equal(
+    expanded.at(-1),
+    cgBottom("5 lines"),
+    "and the bottom edge still counts every non-empty line",
+  );
+} finally {
+  Date.now = realCgNow;
+}
+
+// ---------------------------------------------------------------------------
 // The web cards the extension ships
 // ---------------------------------------------------------------------------
 // brave-search and ollama-web-fetch hand the Frame a `detail` and a `summary`;
