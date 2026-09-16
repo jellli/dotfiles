@@ -115,7 +115,7 @@ const read = mod.toolCard(pi, tool("read"), {
 const one = hostRow("read-1", { path: "a.ts" });
 assert.deepEqual(
   frame(read, one),
-  [" READ  [a.ts lines 1-80]", " └─ ●"],
+  [" READ  [a.ts lines 1-80]", " └─ ◐"],
   "a running call is the badge, the bracketed detail, and the spinner",
 );
 
@@ -179,7 +179,7 @@ first.expanded = false;
 const later = hostRow("grep-3", { pattern: "gamma" });
 assert.deepEqual(
   frame(grep, later),
-  [' GREP  ["gamma"]', " └─ ●"],
+  [' GREP  ["gamma"]', " └─ ◐"],
   "another tool closes the group, so the next call starts a card of its own",
 );
 
@@ -263,7 +263,7 @@ assert.deepEqual(
 );
 assert.deepEqual(
   frame(find, findTwo),
-  [" FIND", " └─ ●"],
+  [" FIND", " └─ ◐"],
   "a consecutive call of the same tool does not join a group",
 );
 
@@ -338,7 +338,7 @@ const bash = mod.toolCard(pi, tool("bash"), {
 const shell = hostRow("bash-1", { command: "ls" });
 assert.deepEqual(
   frame(bash, shell),
-  [" BASH  [ls]", " └─ ●"],
+  [" BASH  [ls]", " └─ ◐"],
   "a body that yields nothing while running leaves the Frame's spinner",
 );
 
@@ -471,7 +471,7 @@ const foreignRow = hostRow("figma-1", { server: "figma", tool: "get_file" });
 foreignRow.call(foreign);
 assert.deepEqual(
   frame(foreign, foreignRow),
-  [" FIGMA_GET_FILE  [figma]", " └─ ●"],
+  [" FIGMA_GET_FILE  [figma]", " └─ ◐"],
   "a tool that hands in nothing still gets the badge, a derived detail, and the spinner",
 );
 foreignRow.result(foreign, text("line one\nline two"));
@@ -659,7 +659,7 @@ const blank = mod.toolCard(
 const blankRow = hostRow("mcp-blank-1", {});
 assert.deepEqual(
   frame(blank, blankRow),
-  [" MCP_BLANK", " └─ ●"],
+  [" MCP_BLANK", " └─ ◐"],
   "an empty own card leaves the Frame's spinner while the call runs",
 );
 blankRow.result(blank, text("one\ntwo"));
@@ -930,7 +930,7 @@ events.agent_start();
 const statefulRow = hostRow("stateful-1", { command: "echo hi" });
 assert.deepEqual(
   frame(stateful, statefulRow),
-  [" STATEFUL  [echo hi]", " └─ ●"],
+  [" STATEFUL  [echo hi]", " └─ ◐"],
   "a row with nothing in its state yet shows the raw call",
 );
 statefulRow.state.highlight = "cd /tmp && echo hi";
@@ -946,7 +946,7 @@ assert.equal(
 );
 assert.deepEqual(
   frame(stateful, statefulRow),
-  [" STATEFUL  [cd /tmp && echo hi]", " └─ ●"],
+  [" STATEFUL  [cd /tmp && echo hi]", " └─ ◐"],
   "so the value the slot wrote into the row's state reaches the next frame",
 );
 
@@ -1167,7 +1167,7 @@ try {
   findTwo.call(findCard);
   assert.deepEqual(
     frame(findCard, findTwo),
-    [" FIND  [*.md in .]", " └─ ●"],
+    [" FIND  [*.md in .]", " └─ ◐"],
     "a consecutive find still draws its own card",
   );
   assert.ok(
@@ -1215,7 +1215,7 @@ try {
   );
   assert.match(
     runningShell.at(-1),
-    /^ └─ [●•] 0\.0s$/,
+    /^ └─ [◐◓◑◒] 0\.0s$/,
     "a running call with no output yet is the spinner and the Frame's clock",
   );
 
@@ -1261,7 +1261,7 @@ try {
   );
   assert.match(
     live.at(-1),
-    /^   └─ [●•] 0\.0s ─+┘$/,
+    /^   └─ [◐◓◑◒] 0\.0s ─+┘$/,
     "and carries the spinner and the clock instead of exit stats",
   );
 
@@ -1425,7 +1425,7 @@ const braveCard = mod.toolCard(
 const search = hostRow("brave-1", { query: "pi coding agent", count: 5 });
 assert.deepEqual(
   frame(braveCard, search),
-  [' BRAVE_WEB_SEARCH  ["pi coding agent" (count 5)]', " └─ ●"],
+  [' BRAVE_WEB_SEARCH  ["pi coding agent" (count 5)]', " └─ ◐"],
   "the shipped search card brackets the query and shows the Frame's spinner",
 );
 
@@ -1473,7 +1473,7 @@ events.agent_start();
 const page = hostRow("webfetch-1", { url: "https://example.com/page" });
 assert.deepEqual(
   frame(fetchCard, page),
-  [" OLLAMA_WEB_FETCH  [https://example.com/page]", " └─ ●"],
+  [" OLLAMA_WEB_FETCH  [https://example.com/page]", " └─ ◐"],
   "the shipped fetch card brackets the URL",
 );
 // The tool's own result: its text output plus the details the summary reads.
@@ -1581,7 +1581,7 @@ events.agent_start();
 const runningEdit = hostRow("diff-running-1", { path: diffFile, edits: [] });
 assert.deepEqual(
   frame(diffEdit, runningEdit),
-  [` EDIT  [${diffFile}]`, " └─ ●"],
+  [` EDIT  [${diffFile}]`, " └─ ◐"],
   "a running edit is the Frame's spinner",
 );
 

@@ -1,11 +1,11 @@
 import { cardLifecycle } from "./lifecycle.js";
 
-// Breathing dot: a filled circle alternating with a small bullet - conveys
-// loading without any positional motion, so it never blends into the
-// box-drawing characters around it.
-const SPINNER_FRAMES = ["●", "●", "•", "•"];
-// The breathing dot is four frames; 140ms is still smooth, and a tick costs a
-// re-render of the transcript.
+// A half-turned disc at four angles: the rotation reads as motion inside one
+// cell, and none of the four glyphs can blend into the box-drawing characters a
+// card paints around it (bash's box, the diff frame).
+const SPINNER_FRAMES = ["◐", "◓", "◑", "◒"];
+// The disc is four frames; 140ms is still smooth, and a tick costs a re-render of
+// the transcript.
 const SPINNER_INTERVAL_MS = 140;
 
 export type SpinnerState = {
