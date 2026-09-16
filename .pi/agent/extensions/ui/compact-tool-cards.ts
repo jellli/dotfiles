@@ -12,10 +12,11 @@ import {
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { cardLifecycle, type Lifecycle } from "../card/lifecycle.js";
 import { spinnerChar } from "../card/spinner.js";
-import { fitPath, padLine, shorten, textOutput } from "../card/text.js";
+import { fitPath, padLine, shorten } from "../card/text.js";
 import {
   elapsedText,
   toolCard,
+  type CardBodyInput,
   type CardSpec,
   type CardState,
 } from "../card/tool-card.js";
@@ -161,56 +162,57 @@ function numberArg(args: ToolArgs, key: string): number | undefined {
 // bash: the async Shiki header highlight, primed by the body
 // ---------------------------------------------------------------------------
 
-/** Commands whose highlight is known, and the ones shiki is still working on. */
-const COMMAND_HIGHLIGHT_LIMIT = 200;
-const commandHighlights = new Map<string, string>();
-const pendingHighlights = new Set<string>();
+/**
+ * What the bash card keeps on its row: the highlight, once it lands, against the
+ * command it was primed for, and the command shiki is still working on.
+ */
+type BashState = {
+  highlighted?: { command: string; text: string };
+  highlighting?: string;
+};
 
 /**
- * Highlight the command this row is running, and remember the header text.
+ * Highlight the command this row is running, into the row's own state.
  *
- * `detail` is a pure `(args, theme)` derivation - the Frame hands it no row, so
- * it can neither start the async highlight nor ask for a redraw. `body` is the
- * only slot the Frame hands the row to, so the body primes the highlight and the
- * header reads it off the redraw that the resolution asks for.
+ * `detail` is a pure derivation: it reads the row and colors what it finds there,
+ * but it cannot start a promise and then ask for a repaint without doing that on
+ * every frame. `body` is the slot that draws the card, so it primes the highlight
+ * here and calls the card input's `redraw()` when the resolution lands; the
+ * header reads the value out of the row's state on the frame that follows.
  *
- * The cache is keyed by the command text rather than held on the row, for the
- * same reason: `detail` has no row to look in. The `cd <cwd> &&` prefix it shows
- * is therefore the one that primed the command - the session's cwd, which is
- * what every row of a session gets. Keying by the whole highlighted text would
- * need the cwd in `detail`, i.e. a change to the card interface (ticket 01).
- * One command is highlighted once, and that first resolution is the only time
- * the header's detail changes, so it is the only time a redraw is asked for.
- * Passing that invalidate straight to the body is the one place outside the
- * Frame that asks for a redraw: a bash card draws no group (its body turns
- * aggregation off), so the body only ever runs on the owner.
+ * The highlight is kept per row rather than per command text. A process-wide
+ * table keyed by the command cannot tell two rows apart - the `cd <cwd> &&`
+ * prefix it shows is the one of whichever row primed it - and the row is where
+ * the card's state belongs anyway. One command is highlighted once per row, and
+ * that first resolution is the only time the header's detail changes, so it is
+ * the only repaint asked for.
  */
-function primeBashHighlight(
-  command: string,
-  cwd: string,
-  invalidate: () => void,
-): void {
-  if (command === "") return;
-  if (commandHighlights.has(command) || pendingHighlights.has(command)) return;
+function primeBashHighlight(input: CardBodyInput<BashState>): void {
+  const state = input.state;
+  const command = stringArg(input.args, "command");
+  if (
+    command === "" ||
+    state.highlighted?.command === command ||
+    state.highlighting === command
+  ) {
+    return;
+  }
   // One row's worth of command: newlines folded onto `; ` joins, and the
   // directory it runs in, the way a shell prompt would show it.
   const folded = command.replace(/\s*\n\s*/g, "; ");
-  const text = cwd ? `cd ${cwd} && ${folded}` : folded;
-  pendingHighlights.add(command);
+  const text = input.cwd ? `cd ${input.cwd} && ${folded}` : folded;
+  state.highlighting = command;
   highlightBashLines(text)
     .then((lines) => {
-      pendingHighlights.delete(command);
-      // Over the limit the whole cache goes, like pi-diff's token cache: a row
-      // that loses its entry re-primes on its next render, so the fallback to
-      // the plain command lasts one frame.
-      if (commandHighlights.size >= COMMAND_HIGHLIGHT_LIMIT) {
-        commandHighlights.clear();
-      }
-      commandHighlights.set(command, lines.join(""));
-      invalidate();
+      if (state.highlighting === command) state.highlighting = undefined;
+      // The call's arguments can still be streaming in while shiki works; rows
+      // for the older text must not be shown under the newer command.
+      if (stringArg(input.args, "command") !== command) return;
+      state.highlighted = { command, text: lines.join("") };
+      input.redraw();
     })
     .catch(() => {
-      pendingHighlights.delete(command);
+      if (state.highlighting === command) state.highlighting = undefined;
     });
 }
 
@@ -314,21 +316,20 @@ function readCallRow(
 // ---------------------------------------------------------------------------
 
 /** bash: the command in the header, the output box in the body slot. */
-export const bashSpec: CardSpec = {
-  detail: (args, theme) => {
-    const command = stringArg(args, "command", "<missing command>");
-    return commandHighlights.get(command) ?? theme.fg("toolOutput", command);
+export const bashSpec: CardSpec<BashState> = {
+  detail: (input) => {
+    const command = stringArg(input.args, "command", "<missing command>");
+    const highlight = input.state.highlighted;
+    return highlight?.command === command
+      ? highlight.text
+      : input.theme.fg("toolOutput", command);
   },
-  body: ({ args, result, options, theme, context, width }) => {
-    const state = context.state as CardState;
-    primeBashHighlight(
-      stringArg(args, "command"),
-      typeof context.cwd === "string" ? context.cwd : "",
-      context.invalidate,
-    );
+  body: (input) => {
+    primeBashHighlight(input);
 
-    const output = textOutput(result ?? {});
-    const isError = Boolean(context.isError);
+    const { options, state, theme, width } = input;
+    const output = input.output;
+    const isError = options.isError;
     const border: "accent" | "dim" | "error" = isError
       ? "error"
       : options.isPartial
@@ -371,49 +372,49 @@ export const bashSpec: CardSpec = {
 /** `N lines` / `N results` / `N entries`: what a plain list of output comes to. */
 const countSummary =
   (noun: string): SummaryFormatter =>
-  (output, theme) =>
-    theme.fg("muted", `${output.split("\n").length} ${noun}`);
+  (input) =>
+    input.theme.fg("muted", `${input.output.split("\n").length} ${noun}`);
 
 const readSummary = countSummary("lines");
 const findSummary = countSummary("results");
 const lsSummary = countSummary("entries");
 
-const grepSummary: SummaryFormatter = (output, theme) => {
-  if (!output || output === "No matches found")
-    return theme.fg("muted", "no matches");
-  const lines = output.split("\n");
+const grepSummary: SummaryFormatter = (input) => {
+  if (!input.output || input.output === "No matches found")
+    return input.theme.fg("muted", "no matches");
+  const lines = input.output.split("\n");
   const files = new Set<string>();
   for (const line of lines) {
     const file = line.match(/^([^:]+):\d+/)?.[1];
     if (file) files.add(file);
   }
   const filePart = files.size > 0 ? ` in ${files.size} files` : "";
-  return theme.fg("muted", `${lines.length} matches${filePart}`);
+  return input.theme.fg("muted", `${lines.length} matches${filePart}`);
 };
 
 /** read: the path and range in the header, one row per file inside a group. */
 export const readSpec: CardSpec = {
-  detail: (args, theme) => readCallLine(args, theme),
-  row: readCallRow,
+  detail: (input) => readCallLine(input.args, input.theme),
+  row: (input) => readCallRow(input.args, input.theme),
   summary: readSummary,
 };
 
 /** grep: pattern and path in the header, so its group rows need no `row`. */
 export const grepSpec: CardSpec = {
-  detail: (args, theme) =>
-    theme.fg(
+  detail: (input) =>
+    input.theme.fg(
       "toolOutput",
-      `"${shorten(stringArg(args, "pattern"), 48)}" in ${shorten(stringArg(args, "path", "."), 48)}`,
+      `"${shorten(stringArg(input.args, "pattern"), 48)}" in ${shorten(stringArg(input.args, "path", "."), 48)}`,
     ),
   summary: grepSummary,
 };
 
 /** find: one call, one card - a consecutive call never joins a group. */
 export const findSpec: CardSpec = {
-  detail: (args, theme) =>
-    theme.fg(
+  detail: (input) =>
+    input.theme.fg(
       "toolOutput",
-      `${shorten(stringArg(args, "pattern"), 56)} in ${shorten(stringArg(args, "path", "."), 48)}`,
+      `${shorten(stringArg(input.args, "pattern"), 56)} in ${shorten(stringArg(input.args, "path", "."), 48)}`,
     ),
   summary: findSummary,
   aggregate: false,
@@ -421,8 +422,11 @@ export const findSpec: CardSpec = {
 
 /** ls: the same opt-out, with the directory as the header. */
 export const lsSpec: CardSpec = {
-  detail: (args, theme) =>
-    theme.fg("toolOutput", shorten(stringArg(args, "path", "."), 96)),
+  detail: (input) =>
+    input.theme.fg(
+      "toolOutput",
+      shorten(stringArg(input.args, "path", "."), 96),
+    ),
   summary: lsSummary,
   aggregate: false,
 };

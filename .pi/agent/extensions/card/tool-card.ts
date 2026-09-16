@@ -18,15 +18,25 @@
  *    where the card is attached instead of failing quietly at render time; a body
  *    the Frame derives for a tool that draws its own card counts as one.
  * 3. `context.invalidate` is only ever called by the Frame, and only for the
- *    group owner. A non-owner settling notifies the owner once, and the owner
- *    never propagates, so `invalidate() -> updateDisplay() -> render` cannot
- *    bounce back (no render storm).
+ *    group owner. A slot asks for a repaint through the card input's `redraw()`,
+ *    and the Frame routes that by the same owner rule: a row joining a group, or
+ *    settling, or asking, notifies the owner once, and the owner never
+ *    propagates, so `invalidate() -> updateDisplay() -> render` cannot bounce
+ *    back (no render storm).
  * 4. The call slot draws the card and the result slot draws nothing. The host
  *    tolerates the same instance in both slots, but it renders every child it
  *    is handed, so sharing one there would draw the row twice; `lastComponent`
  *    stays per slot and `state` belongs to the row.
- * 5. A memo's key is (output, theme, width) and never a component identity, so
- *    a component the host rebuilds is still a cache hit.
+ * 5. A memo's key is (epoch, theme, width) and never a component identity, so a
+ *    component the host rebuilds is still a cache hit. The epoch is the row's
+ *    version: it moves when an input a slot reads really changed, or when a slot
+ *    asks for a repaint - never once per frame.
+ * 6. Teardown runs through one registry (`installCardHooks`), so `/reload`
+ *    leaves no listener behind.
+ * 7. A slot sees the card input and nothing else: the call's `args`, the row's
+ *    `result`, `output`, `options`, `theme`, `state` and `cwd`, and `redraw()`.
+ *    The host context stays with the Frame - the one exception is the Frame's
+ *    own body, which hands it back to a third-party renderer (see `ownBody`).
  */
 import { Text, type Component } from "@earendil-works/pi-tui";
 import type {
@@ -61,7 +71,18 @@ type AnyResult = {
   content?: Array<{ type: string; text?: string }>;
   details?: unknown;
 };
-type RenderOptions = { expanded: boolean; isPartial: boolean };
+/**
+ * What a slot reads about the render in progress.
+ *
+ * The first two are the host's own view flags; the outcome rides here too, since
+ * a body that draws geometry (the bash box, the diff box) draws a failure
+ * differently and the Frame's result area keys off it as well.
+ */
+export type RenderOptions = {
+  expanded: boolean;
+  isPartial: boolean;
+  isError: boolean;
+};
 
 /** A tool's own component, cached per row and render slot (see `ownBody`). */
 type OwnCardState = {
@@ -107,30 +128,52 @@ export type CardState = SpinnerState & {
   repaint?: number;
   /** The card a tool draws itself, when it ships a renderer (see `ownBody`). */
   own?: OwnCardState;
-};
-
-/** What a body slot is handed for one render. */
-export type CardBodyInput = {
-  args: AnyArgs;
-  /** Absent until the tool returns: a body draws the running card too. */
-  result: AnyResult | undefined;
-  options: RenderOptions;
-  theme: AnyTheme;
-  context: AnyContext;
-  /** Width of the result column; the connector column is already subtracted. */
-  width: number;
+  /**
+   * The host's id for this tool call, stamped by the Frame.
+   *
+   * It is what a slot needs to reach a value the tool handed over before the row
+   * was ever rendered (pi-diff captures the file content in `execute`): the card
+   * input carries no id, so the row's identity is part of the row's state.
+   */
+  toolCallId?: string;
 };
 
 /**
- * Rows a body hands the Frame for the result area.
+ * What the Frame hands one slot for one render.
  *
- * The Frame places them: one row is result-line content (`└─ exit 0`), several
- * rows are a block whose top row glues to the connector (`└─┌───┐`, the diff and
- * bash boxes) and whose remaining rows indent to the same column, so a box lines
- * up with its own top border. A body therefore draws geometry only and never
- * touches the connector.
+ * The same record for all four slots, so a slot reads the call's own arguments,
+ * the result with its details, the row's state and the session's cwd instead of
+ * recovering them from the text output. Nothing here is the host's context: the
+ * only way to ask for a repaint is `redraw()` (invariant 7).
  */
-export type CardBody = (input: CardBodyInput) => string[] | undefined;
+export type CardInput<S extends object = object> = {
+  args: AnyArgs;
+  /** Absent until the tool returns: a slot draws the running card too. */
+  result: AnyResult | undefined;
+  /** The tool's text output, trimmed. */
+  output: string;
+  options: RenderOptions;
+  theme: AnyTheme;
+  /** The row's state: the Frame's spinner/clock/repaint record and the card's own. */
+  state: CardState & S;
+  cwd: string;
+  /** The only way a slot asks for a repaint; the Frame routes it by owner. */
+  redraw(): void;
+};
+
+/**
+ * What a body slot is handed: the card input plus the column it draws in.
+ *
+ * Rows a body hands the Frame for the result area: one row is result-line
+ * content (`└─ exit 0`), several rows are a block whose top row glues to the
+ * connector (`└─┌───┐`, the diff and bash boxes) and whose remaining rows indent
+ * to the same column, so a box lines up with its own top border. A body
+ * therefore draws geometry only and never touches the connector.
+ */
+export type CardBodyInput<S extends object = object> = CardInput<S> & {
+  /** Width of the result column; the connector column is already subtracted. */
+  width: number;
+};
 
 /**
  * What an adapter hands `toolCard` for one tool.
@@ -139,19 +182,36 @@ export type CardBody = (input: CardBodyInput) => string[] | undefined;
  * the label, `detail` falls back to what the tool declares (or its first short
  * argument), the result line falls back to the text output, and the expanded
  * block falls back to the full text.
+ *
+ * `S` is the card's own part of the row state (`CardInput.state` is the Frame's
+ * record intersected with it), so a slot reads what it wrote back without a cast.
  */
-export type CardSpec = {
+export type CardSpec<S extends object = object> = {
   /** Header content behind the badge. The Frame adds the brackets. */
-  detail?: (args: AnyArgs, theme: AnyTheme) => string;
+  detail?: (input: CardInput<S>) => string;
   /** One row inside an aggregated group; defaults to `detail`. */
-  row?: (args: AnyArgs, theme: AnyTheme) => string;
+  row?: (input: CardInput<S>) => string;
   /** Collapsed result-line content (pre-colored); defaults to `defaultSummary`. */
-  summary?: (output: string, theme: AnyTheme) => string;
+  summary?: (input: CardInput<S>) => string;
   /** The one seam for geometry the Frame cannot derive. Turns aggregation off. */
-  body?: CardBody;
+  body?: (input: CardBodyInput<S>) => string[] | undefined;
   /** Group consecutive calls of this tool under one header. Defaults to true. */
   aggregate?: boolean;
 };
+
+/** The card input as the Frame passes it around; a spec's `S` is its own. */
+type AnyCardInput = CardInput<any>;
+
+/**
+ * What the Frame hands its own body slot: the card input plus the host context.
+ *
+ * An adapter's `body` is typed as `CardBodyInput` and never sees the context
+ * (invariant 7). `ownBody` is the Frame's own body, and it hands the context on
+ * to a third-party renderer untouched: that renderer reads fields the card input
+ * has no equivalent for (`toolCallId`, `executionStarted`, ...) and hands its
+ * component back through `lastComponent`.
+ */
+type FrameBodyInput = CardBodyInput<any> & { context: AnyContext };
 
 // ---------------------------------------------------------------------------
 // Derived defaults
@@ -161,13 +221,11 @@ export type CardSpec = {
  * `display.name` / `display.description`: the title and objective a tool
  * declares for its own UI (fabric's activity UI is the reference).
  */
-export function runDisplay(args: unknown): {
+export function runDisplay(input: CardInput): {
   name?: string;
   description?: string;
 } {
-  const record =
-    args && typeof args === "object" ? (args as Record<string, unknown>) : {};
-  const display = record.display;
+  const display = input.args.display;
   if (typeof display === "string") {
     const text = display.trim();
     return text === "" ? {} : { name: text };
@@ -192,25 +250,23 @@ export function runDisplay(args: unknown): {
  * for the call (`display.description`, else `display.name`), else its first
  * short single-line string argument.
  */
-export function defaultDetail(args: unknown, theme: AnyTheme): string {
-  const display = runDisplay(args);
+export function defaultDetail(input: CardInput): string {
+  const display = runDisplay(input);
   const declared = display.description ?? display.name;
-  if (declared) return theme.fg("toolOutput", shorten(declared, 56));
-  return firstShortArgument(args, theme);
+  if (declared) return input.theme.fg("toolOutput", shorten(declared, 56));
+  return firstShortArgument(input);
 }
 
 /**
  * The first short single-line string argument, uncolored by brackets: what a
  * call is about when the tool declares no display of its own.
  */
-export function firstShortArgument(args: unknown, theme: AnyTheme): string {
-  const record =
-    args && typeof args === "object" ? (args as Record<string, unknown>) : {};
-  for (const value of Object.values(record)) {
+export function firstShortArgument(input: CardInput): string {
+  for (const value of Object.values(input.args)) {
     if (typeof value !== "string") continue;
     const text = value.trim();
     if (text === "" || text.length > 96 || text.includes("\n")) continue;
-    return theme.fg("toolOutput", shorten(text, 56));
+    return input.theme.fg("toolOutput", shorten(text, 56));
   }
   return "";
 }
@@ -219,12 +275,12 @@ export function firstShortArgument(args: unknown, theme: AnyTheme): string {
  * Collapsed result line when the tool derives nothing else: a single-line
  * output shows itself, a longer one shows how many lines it produced.
  */
-export function defaultSummary(output: string, theme: AnyTheme): string {
-  const lines = output.split("\n");
+export function defaultSummary(input: CardInput): string {
+  const lines = input.output.split("\n");
   if (lines.length === 1) {
-    return theme.fg("toolOutput", shorten(lines[0], 96));
+    return input.theme.fg("toolOutput", shorten(lines[0], 96));
   }
-  return theme.fg("muted", `${lines.length} lines`);
+  return input.theme.fg("muted", `${lines.length} lines`);
 }
 
 /**
@@ -250,10 +306,10 @@ export function elapsedText(state: CardState): string {
 
 type Entry = {
   id: string;
-  /** Header detail of this row when its group has a single call. */
-  detail: string;
-  /** Row content inside an aggregated group. */
-  row: string;
+  /** The row's call arguments: every slot derives from these (invariant 7). */
+  args: AnyArgs;
+  /** The session's cwd the row was registered in. */
+  cwd: string;
   output: string;
   errorText: string;
   isPartial: boolean;
@@ -261,10 +317,23 @@ type Entry = {
   group: Group;
   invalidate?: () => void;
   state: CardState;
-  /** Latest result of the row, for a body slot to draw. */
+  /** Latest result of the row, for a slot to draw. */
   result?: AnyResult;
+  /**
+   * The row's version: the only thing the derived lines are keyed on, besides
+   * the theme and the width (invariant 5).
+   *
+   * It moves when an input a slot reads really changed - the arguments, the
+   * result, the text output, or either flag - and when a slot asks for a repaint,
+   * because a repaint means the slot saw state of its own change. It deliberately
+   * does not move on every frame, or every card in the transcript would miss its
+   * memo on every keystroke.
+   */
+  epoch: number;
   // A card redraws on every input event, so the derived lines are cached against
   // what they were derived from.
+  detail?: Memo<string>;
+  row?: Memo<string>;
   summary?: Memo<string>;
   body?: Memo<string[]>;
   /** The result column a body drew, already placed and fitted (see placeBody). */
@@ -350,22 +419,38 @@ function markRepaint(context: AnyContext): void {
   if (state) state.repaint = (state.repaint ?? 0) + 1;
 }
 
+/** One input that moved, counted into a row's epoch (invariant 5). */
+function moved(from: unknown, to: unknown): number {
+  return from === to ? 0 : 1;
+}
+
 function registerEntry(
   tool: ToolDefinition<any, any, any>,
-  detail: string,
-  row: string,
   aggregate: boolean,
   context: AnyContext,
 ): Entry {
   markRepaint(context);
+  const args =
+    context.args && typeof context.args === "object"
+      ? (context.args as AnyArgs)
+      : {};
   const existing = store.entries.get(context.toolCallId);
   if (existing) {
-    existing.invalidate = context.invalidate;
     // Streaming / replay invokes renderCall repeatedly with progressively more
-    // complete args; always refresh header/row text so a first frame with an
-    // incomplete path (e.g. "<missing path>") is overwritten by the real one.
-    existing.detail = detail;
-    existing.row = row;
+    // complete args. The row keeps the latest ones and counts them into its
+    // epoch: the Frame derives the header and the group row from them when it
+    // renders, so a first frame with an incomplete path ("<missing path>") is
+    // overwritten by the real one on the redraw the host already asked for.
+    existing.epoch +=
+      moved(args, existing.args) +
+      moved(context.cwd, existing.cwd) +
+      moved(context.isPartial, existing.isPartial) +
+      moved(context.isError, existing.isError);
+    existing.args = args;
+    existing.cwd = context.cwd;
+    existing.isPartial = context.isPartial;
+    existing.isError = context.isError;
+    existing.invalidate = context.invalidate;
     if (existing.group.ownerId === existing.id)
       existing.group.expanded = context.expanded;
     return existing;
@@ -385,12 +470,15 @@ function registerEntry(
   if (open === undefined && aggregate) store.active = group;
 
   const state = (context.state ?? {}) as CardState;
-  // The Frame is the only writer of the row's clock (see elapsedText).
+  // The Frame is the only writer of the row's clock (see elapsedText) and of the
+  // row's id, which is how a slot reaches a value the tool handed over before the
+  // row was ever rendered (see CardState.toolCallId).
   state.startedAt ??= Date.now();
+  state.toolCallId ??= context.toolCallId;
   const entry: Entry = {
     id: context.toolCallId,
-    detail,
-    row,
+    args,
+    cwd: context.cwd,
     output: "",
     errorText: "",
     isPartial: context.isPartial,
@@ -398,6 +486,7 @@ function registerEntry(
     group,
     invalidate: context.invalidate,
     state,
+    epoch: 0,
   };
   group.entries.push(entry);
   store.entries.set(entry.id, entry);
@@ -416,6 +505,11 @@ function updateResult(
   if (!entry) return;
 
   const output = textOutput(result);
+  entry.epoch +=
+    moved(result, entry.result) +
+    moved(output, entry.output) +
+    moved(options.isPartial, entry.isPartial) +
+    moved(context.isError, entry.isError);
   entry.isPartial = options.isPartial;
   entry.isError = context.isError;
   entry.output = output;
@@ -435,8 +529,16 @@ function updateResult(
 // Bounded memos
 // ---------------------------------------------------------------------------
 
-/** A derived line, kept until the output, theme, or width it came from changes. */
-type Memo<T> = { output: string; theme: AnyTheme; width: number; value: T };
+/**
+ * A derived line, kept until the row's epoch, the theme, or the width changes.
+ *
+ * The row's own record is the whole key (invariant 5): it holds every input a
+ * slot reads, and its epoch moves only when one of them really did. The theme
+ * stays in the key for the sake of not diverging from what the key used to be -
+ * the host hands back one stable theme object whose accessors read the live
+ * theme, so in practice it never invalidates a memo.
+ */
+type Memo<T> = { epoch: number; theme: AnyTheme; width: number; value: T };
 
 /** The memo for `entry` at this key, recomputed only when the key moved. */
 function memoize<T>(
@@ -448,26 +550,13 @@ function memoize<T>(
 ): Memo<T> {
   if (
     memo &&
-    memo.output === entry.output &&
+    memo.epoch === entry.epoch &&
     memo.theme === theme &&
     memo.width === width
   ) {
     return memo;
   }
-  return { output: entry.output, theme, width, value: compute() };
-}
-
-/** The summary line for a row, derived once per (output, theme, width). */
-function summaryLine(
-  entry: Entry,
-  theme: AnyTheme,
-  width: number,
-  summary: (output: string, theme: AnyTheme) => string,
-): string {
-  entry.summary = memoize(entry.summary, entry, theme, width, () =>
-    summary(entry.output, theme),
-  );
-  return entry.summary.value;
+  return { epoch: entry.epoch, theme, width, value: compute() };
 }
 
 /** The expanded block: the full text output, one `│ ` prefixed row per line. */
@@ -500,14 +589,16 @@ function expandedLines(entry: Entry, theme: AnyTheme, width: number): string[] {
  * geometry moved - never once per frame, which is what a long transcript would
  * otherwise pay for every settled row.
  */
-function ownBody(tool: ToolDefinition<any, any, any>): CardBody {
+function ownBody(
+  tool: ToolDefinition<any, any, any>,
+): (input: FrameBodyInput) => string[] | undefined {
   return (input) => {
-    const state = input.context.state as CardState | undefined;
-    const own: OwnCardState = state ? (state.own ??= {}) : {};
+    const state = input.state;
+    const own: OwnCardState = (state.own ??= {});
     const expanded = input.options.expanded;
     const isPartial = input.options.isPartial;
     const slot: OwnSlot = input.result === undefined ? "call" : "result";
-    const repaint = state?.repaint ?? 0;
+    const repaint = state.repaint ?? 0;
     const drawn = own.drawn;
     if (
       drawn !== undefined &&
@@ -537,7 +628,7 @@ function ownBody(tool: ToolDefinition<any, any, any>): CardBody {
 /** Run a tool's own renderer once and hand its rows over (see `ownBody`). */
 function drawOwnCard(
   tool: ToolDefinition<any, any, any>,
-  input: CardBodyInput,
+  input: FrameBodyInput,
   own: OwnCardState,
   slot: OwnSlot,
   expanded: boolean,
@@ -597,10 +688,10 @@ function drawOwnCard(
 // ---------------------------------------------------------------------------
 
 type ResolvedSpec = {
-  detail: (args: AnyArgs, theme: AnyTheme) => string;
-  row: (args: AnyArgs, theme: AnyTheme) => string;
-  summary: (output: string, theme: AnyTheme) => string;
-  body?: CardBody;
+  detail: (input: AnyCardInput) => string;
+  row: (input: AnyCardInput) => string;
+  summary: (input: AnyCardInput) => string;
+  body?: (input: FrameBodyInput) => string[] | undefined;
 };
 
 class Frame implements Component {
@@ -633,7 +724,7 @@ class Frame implements Component {
     if (group.entries.length === 1) {
       const entry = group.entries[0];
       return this.rows([
-        this.header(entry.detail, width),
+        this.header(this.detail(entry, width), width),
         ...this.resultArea(entry, width),
       ]);
     }
@@ -648,7 +739,7 @@ class Frame implements Component {
       const connector = index === group.entries.length - 1 ? "└─" : "├─";
       lines.push(
         fitLine(
-          `  ${this.theme.fg("dim", connector)} ${entry.row}`,
+          `  ${this.theme.fg("dim", connector)} ${this.row(entry, width)}`,
           width,
           "",
           0,
@@ -691,22 +782,74 @@ class Frame implements Component {
     return fitLine(header, width, "", 0);
   }
 
+  /**
+   * The card input for one row: everything a slot reads, and nothing else.
+   *
+   * A fresh object per derivation, so the `state` a slot writes is the row's own
+   * and the `redraw()` it gets is bound to this row (invariant 7).
+   */
+  private input(entry: Entry): AnyCardInput {
+    return {
+      args: entry.args,
+      result: entry.result,
+      output: entry.output,
+      options: {
+        expanded: entry.group.expanded,
+        isPartial: entry.isPartial,
+        isError: entry.isError,
+      },
+      theme: this.theme,
+      state: entry.state,
+      cwd: entry.cwd,
+      redraw: () => this.redraw(entry),
+    };
+  }
+
+  /**
+   * A slot asked for a repaint of this row.
+   *
+   * Its own state moved under the Frame's feet (the bash highlight landed, the
+   * diff box tokenized more lines), so the row's epoch moves with it - the memo
+   * key has to see the change - and the request goes to the group owner by the
+   * same rule a settling row uses: the owner is asked once and never propagates
+   * (invariant 3).
+   */
+  private redraw(entry: Entry): void {
+    entry.epoch += 1;
+    invalidateOwner(entry.group);
+  }
+
+  /** The header detail of one row, derived once per (epoch, theme, width). */
+  private detail(entry: Entry, width: number): string {
+    entry.detail = memoize(entry.detail, entry, this.theme, width, () =>
+      this.spec.detail(this.input(entry)),
+    );
+    return entry.detail.value;
+  }
+
+  /** One row of an aggregated group, derived once per (epoch, theme, width). */
+  private row(entry: Entry, width: number): string {
+    entry.row = memoize(entry.row, entry, this.theme, width, () =>
+      this.spec.row(this.input(entry)),
+    );
+    return entry.row.value;
+  }
+
+  /** The collapsed result line, derived once per (epoch, theme, width). */
+  private summary(entry: Entry, width: number): string {
+    entry.summary = memoize(entry.summary, entry, this.theme, width, () =>
+      this.spec.summary(this.input(entry)),
+    );
+    return entry.summary.value;
+  }
+
   /** The result column: a body that draws it, else what the Frame derives. */
   private resultArea(entry: Entry, width: number): string[] {
     if (this.spec.body) {
       const rows = this.spec.body({
-        args:
-          this.context.args && typeof this.context.args === "object"
-            ? (this.context.args as AnyArgs)
-            : {},
-        result: entry.result,
-        options: {
-          expanded: entry.group.expanded,
-          isPartial: entry.isPartial,
-        },
-        theme: this.theme,
-        context: this.context,
+        ...this.input(entry),
         width: Math.max(1, width - RESULT_LINE_INDENT),
+        context: this.context,
       });
       // A body is called on every render rather than memoized: it may draw
       // render-time state of its own (lazy highlighting, a streaming box) that no
@@ -734,13 +877,13 @@ class Frame implements Component {
     if (entry.group.expanded) {
       return expandedLines(entry, this.theme, width);
     }
-    const content = summaryLine(entry, this.theme, width, this.spec.summary);
+    const content = this.summary(entry, width);
     return [fitLine(resultLine(this.theme, content), width, "", 0)];
   }
 }
 
 /**
- * Place the rows a body handed over (see CardBody).
+ * Place the rows a body handed over (see CardBodyInput).
  *
  * A block glues its top row to the connector (`└─┌───┐`) and indents the rest to
  * the same column; a single row is result-line content. The test is the row
@@ -815,11 +958,10 @@ export function installCardHooks(pi: ExtensionAPI): void {
  * Returns a definition whose `renderCall`/`renderResult` draw the Frame; the
  * schema, prompt metadata, and `execute` are the tool's own, untouched.
  */
-export function toolCard<T extends ToolDefinition<any, any, any>>(
-  pi: ExtensionAPI,
-  tool: T,
-  spec: CardSpec = {},
-): T {
+export function toolCard<
+  T extends ToolDefinition<any, any, any>,
+  S extends object = object,
+>(pi: ExtensionAPI, tool: T, spec: CardSpec<S> = {}): T {
   installCardHooks(pi);
 
   // A tool that draws its own card hands the Frame a default body, so the Frame
@@ -854,16 +996,10 @@ export function toolCard<T extends ToolDefinition<any, any, any>>(
     // Self-rendering bypasses Pi's colored Box shell: the Frame draws the badge
     // itself.
     renderShell: "self",
-    renderCall(args: unknown, theme: AnyTheme, context: AnyContext) {
-      const toolArgs =
-        args && typeof args === "object" ? (args as AnyArgs) : {};
-      const entry = registerEntry(
-        tool,
-        resolved.detail(toolArgs, theme),
-        resolved.row(toolArgs, theme),
-        aggregate,
-        context,
-      );
+    renderCall(_args: unknown, theme: AnyTheme, context: AnyContext) {
+      // The row keeps the arguments the host passes in `context`; the Frame
+      // derives the header and the group rows from them when it renders.
+      const entry = registerEntry(tool, aggregate, context);
       const previous = context.lastComponent;
       const frame =
         previous instanceof Frame

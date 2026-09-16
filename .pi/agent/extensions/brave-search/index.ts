@@ -101,9 +101,6 @@ interface BraveSearchResponse {
 
 // --- Card spec (tool-card language from agent/extensions/card) ---
 
-/** First line of the tool's text output; the summary reads the count back out. */
-const RESULT_HEADER = /^Results for ".*?" \((\d+) results?(, cached)?\):$/;
-
 /** Header line of the tool's own output, e.g. `Results for "pi" (5 results, cached):`. */
 function resultHeader(
   query: string,
@@ -115,23 +112,27 @@ function resultHeader(
 
 /**
  * What the card hands the Frame: the query in the header, and the result line
- * derived from the text the tool returns. The badge, the `└─ ` line, the error
+ * derived from the result the tool returns. The badge, the `└─ ` line, the error
  * preview, the expansion, the spinner, and the group belong to the Frame.
  */
 export const braveSearchSpec: CardSpec = {
-  detail: (args, theme) => {
-    const query = typeof args.query === "string" ? args.query : "";
-    const count = typeof args.count === "number" ? args.count : undefined;
+  detail: (input) => {
+    const query = typeof input.args.query === "string" ? input.args.query : "";
+    const count =
+      typeof input.args.count === "number" ? input.args.count : undefined;
     let detail = `"${shorten(query, 48)}"`;
     if (count !== undefined) detail += ` (count ${count})`;
-    return theme.fg("toolOutput", detail);
+    return input.theme.fg("toolOutput", detail);
   },
-  summary: (output, theme) => {
-    const match = (output.split("\n")[0] ?? "").match(RESULT_HEADER);
-    if (!match) return theme.fg("muted", "done");
-    return theme.fg(
+  // The count comes from the details the tool returned (`formatResults`), not
+  // from the header line it wrote into the text output.
+  summary: (input) => {
+    const details = input.result?.details as BraveDetails | undefined;
+    if (!details) return input.theme.fg("muted", "done");
+    const count = details.results.length;
+    return input.theme.fg(
       "muted",
-      `${match[1]} result${match[1] === "1" ? "" : "s"}${match[2] ? " · cached" : ""}`,
+      `${count} result${count === 1 ? "" : "s"}${details.cached ? " · cached" : ""}`,
     );
   },
 };

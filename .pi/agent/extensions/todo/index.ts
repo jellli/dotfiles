@@ -494,11 +494,11 @@ export default function (pi: ExtensionAPI): void {
         },
       },
       {
-        detail: (args, theme) => {
-          const params = args as Params;
+        detail: (input) => {
+          const params = input.args as Params;
           const target =
             params.task ?? params.phase ?? params.items?.join(", ") ?? "";
-          return theme.fg(
+          return input.theme.fg(
             "toolOutput",
             `${params.op}${target ? ` ${target}` : ""}`,
           );

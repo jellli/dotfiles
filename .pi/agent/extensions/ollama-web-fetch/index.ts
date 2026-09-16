@@ -47,9 +47,6 @@ interface FetchDetails {
   links?: string[] | null;
 }
 
-/** First line of the tool's text output; the summary reads title and size back. */
-const FETCH_HEADER = /^Title: (.*) \((\d+) chars total\)$/;
-
 /** Header line of the tool's own output, e.g. `Title: Example Page (6000 chars total)`. */
 export function fetchHeader(title: string | undefined, total: number): string {
   return `Title: ${title} (${total} chars total)`;
@@ -57,22 +54,22 @@ export function fetchHeader(title: string | undefined, total: number): string {
 
 /**
  * What the card hands the Frame: the URL in the header, and the result line
- * derived from the text the tool returns. The badge, the `└─ ` line, the error
+ * derived from the result the tool returns. The badge, the `└─ ` line, the error
  * preview, the expansion, the spinner, and the group belong to the Frame.
  */
 export const webFetchSpec: CardSpec = {
-  detail: (args, theme) => {
-    const url = typeof args.url === "string" ? args.url : "";
-    return theme.fg("toolOutput", shorten(url));
+  detail: (input) => {
+    const url = typeof input.args.url === "string" ? input.args.url : "";
+    return input.theme.fg("toolOutput", shorten(url));
   },
-  summary: (output, theme) => {
-    const match = (output.split("\n")[0] ?? "").match(FETCH_HEADER);
-    if (!match) return theme.fg("muted", "done");
-    const title = match[1].trim();
-    return theme.fg(
-      "muted",
-      title ? `${title} · ${match[2]} chars` : `${match[2]} chars`,
-    );
+  // The title and the size come from the details the tool returned, not from the
+  // header line it wrote into the text output.
+  summary: (input) => {
+    const details = input.result?.details as FetchDetails | undefined;
+    if (!details) return input.theme.fg("muted", "done");
+    const chars = `${details.totalChars ?? 0} chars`;
+    const title = (details.title ?? "").trim();
+    return input.theme.fg("muted", title ? `${title} · ${chars}` : chars);
   },
 };
 

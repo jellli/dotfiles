@@ -315,11 +315,15 @@ const reloadRunner = new FakeRunner([reloadTool]);
 const badgeLines = (lines) =>
   lines.filter((line) => plain(line).includes("FIGMA_RELOAD")).length;
 
+// One probe is one host row: the host gives every tool call its own id, and a
+// row's state (the repaint counter the Frame keeps its card caches against)
+// belongs to that row. Probing the same id twice would be the same row.
+let probeRows = 0;
 const renderOwnCard = (definition) =>
   definition
     .renderCall({}, theme, {
       args: {},
-      toolCallId: "reload-call",
+      toolCallId: `reload-call-${(probeRows += 1)}`,
       isPartial: false,
       isError: false,
       expanded: false,

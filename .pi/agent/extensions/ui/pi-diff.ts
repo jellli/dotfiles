@@ -940,24 +940,33 @@ type MutationResult = {
  * with nothing to draw (still running, failed with no diff) yields nothing and
  * the Frame's own result area stands.
  */
-function mutationSpec(tokenize: DiffTokenizer): CardSpec {
+function mutationSpec(tokenize: DiffTokenizer): CardSpec<DiffState> {
   return {
-    detail: (args, theme) =>
-      theme.fg("accent", stringArg(args, "path", "<missing path>")),
-    body: ({ args, result, options, theme, context, width }) => {
-      if (!result || options.isPartial) return undefined;
-      if (context.isError) {
+    detail: (input) =>
+      input.theme.fg("accent", stringArg(input.args, "path", "<missing path>")),
+    body: (input) => {
+      const { options, theme } = input;
+      if (!input.result || options.isPartial) return undefined;
+
+      const state = input.state;
+      // The capture `execute` took is keyed by the tool call's id, which the row
+      // carries in its state (`CardState.toolCallId`): the card input has no id
+      // of its own.
+      const callId = state.toolCallId ?? "";
+      if (options.isError) {
         // No diff is drawn for a failed call, so the capture is dead weight from
         // here on.
-        captures.delete(context.toolCallId);
+        captures.delete(callId);
         return undefined;
       }
 
-      const state = (context.state as DiffState) ?? {};
-      state.invalidate = context.invalidate;
-      state.capture ??= captures.get(context.toolCallId);
+      // The box tokenizes the lines it draws in the background and then asks for a
+      // repaint; it goes through the Frame's `redraw()`, since the Frame is the
+      // only one that calls the host's invalidate (invariant 3).
+      state.invalidate = input.redraw;
+      state.capture ??= captures.get(callId);
       if (!state.capture && state.rows === undefined) {
-        const nativeDiff = resultDiff((result as MutationResult).details);
+        const nativeDiff = resultDiff((input.result as MutationResult).details);
         if (nativeDiff !== undefined) {
           state.rows = addWordRanges(parseDisplayDiff(nativeDiff));
           state.totalLines = state.rows.length;
@@ -970,15 +979,15 @@ function mutationSpec(tokenize: DiffTokenizer): CardSpec {
       // theme, so its identity never changes (see MutationDiffViewer.setTheme).
       const viewer = (state.viewer ??= createDiffViewer({
         state,
-        path: stringArg(args, "path", "<missing path>"),
+        path: stringArg(input.args, "path", "<missing path>"),
         theme,
         expanded: options.expanded,
         tokenize,
       }));
       viewer.setExpanded(options.expanded);
       viewer.setTheme(theme);
-      captures.delete(context.toolCallId);
-      return viewer.render(width);
+      captures.delete(callId);
+      return viewer.render(input.width);
     },
   };
 }

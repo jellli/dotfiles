@@ -107,9 +107,9 @@ const frame = (definition, row, width = 80, cardTheme) =>
 // ---------------------------------------------------------------------------
 
 const read = mod.toolCard(pi, tool("read"), {
-  detail: (args) => `${args.path} lines 1-80`,
-  row: (args) => `row:${args.path}`,
-  summary: (output) => `${output.split("\n").length} lines`,
+  detail: (input) => `${input.args.path} lines 1-80`,
+  row: (input) => `row:${input.args.path}`,
+  summary: (input) => `${input.output.split("\n").length} lines`,
 });
 
 const one = hostRow("read-1", { path: "a.ts" });
@@ -131,8 +131,8 @@ assert.deepEqual(
 // ---------------------------------------------------------------------------
 
 const grep = mod.toolCard(pi, tool("grep"), {
-  detail: (args) => `"${args.pattern}"`,
-  row: (args) => `row:${args.pattern}`,
+  detail: (input) => `"${input.args.pattern}"`,
+  row: (input) => `row:${input.args.pattern}`,
 });
 
 const first = hostRow("grep-1", { pattern: "alpha" });
@@ -331,7 +331,7 @@ const box = (width) => {
   ];
 };
 const bash = mod.toolCard(pi, tool("bash"), {
-  detail: (args) => args.command,
+  detail: (input) => input.args.command,
   body: ({ width, options }) => (options.isPartial ? undefined : box(width)),
 });
 
@@ -861,9 +861,9 @@ assert.equal(
 
 let derived = 0;
 const memo = mod.toolCard(pi, tool("memo"), {
-  summary: (output) => {
+  summary: (input) => {
     derived += 1;
-    return `${output.length} chars`;
+    return `${input.output.length} chars`;
   },
 });
 const memoRow = hostRow("memo-1", {});
@@ -887,7 +887,89 @@ assert.deepEqual(
 assert.equal(
   derived,
   1,
-  "the key is (output, theme, width) with no component identity in it",
+  "the key is (epoch, theme, width) with no component identity in it",
+);
+
+// ---------------------------------------------------------------------------
+// The card input: a slot reads the row
+// ---------------------------------------------------------------------------
+// Every slot takes the same card input: what the row holds (its result, the
+// tool's text output, its own state, the session's cwd) plus the one way to ask
+// for a repaint. Nothing parses the output to recover what the row already has,
+// and nothing reaches into the host's context.
+
+// (1) A summary reads the result itself.
+const counted = mod.toolCard(pi, tool("counted"), {
+  summary: (input) =>
+    `${input.result.details.results.length} results in ${input.cwd}`,
+});
+events.agent_start();
+const countedRow = hostRow("counted-1", {});
+countedRow.call(counted);
+countedRow.result(counted, {
+  content: [{ type: "text", text: 'Results for "x" (3 results):' }],
+  details: { results: ["a", "b", "c"] },
+});
+assert.deepEqual(
+  frame(counted, countedRow),
+  [" COUNTED", " └─ 3 results in /tmp"],
+  "a summary reads the result's details and the row's cwd, not the text output",
+);
+
+// (2) A detail reads a value the row's own state carries, and the repaint it
+// asks for is what shows it. No shiki here: the value is written straight into
+// the state, which is exactly what the bash card's async highlight does.
+let slotInput;
+const stateful = mod.toolCard(pi, tool("stateful"), {
+  detail: (input) => {
+    slotInput = input;
+    return input.state.highlight ?? input.args.command;
+  },
+});
+events.agent_start();
+const statefulRow = hostRow("stateful-1", { command: "echo hi" });
+assert.deepEqual(
+  frame(stateful, statefulRow),
+  [" STATEFUL  [echo hi]", " └─ ●"],
+  "a row with nothing in its state yet shows the raw call",
+);
+statefulRow.state.highlight = "cd /tmp && echo hi";
+assert.equal(
+  slotInput.redraw(),
+  undefined,
+  "a slot asks for a repaint through the card input's redraw()",
+);
+assert.equal(
+  statefulRow.invalidations,
+  1,
+  "and redraw() reaches the host through the owner rule",
+);
+assert.deepEqual(
+  frame(stateful, statefulRow),
+  [" STATEFUL  [cd /tmp && echo hi]", " └─ ●"],
+  "so the value the slot wrote into the row's state reaches the next frame",
+);
+
+// (3) A group's rows are derived when the card renders, each from its own call.
+const paired = mod.toolCard(pi, tool("paired"), {
+  row: (input) => `row:${input.args.pattern}`,
+});
+events.agent_start();
+const pairedFirst = hostRow("paired-1", { pattern: "alpha" });
+const pairedSecond = hostRow("paired-2", { pattern: "beta" });
+pairedFirst.call(paired);
+pairedSecond.call(paired);
+const pairedFrame = frame(paired, pairedFirst);
+assert.ok(pairedFrame[0].includes("×2"), "two calls draw one card");
+assert.deepEqual(
+  pairedFrame.slice(1),
+  ["  ├─ row:alpha", "  └─ row:beta"],
+  "each row is derived from its own call's arguments when the card renders",
+);
+assert.notEqual(
+  pairedFrame[1],
+  pairedFrame[2],
+  "so the two rows read differently instead of repeating the owner's call",
 );
 
 // ---------------------------------------------------------------------------
@@ -1200,12 +1282,14 @@ assert.deepEqual(
   "the shipped search card brackets the query and shows the Frame's spinner",
 );
 
-// The header the summary parses is the text the tool itself formats.
-const searchText = (results, fromCache) =>
-  brave.formatResults("pi coding agent", results, fromCache).content[0].text;
+// The tool's own result: its text output plus the details the summary reads.
 search.result(
   braveCard,
-  text(searchText([{ title: "a", url: "u", description: "d" }], false)),
+  brave.formatResults(
+    "pi coding agent",
+    [{ title: "a", url: "u", description: "d" }],
+    false,
+  ),
 );
 assert.equal(
   frame(braveCard, search).at(-1),
@@ -1218,14 +1302,13 @@ const cachedSearch = hostRow("brave-2", { query: "cached query", count: 5 });
 cachedSearch.call(braveCard);
 cachedSearch.result(
   braveCard,
-  text(
-    searchText(
-      [
-        { title: "a", url: "u", description: "d" },
-        { title: "b", url: "u2", description: "d2" },
-      ],
-      true,
-    ),
+  brave.formatResults(
+    "cached query",
+    [
+      { title: "a", url: "u", description: "d" },
+      { title: "b", url: "u2", description: "d2" },
+    ],
+    true,
   ),
 );
 assert.equal(
@@ -1246,13 +1329,16 @@ assert.deepEqual(
   [" OLLAMA_WEB_FETCH  [https://example.com/page]", " └─ ●"],
   "the shipped fetch card brackets the URL",
 );
-// The header the summary parses is the text the tool itself writes.
-page.result(
-  fetchCard,
-  text(
-    `${webFetch.fetchHeader("Example Page", 6000)}\n\nChars 1-3000 of 6000 (3000 remaining):\nhello\n\n# live query`,
-  ),
-);
+// The tool's own result: its text output plus the details the summary reads.
+page.result(fetchCard, {
+  content: [
+    {
+      type: "text",
+      text: `${webFetch.fetchHeader("Example Page", 6000)}\n\nChars 1-3000 of 6000 (3000 remaining):\nhello\n\n# live query`,
+    },
+  ],
+  details: { title: "Example Page", totalChars: 6000, links: null },
+});
 assert.equal(
   frame(fetchCard, page).at(-1),
   " └─ Example Page · 6000 chars",
