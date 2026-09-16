@@ -10,20 +10,16 @@
  * - Tests are vertical slices (TDD), one async function each, appended in
  *   dependency order. Each slice asserts observable tool behavior only.
  */
-import { createRequire } from "node:module";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createTestJiti } from "../../test/jiti-setup.mjs";
 
-const require = createRequire(import.meta.url);
-
-// PI_ROOT: pi installation (jiti + pi-coding-agent types come from here).
-const PI_ROOT =
-  "/Users/hoon/.local/share/fnm/node-versions/v22.19.0/installation/lib/node_modules/@earendil-works/pi-coding-agent";
-const { createJiti } = require(`${PI_ROOT}/node_modules/jiti`);
-const jiti = createJiti(import.meta.url, { interopDefault: true });
-
-const EXT_DIR = "/Users/hoon/dotfiles/.pi/agent/extensions/codegraph";
+// jiti + its aliases (pi-coding-agent, pi-tui, typebox) come from the shared
+// setup, which locates the pi installation at runtime instead of hardcoding it.
+const EXT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
+const jiti = createTestJiti(join(EXT_DIR, ".."));
 
 // ---------------------------------------------------------------------------
 // Fake ExtensionAPI + test context
