@@ -1,7 +1,7 @@
 # 第三方工具卡片
 
 **Category:** enhancement
-**Status:** ready-for-agent
+**Status:** done
 
 ## 目标
 

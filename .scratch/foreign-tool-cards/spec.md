@@ -1,6 +1,6 @@
 # 第三方工具卡片（foreign tool cards）
 
-**Status:** ready-for-agent
+**Status:** done
 
 术语（Tool card / Foreign tool card / Exception list）见 `.pi/CONTEXT.md`。
 

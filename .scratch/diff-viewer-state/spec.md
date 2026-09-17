@@ -1,6 +1,6 @@
 # diff-viewer-state — 让差异查看器自己持有状态
 
-**Status:** ready-for-agent
+**Status:** done
 
 2026-09-16 架构评审（candidate 04）的结论。评审报告在 `$TMPDIR/architecture-review-20260916-111605-zh.html`（临时目录，可能已被清掉；本文件不复制它的正文）。
 
@@ -81,4 +81,4 @@ function mutationSpec(tokenize: DiffTokenizer): CardSpec<{ viewer?: DiffViewer }
 
 | # | 标题 | 依赖 | 状态 |
 | --- | --- | --- | --- |
-| 01 | 查看器收源，不收状态袋 | — | ready-for-agent |
+| 01 | 查看器收源，不收状态袋 | — | done |

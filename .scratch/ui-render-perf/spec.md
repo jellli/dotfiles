@@ -1,8 +1,8 @@
 # ui 扩展渲染与启动性能
 
-**Status:** ready-for-agent
+**Status:** done
 
-2026-09-12 对 `agent/extensions/ui` 的一次性能与隐患审查的结论。四个修复拆成 ticket 01–04；已完成的宿主入口修复见 `docs/adr/0003-foreign-tool-cards-host-entry.md`。
+2026-09-12 对 `agent/extensions/ui` 的一次性能与隐患审查的结论。四个修复拆成 ticket 01–04；同日与 pi-tidy-tools / pi-tool-display 的实现对比后追加 ticket 05–08。已完成的宿主入口修复见 `docs/adr/0003-foreign-tool-cards-host-entry.md`。
 
 ## 实测基线
 
@@ -18,6 +18,11 @@
 | `stripBackground` | 3.05µs/行 | 每帧每行 |
 | `grepSummary` | 0.7ms/次 | 2000 行输出，每帧 |
 | `diffLines` | 9ms/5k 行、57ms/50k 行、203ms/200k 行 | 且每行物化一个对象 |
+| `BashResult.update`（无 memo） | 0.167ms/次 | 2000 行 / 122KB；15 次/秒 ≈ 2.5ms/s，**不值得开票** |
+| edit 前后双读（`pi-diff` execute） | 51ms + 约 19MB 常驻 | 9.6MB 文件；<1MB 文件约 2ms |
+| `stripBackground` | 4.3µs/行 冷、0.054µs/行 热 | 500 行 2.137ms / 0.027ms，差 79× |
+
+最后三行是 2026-09-12 的**微基准复刻**（复刻同一操作序列，非进程内实测），用于 ticket 05/08 的取舍；其余为进程内实测。
 
 ## 结果（2026-09-12）
 
@@ -49,10 +54,25 @@
 
 - [01 大文件 diff 只高亮可见窗口](./issues/01-highlight-visible-diff-window.md)
 - [02 卡片 summary 与展开体按结果缓存](./issues/02-cache-card-summaries.md)
-- [03 stripBackground 按行 memo 并修 reset 丢失](./issues/03-strip-background-memo-and-reset.md)
+- [03 stripBackground 按行 memo 并修 reset 丢失](./issues/03-strip-background-memo-and-reset.md)（done，随 `87f2152`）
 - [04 限制 diff 行物化与三处无界内存](./issues/04-bound-diff-rows-and-memory.md)
+- [05 stripBackground 缓存淘汰在阈值处抖动](./issues/05-strip-background-cache-eviction.md)
+- [06 reload 卫生：foreign 包装叠加、补丁陈旧、无卸载通道](./issues/06-reload-hygiene.md)
+- [07 换主题后已有 diff 卡配色陈旧](./issues/07-diff-card-theme-refresh.md)
+- [08 edit 的 capture 读取加阈值守卫](./issues/08-edit-capture-read-guard.md)
 
 ## 不做的事
 
 - 不给 `.pi/CONTEXT.md` 加词：`Re-render`、`Aggregation`、`Tool card` 已够用。
 - 不写独立的 perf 报告：数字随 ticket 走。
+- 已评估但**不做**（2026-09-12 复核，记在这里以免下次重复评估）：
+  - `BashResult` / `BashHeader` 补 memo：实测 0.167ms/次（2000 行 / 122KB），15 次/秒 ≈ 2.5ms/s，与下面一条同量级。
+  - 流式 `textOutput()` 的 join 缓存：ticket 02 已否决——结果对象每帧都是新的，`content` 数组又可能被就地改，没有既安全又不陈旧的键。
+  - aggregation entries 裁剪：ticket 04 已撤销——会让已关闭的组被重建成单行卡，且删 map 槽位并不释放输出文本。
+  - spinner 再降频 / 加动画：02 已 80ms → 140ms，卡片侧成本已被 memo 覆盖，纯审美。
+  - pi-tool-display 的 hashline 锚点 gutter：宿主 `read`/`edit` 不产出该格式（`dist` 内 `hash` 命中 0，`anchor` 仅出现在 tree-selector），我们的解析器也没有这条分支。
+  - pi-tool-display 的 pi-fff 所有权/生命周期层（1553 行）：只为藏掉 `ffgrep`/`fffind` 两个名字，而 foreign 卡已经给它们套了 badge。
+  - pi-tool-display 的配置面 / 预设 / 模态（约 2600 行）：我们已有 `~/.pi/agent/tool-cards.json` 例外表 + 常开策略。
+  - pi-tidy-tools 的 `reasoning` 必填参数：改模型行为，每次调用多一个参数。
+  - **later：流式 pending diff 预览**（pi-tool-display 的招牌功能）。执行前就画 `pending edit/overwrite/create`，但需要确定性重放 `edits[]`、按 previewKey 记忆化、工作区路径校验 + 1MB 上限，成本 M–L；先用 05/07/08 的收益，之后再回看。
+  - **later：上轮改动回顾命令（`/diff`）**。tidy 与 pi-tool-display 都有；本轮问卷里未纳入，属"想做但不紧急"。
