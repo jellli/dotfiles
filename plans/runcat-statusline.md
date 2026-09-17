@@ -1,5 +1,7 @@
 # RunCat 小猫集成到状态栏
 
+> [!NOTE] 代码位置已迁移（2026-09-17，见 [`.scratch/statusline-footer/spec.md`](.scratch/statusline-footer/spec.md)）：帧曲线与摆放决策现在落在 `agent/extensions/statusline/frame.ts`（`frameInterval` / `advanceFrame`）与 `agent/extensions/statusline/view.ts`（`footerRows`）；单文件 `agent/extensions/statusline.ts` 已删除，计时从 50ms `setInterval` 轮询改成「一帧一个待定 `setTimeout`」。字形 `U+E900..U+E904` 仍是未决项（spec 的 D9）——本机终端默认不把它们画成猫。
+
 ## Context
 
 用户看到 [pi-speeed](https://github.com/somus/pi-speeed) 的 RunCat 小猫（跑动猫咪动画，速度跟随 token 输出速度），想把这只小猫集成进自己的 pi footer 状态栏。

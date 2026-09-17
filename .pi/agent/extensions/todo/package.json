@@ -1,0 +1,12 @@
+{
+  "name": "todo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Session todo tool, /todo command, persistence and HUD",
+  "pi": {
+    "extensions": [
+      "./index.js"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "TUI tool-card presentation layer (compact cards, diff viewer, foreign cards)",
+  "pi": {
+    "extensions": [
+      "./index.js"
+    ]
+  }
+}

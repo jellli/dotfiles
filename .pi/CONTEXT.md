@@ -1,6 +1,6 @@
 # Pi Tool Cards
 
-Presentation vocabulary for the tool-transcript cards drawn by the tool card module (`agent/extensions/card/`) and the todo HUD.
+Presentation vocabulary for the tool-transcript cards drawn by the tool card module (`agent/extensions/card/`), the todo HUD, and the **Statusline footer**.
 
 ## Language
 
@@ -53,3 +53,17 @@ _Avoid_: grouping, merging
 
 **HUD**:
 The persistent todo overview widget above the editor; only the word "Todos" in its title carries a badge.
+
+## Statusline footer
+
+**Footer view**:
+One session snapshot in, two lines out: `footerRows(view, width, theme)` in `agent/extensions/statusline/view.ts` takes git root, branch, context usage, token totals, **Speed tracker** state, plannotator phase, and the animation frame (with the glyph set) and returns the footer rows. Everything variable — the frame and the glyphs included — is a field of the view, so the module keeps no session state and reads colours per call.
+_Avoid_: footer widget, statusline component
+
+**Speed tracker**:
+The message-event-driven rate state machine in `agent/extensions/statusline/speed.ts` (`begin` / `update` / `end` / `snapshot`) plus `usageTotals`. It is fed by message events only: the animation reads the tracker, the tracker never reads the animation.
+_Avoid_: token meter, throughput monitor
+
+**Animation clock**:
+The pure frame advance in `agent/extensions/statusline/frame.ts`: `frameInterval(speed)` (167ms idle, else `clamp(round(6000 / speed), 50, 250)`) and `advanceFrame(state, now, speed, frames)`. The caller owns the timer and asks for a re-render only when `advanceFrame` reports `changed` — one pending frame at a time, no polling.
+_Avoid_: Frame clock (that name is taken by the card **Frame**), ticker, animation loop

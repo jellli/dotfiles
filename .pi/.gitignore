@@ -15,3 +15,10 @@ tsconfig.json
 
 # FFF search data (LMDB frecency/history, machine-local)
 /agent/fff/
+
+# --- built extension bundles (extensions/tsdown.config.mts) ---
+# Rebuild with: cd .pi/agent/extensions && npm run build
+# If a bundle is missing, pi falls back to loading index.ts directly.
+/agent/extensions/*/index.js
+/agent/extensions/card/dist/
+

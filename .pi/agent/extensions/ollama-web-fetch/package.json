@@ -3,6 +3,11 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "pi": {
+    "extensions": [
+      "./index.js"
+    ]
+  },
   "description": "Ollama Cloud ollama_web_fetch tool for pi (local, pi-ui tool cards)",
   "scripts": {
     "test": "vitest run"

@@ -3,5 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "pi": {
+    "extensions": [
+      "./index.js"
+    ]
+  },
   "description": "Ollama Cloud model provider for pi (local fork of pi-ollama-cloud, provider + usage command only)"
 }

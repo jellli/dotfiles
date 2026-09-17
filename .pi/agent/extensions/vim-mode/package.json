@@ -1,0 +1,12 @@
+{
+  "name": "vim-mode",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Vim keybinding mode for the prompt editor",
+  "pi": {
+    "extensions": [
+      "./index.js"
+    ]
+  }
+}

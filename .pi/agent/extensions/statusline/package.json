@@ -1,0 +1,12 @@
+{
+  "name": "statusline",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "nvim-style statusline footer (git, cat/rate animation, context bar, plannotator chip)",
+  "pi": {
+    "extensions": [
+      "./index.js"
+    ]
+  }
+}

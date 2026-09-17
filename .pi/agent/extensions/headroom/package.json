@@ -1,0 +1,12 @@
+{
+  "name": "headroom",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Headroom compression proxy lifecycle hooks",
+  "pi": {
+    "extensions": [
+      "./index.js"
+    ]
+  }
+}
