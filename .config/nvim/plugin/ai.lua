@@ -13,6 +13,7 @@ later(function()
 			c = false,
 			markdown = false,
 			zig = false,
+			rust = false,
 		},
 	})
 

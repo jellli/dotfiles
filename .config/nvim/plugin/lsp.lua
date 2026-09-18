@@ -194,6 +194,7 @@ autocmd({ "BufReadPost", "BufNewFile" }, {
 			"emmet_ls",
 			"zls",
 			"clangd",
+			"rust_analyzer",
 		})
 	end,
 })
