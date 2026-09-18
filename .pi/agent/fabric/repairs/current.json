@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "catalogDigest": "b5aa2adf16f0b184759cf2356465a79fd3ad1239c5a4cc7385172c7e6115b642",
+  "repairs": [
+    {
+      "kind": "actionAlias",
+      "provider": "mcp",
+      "from": "servers",
+      "to": "$servers"
+    }
+  ],
+  "createdAt": "2026-09-12T07:03:30.213Z",
+  "updatedAt": "2026-09-12T07:03:34.444Z"
+}

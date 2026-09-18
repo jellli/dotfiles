@@ -639,17 +639,26 @@ export default function (pi: ExtensionAPI): void {
           `- ${phase}\n${tasks.map((task) => `  - ${task}`).join("\n")}`,
       )
       .join("\n");
+    const isLastEscape = state.reminderCount === REMINDER_LIMIT;
     const reminder = [
       "<system-reminder>",
       `You stopped with ${open.length} incomplete todo item(s):`,
       list,
       "",
       "Continue working on these tasks or mark them complete if finished.",
-      `(Reminder ${state.reminderCount}/${REMINDER_LIMIT})`,
+      "",
+      `Escape window (${state.reminderCount}/${REMINDER_LIMIT}): if you cannot make progress, do not repeat your previous output.`,
+      "Close the loop explicitly instead:",
+      "- Block a task waiting on external input: todo block <task> reason: <why>",
+      "- Drop a task that is no longer needed: todo drop <task>",
+      "- If you need the user to decide, end your reply with a question.",
+      isLastEscape
+        ? "(Last escape window — reminders stop after this.)"
+        : `(Reminder ${state.reminderCount}/${REMINDER_LIMIT})`,
       "</system-reminder>",
     ].join("\n");
     ctx.ui.notify(
-      `Todo reminder ${state.reminderCount}/${REMINDER_LIMIT}: ${open.length} incomplete task${open.length === 1 ? "" : "s"}.`,
+      `Todo reminder ${state.reminderCount}/${REMINDER_LIMIT} (escape window): ${open.length} incomplete task${open.length === 1 ? "" : "s"}.`,
       "warning",
     );
     // Store the reminder in history but keep this control message out of the transcript.

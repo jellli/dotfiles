@@ -2,28 +2,27 @@
   "quietStartup": true,
   "lastChangelogVersion": "0.85.1",
   "theme": "gruvbox-material",
-  "defaultProvider": "jiji",
-  "defaultModel": "gpt-5.6-luna",
+  "defaultProvider": "ollama-cloud",
+  "defaultModel": "deepseek-v4.1-flash",
   "defaultThinkingLevel": "high",
   "externalEditor": "tmux display-popup -w 90% -h 85% -E nvim",
   "packages": [
     "npm:@plannotator/pi-extension",
     "npm:@juicesharp/rpiv-ask-user-question",
-    "-npm:pi-mcp-adapter",
     "npm:pi-blackhole",
     "npm:pi-rtk-optimizer",
-    "npm:@ff-labs/pi-fff"
+    "npm:pi-fabric",
+    "npm:@ff-labs/pi-fff",
+    "git:github.com/DietrichGebert/ponytail",
+    "git:github.com/NVlabs/SoL-Pi"
   ],
   "skills": [
     "-skills/caveman-commit/SKILL.md",
     "-skills/caveman-review/SKILL.md",
     "-skills/vercel-react-best-practices/SKILL.md",
-    "-skills/question-distiller.disabled/SKILL.md",
-    "-skills/plan-mode/SKILL.md"
+    "-skills/question-distiller.disabled/SKILL.md"
   ],
-  "extensions": [
-    "-extensions/commandcode.ts"
-  ],
+  "extensions": [],
   "hideThinkingBlock": true,
   "compaction": {
     "enabled": true
@@ -31,9 +30,11 @@
   "doubleEscapeAction": "none",
   "tuiMode": "regular",
   "enabledModels": [
+    "ollama-cloud/deepseek-v4-flash:0731",
+    "ollama-cloud/glm-5.3-flash",
     "deepseek/deepseek-v4-flash",
     "jiji/gpt-5.6-luna",
-    "ollama-cloud/deepseek-v4-flash:0731"
+    "ollama-cloud/deepseek-v4.1-flash"
   ],
   "outputPad": 1,
   "terminal": {

@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "entries": {
+    "topology/peer-seq": {
+      "key": "topology/peer-seq",
+      "value": {
+        "format": 1,
+        "next": 1
+      },
+      "version": 1,
+      "updatedAt": 1789458606272,
+      "updatedBy": {
+        "id": "session:01a0a40a-4f39-71de-b40e-5daa8f59c820",
+        "name": "main",
+        "kind": "main",
+        "sessionId": "01a0a40a-4f39-71de-b40e-5daa8f59c820"
+      }
+    }
+  },
+  "versions": {
+    "topology/peer-seq": 1,
+    "topology/hosts/7c7182c2d0130bb1aca70f90d3a713a1f9adaa2056b0a688855597ff8c5999fa": 12687,
+    "sessions/01a0a40a-4f39-71de-b40e-5daa8f59c820": 12686,
+    "topology/participants/7c7182c2d0130bb1aca70f90d3a713a1f9adaa2056b0a688855597ff8c5999fa": 12687
+  },
+  "tombstoneOrder": [
+    "sessions/01a0a40a-4f39-71de-b40e-5daa8f59c820",
+    "topology/participants/7c7182c2d0130bb1aca70f90d3a713a1f9adaa2056b0a688855597ff8c5999fa",
+    "topology/hosts/7c7182c2d0130bb1aca70f90d3a713a1f9adaa2056b0a688855597ff8c5999fa"
+  ]
+}

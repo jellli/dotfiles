@@ -3,6 +3,7 @@
 node_modules/
 /agent/auth.json
 /agent/brave-search/
+/agent/thinklevel/
 /agent/cache/
 /agent/trust.json
 tsconfig.json

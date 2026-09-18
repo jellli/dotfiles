@@ -77,6 +77,10 @@
       "rev": "b1c5a726921b7a8c9321e9a7a208aa0571de5810",
       "src": "https://github.com/nvim-mini/mini.pairs"
     },
+    "mini.statuscolumn": {
+      "rev": "a9cad1a7f954f81742541ad95e804b2217afd721",
+      "src": "https://github.com/nvim-mini/mini.statuscolumn"
+    },
     "neocodeium": {
       "rev": "d6dd1fe6938e89460e27f5215516f5e9468d8a10",
       "src": "https://github.com/monkoose/neocodeium"
@@ -101,6 +105,10 @@
     "nvim-web-devicons": {
       "rev": "2ae6958df7ced50baac5035cec0c15799eedfbf7",
       "src": "https://github.com/nvim-tree/nvim-web-devicons"
+    },
+    "oil.nvim": {
+      "rev": "b73018b75affd13fa38e2fc94ef753b465f770d7",
+      "src": "https://github.com/stevearc/oil.nvim"
     },
     "orgmode": {
       "rev": "005368b30cea12ececfbe27240b4269939aac6e6",

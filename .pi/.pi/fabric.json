@@ -1,0 +1,25 @@
+{
+  "configVersion": 4,
+  "executor": {
+    "kernel": "python",
+    "pythonRuntime": "monty",
+    "resultFormat": "auto"
+  },
+  "agents": {
+    "model": "ollama-cloud/deepseek-v4.1-flash",
+    "enabled": false
+  },
+  "ui": {
+    "enabled": true,
+    "toolDisplay": "compact",
+    "widget": "auto"
+  },
+  "compaction": {
+    "engine": "pi"
+  },
+  "codePreview": {
+    "diffIntensity": "subtle",
+    "toolCallBackground": "border"
+  },
+  "fullCodeMode": true
+}

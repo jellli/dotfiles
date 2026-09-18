@@ -77,6 +77,7 @@ const extensions = [
   "codegraph",
   "ollama-cloud",
   "ollama-web-fetch",
+  "thinklevel",
 ];
 
 /** The shared card module: one output per source file, no manifest. */

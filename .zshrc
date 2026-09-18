@@ -64,3 +64,7 @@ esac
 # pnpm end
 
 source $HOME/.jili_env
+
+# Fix tmux/terminal UTF-8 (Termius SSH 不传 locale 时默认空导致乱码)
+export LANG="en_US.UTF-8"
+export LC_ALL="en_US.UTF-8"

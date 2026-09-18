@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "layers": [
+    {
+      "path": "/Users/hoon/.mcporter/mcporter.json",
+      "mtimeMs": 1789196437711.517,
+      "size": 194
+    }
+  ],
+  "updatedAt": "2026-09-15T07:50:10.885Z",
+  "servers": {
+    "figma": {
+      "definitionHash": "588145f35c95c1a91976955af5d601e8c55f0f892984a4574f3ec9060469507b",
+      "transport": "stdio",
+      "description": null,
+      "fetchedAt": "2026-09-15T07:50:10.734Z",
+      "stale": false,
+      "tools": [
+        {
+          "name": "get_figma_data",
+          "description": "Get comprehensive Figma file data including layout, content, visuals, and component information",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "fileKey": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9]+$",
+                "description": "The key of the Figma file to fetch, often found in a provided URL like figma.com/(file|design)/<fileKey>/..."
+              },
+              "nodeId": {
+                "type": "string",
+                "pattern": "^I?\\d+[:|-]\\d+(?:;\\d+[:|-]\\d+)*$",
+                "description": "The ID of the node to fetch, often found as URL parameter node-id=<nodeId>, always use if provided. Use format '1234:5678' for a standard node, or 'I5666:180910;1:10515;1:10336' for a deeply nested instance node (the semicolon-joined path represents the instance override chain — it's still a single node ID, not multiple nodes)."
+              },
+              "depth": {
+                "type": "number",
+                "description": "OPTIONAL. Do NOT use unless explicitly requested by the user. Controls how many levels deep to traverse the node tree."
+              }
+            },
+            "required": [
+              "fileKey"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        {
+          "name": "download_figma_images",
+          "description": "Download SVG and PNG images used in a Figma file based on the IDs of image or icon nodes. Images will be saved relative to the server's image directory: /Users/hoon/.mcporter",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "fileKey": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9]+$",
+                "description": "The key of the Figma file containing the images"
+              },
+              "nodes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "nodeId": {
+                      "type": "string",
+                      "pattern": "^I?\\d+[:|-]\\d+(?:;\\d+[:|-]\\d+)*$",
+                      "description": "The ID of the Figma image node to fetch, formatted as 1234:5678"
+                    },
+                    "imageRef": {
+                      "type": "string",
+                      "description": "If a node has an imageRef fill, you must include this variable. Leave blank when downloading Vector SVG images or animated GIFs (use gifRef instead), or when an IMAGE fill is present without an imageRef — in that case the node is rendered as PNG via nodeId."
+                    },
+                    "gifRef": {
+                      "type": "string",
+                      "description": "If a node has a gifRef fill (animated GIF), you must include this variable to download the animated GIF. When gifRef is present in the Figma data, use it instead of imageRef to get the animated file rather than a static snapshot."
+                    },
+                    "fileName": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9_.-]+\\.(png|svg|gif)$",
+                      "description": "The local name for saving the fetched file, including extension. png, svg, or gif."
+                    },
+                    "needsCropping": {
+                      "type": "boolean",
+                      "description": "Whether this image needs cropping based on its transform matrix"
+                    },
+                    "cropTransform": {
+                      "type": "array",
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "number"
+                        }
+                      },
+                      "description": "Figma transform matrix for image cropping"
+                    },
+                    "requiresImageDimensions": {
+                      "type": "boolean",
+                      "description": "Whether this image requires dimension information for CSS variables"
+                    },
+                    "filenameSuffix": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9_-]+$",
+                      "description": "Suffix to add to filename for unique cropped images, provided in the Figma data (e.g., 'abc123')"
+                    }
+                  },
+                  "required": [
+                    "nodeId",
+                    "fileName"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "The nodes to fetch as images"
+              },
+              "pngScale": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "default": 2,
+                "description": "Export scale for PNG images. Optional, defaults to 2 if not specified. Affects PNG images only."
+              },
+              "localPath": {
+                "type": "string",
+                "description": "The directory to save images in. Provide a path relative to the server's image directory (e.g., 'public/images' or 'assets/icons'). Either separator works. Absolute paths are accepted only if they point inside the image directory. The directory is created if missing."
+              }
+            },
+            "required": [
+              "fileKey",
+              "nodes",
+              "localPath"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        }
+      ]
+    }
+  }
+}

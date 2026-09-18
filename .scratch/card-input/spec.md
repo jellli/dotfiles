@@ -1,6 +1,6 @@
 # card-input — 把行交给每一个 card slot
 
-**Status:** ready-for-agent
+**Status:** done
 
 2026-09-16 架构评审（improve-codebase-architecture，candidate 01）的结论，经一轮 grilling（Q1–Q14 全部定稿）。评审报告写在临时目录，会消失，所以决定与事实全部记在本文件。
 
@@ -127,8 +127,13 @@ export function toolCard<S extends object = object>(
 
 | # | 标题 | 依赖 | 状态 |
 | --- | --- | --- | --- |
-| 01 | CardInput 接口与 Frame 的派生路径 | — | ready-for-agent |
-| 02 | 九份适配器迁移 | 01 | ready-for-agent |
-| 03 | 三条断言与 CONTEXT.md 词条 | 01 | ready-for-agent |
+| 01 | CardInput 接口与 Frame 的派生路径 | — | done |
+| 02 | 九份适配器迁移 | 01 | done |
+| 03 | 三条断言与 CONTEXT.md 词条 | 01 | done |
 
 01 与 02 属同一提交（Q2），03 的断言描述的是接口本身的行为，所以它只依赖 01。
+
+## Comments
+
+- 2026-09-16 关票。`ed4b8de` 一次落地 01/02/03（三张票与 spec 本身也在该提交里）。基线复核：`npm test` 全绿（`tool-card: ok`）；根 `./tsgo` 与 `tsgo -p codegraph/tsconfig.json` 均 exit 0（tsgo 需 `v24.4.1` 的 bin 在 PATH 上，当前 node `v24.15.0` 的 bin 里没有）。落地后另有 5 个相邻修复提交，见 01 的 Comments。
+- 2026-09-16 后续计划：codegraph 的卡片语言是评审 candidate 02，已另立 `.scratch/codegraph-card/`。

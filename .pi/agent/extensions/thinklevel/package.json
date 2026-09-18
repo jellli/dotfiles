@@ -1,0 +1,12 @@
+{
+  "name": "thinklevel",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Automatic thinking-level judging for each prompt (TypeSafe)",
+  "pi": {
+    "extensions": [
+      "./index.js"
+    ]
+  }
+}
