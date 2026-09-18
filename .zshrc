@@ -55,6 +55,11 @@ export PATH=$PATH:$(go env GOPATH)/bin
 # Hermes Agent — ensure ~/.local/bin is on PATH
 export PATH="$HOME/.local/bin:$PATH"
 
+# rtk: 固定 history.db 位置，让 pi-rtk-optimizer 不再给每条改写过的 bash 拼 export 前缀。
+# macOS 默认在 ~/Library/Application Support/rtk，Linux 默认在 ~/.local/share/rtk；
+# 统一到这里，rtk 会自己建父目录（config.toml/filters.toml/tee 不受影响）。
+export RTK_DB_PATH="$HOME/.local/share/rtk/history.db"
+
 # pnpm
 export PNPM_HOME="/Users/hoon/Library/pnpm"
 case ":$PATH:" in
